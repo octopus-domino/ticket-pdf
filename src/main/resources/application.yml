@@ -1,0 +1,51 @@
+server:
+  port: 8080
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 32MB
+      max-request-size: 32MB
+
+  datasource:
+    url: jdbc:h2:file:./data/ticket-db;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+    show-sql: false
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: 152019427747-fmlptuk99sgkl47a6l72hamqv73as6v5.apps.googleusercontent.com
+            client-secret: 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
+            scope: [ openid, profile, email ]
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com
+
+jwt:
+  secret: ${JWT_SECRET:dev-only-secret-change-me-please-replace-me-in-prod-000000}
+  access-token-ttl-ms: 900000
+  refresh-token-ttl-ms: 604800000
+  issuer: ticket-editor
+
+logging:
+  level:
+    ru.ticket: DEBUG
+    org.apache.pdfbox: WARN
+    org.apache.batik: WARN
