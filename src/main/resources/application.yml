@@ -31,8 +31,8 @@ spring:
       client:
         registration:
           google:
-            client-id: 152019427747-fmlptuk99sgkl47a6l72hamqv73as6v5.apps.googleusercontent.com
-            client-secret: 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
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: [ openid, profile, email ]
         provider:
           google:
@@ -49,3 +49,5 @@ logging:
     ru.ticket: DEBUG
     org.apache.pdfbox: WARN
     org.apache.batik: WARN
+
+
