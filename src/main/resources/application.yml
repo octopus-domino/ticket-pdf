@@ -40,10 +40,13 @@ spring:
           google:
             issuer-uri: https://accounts.google.com
 
-# URL фронтенда — используется в OAuth2SuccessHandler для редиректа
-# после успешного входа через Google
 app:
+  # Куда Spring редиректит после успешного OAuth-входа
   frontend-url: https://213.171.29.210.sslip.io
+  # secure-флаг для cookie refresh_token. true на HTTPS-проде,
+  # для локальной разработки по http://localhost — переопределите через
+  # SPRING_APPLICATION_JSON или APP_COOKIE_SECURE=false
+  cookie-secure: true
 
 jwt:
   secret: ${JWT_SECRET:dev-only-secret-change-me-please-replace-me-in-prod-000000}

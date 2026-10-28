@@ -24,13 +24,16 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     private final JwtService jwtService;
     private final UserRepository users;
     private final String frontendUrl;
+    private final boolean cookieSecure;
 
     public OAuth2SuccessHandler(JwtService jwtService,
                                 UserRepository users,
-                                @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl) {
+                                @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl,
+                                @Value("${app.cookie-secure:true}") boolean cookieSecure) {
         this.jwtService = jwtService;
         this.users = users;
         this.frontendUrl = frontendUrl;
+        this.cookieSecure = cookieSecure;
     }
 
     @Override
@@ -58,7 +61,6 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             name = emailStr.split("@")[0];
         }
 
-        // Создаём final-переменные, чтобы использовать их в лямбде
         final String finalEmail = emailStr.toLowerCase();
         final String finalName = name;
 
@@ -72,14 +74,15 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", refreshToken)
                 .httpOnly(true)
-                .secure(false) // На проде: true
+                .secure(cookieSecure)   // true на проде (HTTPS), false — только для локальной разработки
                 .sameSite("Lax")
                 .path("/api/auth")
                 .maxAge(Duration.ofDays(7))
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
-        String redirectUrl = frontendUrl + "/oauth2/redirect?token=" + accessToken;
+        // /auth/callback — свободный путь, не конфликтует с /oauth2/* (OAuth protocol namespace)
+        String redirectUrl = frontendUrl + "/auth/callback?token=" + accessToken;
         response.sendRedirect(redirectUrl);
     }
 }
