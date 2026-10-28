@@ -1,5 +1,6 @@
 server:
   port: 8080
+  forward-headers-strategy: native
 
 spring:
   servlet:
@@ -26,6 +27,7 @@ spring:
     console:
       enabled: true
       path: /h2-console
+
   security:
     oauth2:
       client:
@@ -38,6 +40,11 @@ spring:
           google:
             issuer-uri: https://accounts.google.com
 
+# URL фронтенда — используется в OAuth2SuccessHandler для редиректа
+# после успешного входа через Google
+app:
+  frontend-url: https://213.171.29.210.sslip.io
+
 jwt:
   secret: ${JWT_SECRET:dev-only-secret-change-me-please-replace-me-in-prod-000000}
   access-token-ttl-ms: 900000
@@ -49,5 +56,3 @@ logging:
     ru.ticket: DEBUG
     org.apache.pdfbox: WARN
     org.apache.batik: WARN
-
-
