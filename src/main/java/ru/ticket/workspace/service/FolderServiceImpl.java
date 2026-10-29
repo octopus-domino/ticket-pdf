@@ -82,8 +82,6 @@ public class FolderServiceImpl implements FolderService {
             folders.findByIdAndUserId(newParentId, userId)
                     .orElseThrow(() -> ApiException.notFound("Parent folder"));
 
-            // Защита от циклов: parent не должен быть потомком folder.
-            // Идём от newParentId вверх по parent-цепочке до корня.
             String cursor = newParentId;
             while (cursor != null) {
                 if (cursor.equals(folderId)) {
@@ -106,7 +104,6 @@ public class FolderServiceImpl implements FolderService {
         FolderEntity root = folders.findByIdAndUserId(folderId, userId)
                 .orElseThrow(() -> ApiException.notFound("Folder"));
 
-        // Один проход: строим дерево и группируем документы.
         List<FolderEntity> allFolders = folders.findAllByUserIdOrderByNameAsc(userId);
         Map<String, List<String>> childrenByParent = new HashMap<>();
         for (FolderEntity f : allFolders) {
@@ -121,7 +118,6 @@ public class FolderServiceImpl implements FolderService {
             docsByFolder.computeIfAbsent(parent, k -> new ArrayList<>()).add(d);
         }
 
-        // BFS по поддереву: собираем все folderId.
         List<String> folderIdsToDelete = new ArrayList<>();
         Deque<String> queue = new ArrayDeque<>();
         queue.add(root.getId());
@@ -129,12 +125,10 @@ public class FolderServiceImpl implements FolderService {
         while (!queue.isEmpty()) {
             String current = queue.poll();
             folderIdsToDelete.add(current);
-
             List<String> children = childrenByParent.get(current);
             if (children != null) queue.addAll(children);
         }
 
-        // Удаляем документы и папки. Документы — только из поддерева.
         List<DocumentEntity> docsToDelete = new ArrayList<>();
         for (String fid : folderIdsToDelete) {
             List<DocumentEntity> inFolder = docsByFolder.get(fid);
@@ -143,8 +137,10 @@ public class FolderServiceImpl implements FolderService {
 
         if (!docsToDelete.isEmpty()) {
             documents.deleteAll(docsToDelete);
+            documents.flush();
         }
-        folders.deleteAllById(folderIdsToDelete);
+
+        folders.deleteAllByIdInBatch(folderIdsToDelete);
     }
 
     private List<TreeNodeDto> buildChildren(

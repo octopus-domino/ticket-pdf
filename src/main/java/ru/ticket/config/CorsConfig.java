@@ -16,10 +16,18 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowedOriginPatterns(List.of(
+                // Локальная разработка
                 "http://localhost:5173",
                 "http://localhost:5174",
                 "http://localhost:3000",
                 "http://127.0.0.1:5173",
+
+                // Продакшн-домены
+                "https://www.codoc.site",
+                "https://codoc.site",           // на случай захода без www
+
+                // Legacy — оставлено на переходный период.
+                // Удалить, когда все клиенты перейдут на codoc.site.
                 "https://213.171.29.210.sslip.io"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

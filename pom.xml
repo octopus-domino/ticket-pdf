@@ -20,6 +20,7 @@
         <pdfbox.version>3.0.3</pdfbox.version>
         <pdfbox-g2d.version>3.0.0</pdfbox-g2d.version>
         <jjwt.version>0.12.5</jjwt.version>
+        <zxing.version>3.5.2</zxing.version>
     </properties>
 
     <dependencies>
@@ -113,6 +114,18 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
+
+        <!-- ZXing для QR-кодов -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>${zxing.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>${zxing.version}</version>
         </dependency>
     </dependencies>
 

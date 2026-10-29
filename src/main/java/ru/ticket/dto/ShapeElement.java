@@ -29,4 +29,10 @@ public class ShapeElement extends Element {
     public Double arcEndAngle;
     public Double arcInnerRadius;
     public Double arcOuterRadius;
+
+    // Star: доля внутреннего радиуса от внешнего, 0..1.
+    // Фронт меняет его при перетаскивании вершины звезды.
+    // Без этого поля десериализация молча теряла значение, и в PDF
+    // звезда всегда рисовалась с дефолтным 1/2.4.
+    public Double innerRadiusRatio;
 }

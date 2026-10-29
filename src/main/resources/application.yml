@@ -8,6 +8,15 @@ spring:
       max-file-size: 32MB
       max-request-size: 32MB
 
+  # Гибкая десериализация: неизвестные поля от фронта игнорируем.
+  # Без этого фронт присылает styleId / symbolId / rasterFill / valueField
+  # и т.п., которых нет в Java-DTO → Jackson 500.
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+      fail-on-ignored-properties: false
+      fail-on-null-for-primitives: false
+
   datasource:
     url: jdbc:h2:file:./data/ticket-db;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
     driver-class-name: org.h2.Driver
@@ -36,17 +45,14 @@ spring:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: [ openid, profile, email ]
+            redirect-uri: "${APP_FRONTEND_URL:https://www.codoc.site}/login/oauth2/code/google"
         provider:
           google:
             issuer-uri: https://accounts.google.com
 
 app:
-  # Куда Spring редиректит после успешного OAuth-входа
-  frontend-url: https://213.171.29.210.sslip.io
-  # secure-флаг для cookie refresh_token. true на HTTPS-проде,
-  # для локальной разработки по http://localhost — переопределите через
-  # SPRING_APPLICATION_JSON или APP_COOKIE_SECURE=false
-  cookie-secure: true
+  frontend-url: ${APP_FRONTEND_URL:https://www.codoc.site}
+  cookie-secure: ${APP_COOKIE_SECURE:true}
 
 jwt:
   secret: ${JWT_SECRET:dev-only-secret-change-me-please-replace-me-in-prod-000000}

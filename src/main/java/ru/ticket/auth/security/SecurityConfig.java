@@ -41,6 +41,7 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/refresh",
                                 "/api/auth/logout",
+                                "/api/qr",          // QR-генератор публичный — картинка, не данные
                                 "/h2-console/**",
                                 "/oauth2/**",
                                 "/login/oauth2/**"
@@ -49,8 +50,6 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
-                        // Убрали .userInfoEndpoint(...),
-                        // так как Google - это OIDC, и мы обрабатываем пользователя в хендлере
                         .successHandler(oAuth2SuccessHandler)
                 )
                 .headers(h -> h.frameOptions(f -> f.sameOrigin()))

@@ -1,8 +1,10 @@
 package ru.ticket.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", visible = true)
 @JsonSubTypes({
         @JsonSubTypes.Type(value = TextElement.class,        name = "text"),
@@ -19,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = ChartElement.class,       name = "chart"),
         @JsonSubTypes.Type(value = ConnectorElement.class,   name = "connector"),
         @JsonSubTypes.Type(value = DiagramElement.class,     name = "diagram"),
+        @JsonSubTypes.Type(value = QrElement.class,          name = "qr"),
 })
 public abstract class Element {
     public String id;
@@ -32,7 +35,9 @@ public abstract class Element {
     public Appearance appearance;
     public String clipPathId;
 
-    /* Runtime-only: исходная позиция до смещения группой (для вложенных групп). */
+    public Boolean flipX;
+    public Boolean flipY;
+
     public transient double origX = Double.NaN;
     public transient double origY = Double.NaN;
 
