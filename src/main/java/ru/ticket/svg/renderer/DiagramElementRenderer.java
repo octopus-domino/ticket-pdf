@@ -12,26 +12,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Locale;
 
-/**
- * Рендерит draw.io-диаграмму в SVG-документ.
- *
- * Проблема: Batik PDFTranscoder НЕ поддерживает nested SVG внутри {@code <image>}.
- * Он понимает только {@code <image href="data:image/png;base64,...">} или
- * {@code <image href="http://...">} — но не {@code data:image/svg+xml}.
- *
- * Решение: если в {@code el.svg} лежит base64-encoded SVG (как отдаёт фронтенд
- * в toSvgDiagram), мы:
- *   1) декодируем SVG-строку;
- *   2) разбираем её jsoup'ом;
- *   3) вытаскиваем {@code <svg>...</svg>} без пролога и DOCTYPE;
- *   4) вставляем как nested {@code <svg>} внутрь нашего — с {@code x/y/width/height}.
- *
- * Вложенные SVG (не в {@code <image>}) Batik рендерит корректно.
- */
 @Component
 public class DiagramElementRenderer implements ElementRenderer<DiagramElement> {
 
     private static final String SVG_NS = "http://www.w3.org/2000/svg";
+    private static final String XLINK_NS = "http://www.w3.org/1999/xlink";
 
     @Override
     public Class<DiagramElement> supports() {
@@ -43,93 +28,73 @@ public class DiagramElementRenderer implements ElementRenderer<DiagramElement> {
         StringBuilder out = ctx.body();
 
         String tr = d.rotation != 0
-                ? String.format(Locale.ROOT,
-                " transform=\"rotate(%.2f %.2f %.2f)\"",
-                (double) d.rotation, (double) d.x, (double) d.y)
+                ? String.format(Locale.ROOT, " transform=\"rotate(%.2f %.2f %.2f)\"", d.rotation, d.x, d.y)
                 : "";
 
         out.append("<g").append(tr).append(">\n");
 
         if (d.svg == null || d.svg.isBlank()) {
-            out.append(String.format(Locale.ROOT,
-                    "<rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" " +
-                            "fill=\"#f8fafc\" stroke=\"#cbd5e1\" stroke-width=\"1\" " +
-                            "stroke-dasharray=\"6,4\"/>\n",
-                    (double) d.x, (double) d.y, (double) d.width, (double) d.height));
+            appendPlaceholder(out, d);
             out.append("</g>\n");
             return;
         }
 
-        String nested = sanitizeAndExtractSvg(d.svg);
-        if (nested == null) {
-            out.append(String.format(Locale.ROOT,
-                    "<rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" " +
-                            "fill=\"#f8fafc\" stroke=\"#cbd5e1\" stroke-width=\"1\" " +
-                            "stroke-dasharray=\"6,4\"/>\n",
-                    (double) d.x, (double) d.y, (double) d.width, (double) d.height));
+        Document doc = parseSvg(d.svg);
+        Element svgEl = doc != null ? doc.selectFirst("svg") : null;
+
+        if (svgEl == null) {
+            appendPlaceholder(out, d);
             out.append("</g>\n");
             return;
         }
 
-        // Открываем nested <svg> с координатами и размерами.
-        out.append(String.format(Locale.ROOT,
-                "<svg xmlns=\"%s\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" " +
-                        "x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" " +
-                        "viewBox=\"0 0 %.2f %.2f\" preserveAspectRatio=\"xMidYMid meet\">\n",
-                SVG_NS,
-                (double) d.x, (double) d.y,
-                (double) d.width, (double) d.height,
-                (double) d.width, (double) d.height));
+        // Настраиваем позицию и размеры оригинального SVG
+        svgEl.attr("x", String.format(Locale.ROOT, "%.2f", d.x));
+        svgEl.attr("y", String.format(Locale.ROOT, "%.2f", d.y));
+        svgEl.attr("width", String.format(Locale.ROOT, "%.2f", d.width));
+        svgEl.attr("height", String.format(Locale.ROOT, "%.2f", d.height));
 
-        // Внутренности вложенного SVG (без внешнего тега).
-        out.append(nested);
-        out.append("\n</svg>\n");
+        // Гарантируем наличие namespace'ов (нужно для Batik)
+        svgEl.attr("xmlns", SVG_NS);
+        svgEl.attr("xmlns:xlink", XLINK_NS);
 
-        out.append("</g>\n");
+        // Если нет preserveAspectRatio, ставим "вписать без искажений"
+        if (!svgEl.hasAttr("preserveAspectRatio")) {
+            svgEl.attr("preserveAspectRatio", "xMidYMid meet");
+        }
+
+        out.append(svgEl.outerHtml());
+        out.append("\n</g>\n");
     }
 
-    /**
-     * Возвращает внутренности {@code <svg>...</svg>} без пролога и DOCTYPE.
-     *
-     * Поддерживает три формы:
-     *   1) «сырой» SVG (drawio отдаёт его после embedImagesInSvg) —
-     *      "<svg xmlns=...><g>...</g></svg>";
-     *   2) base64-encoded data URL — на случай, если фронтенд прислал так;
-     *   3) пустая строка/мусор — вернёт null, вызывающий нарисует плейсхолдер.
-     */
-    private String sanitizeAndExtractSvg(String raw) {
+    private void appendPlaceholder(StringBuilder out, DiagramElement d) {
+        out.append(String.format(Locale.ROOT,
+                "<rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" " +
+                        "fill=\"#f8fafc\" stroke=\"#cbd5e1\" stroke-width=\"1\" stroke-dasharray=\"6,4\"/>\n",
+                d.x, d.y, d.width, d.height));
+    }
+
+    private Document parseSvg(String raw) {
         String s = raw.trim();
 
-        // Случай 2: data URL с base64 (если кто-то на фронте сериализовал иначе).
+        // Декодируем, если пришёл data URL (draw.io часто так отдаёт)
         if (s.startsWith("data:image/svg+xml;base64,")) {
             try {
-                byte[] decoded = Base64.getDecoder().decode(
-                        s.substring("data:image/svg+xml;base64,".length()));
+                byte[] decoded = Base64.getDecoder().decode(s.substring("data:image/svg+xml;base64,".length()));
                 s = new String(decoded, StandardCharsets.UTF_8);
             } catch (IllegalArgumentException e) {
                 return null;
             }
         }
 
-        // Убираем пролог и DOCTYPE.
-        s = s.replaceAll("(?is)<\\?xml[^>]*\\?>", "");
-        s = s.replaceAll("(?is)<!DOCTYPE[^>]*>", "");
-        s = s.trim();
+        s = s.replaceAll("(?is)<\\?xml[^>]*\\?>", "").replaceAll("(?is)<!DOCTYPE[^>]*>", "").trim();
 
         if (!s.startsWith("<svg")) return null;
 
-        // jsoup с XML-парсером — достаёт <svg> и его потомков.
-        Document doc;
         try {
-            doc = Jsoup.parse(s, "", Parser.xmlParser());
+            return Jsoup.parse(s, "", Parser.xmlParser());
         } catch (Exception e) {
             return null;
         }
-
-        Element svgEl = doc.selectFirst("svg");
-        if (svgEl == null) return null;
-
-        // Внутренности без внешнего тега.
-        return svgEl.html();
     }
 }
