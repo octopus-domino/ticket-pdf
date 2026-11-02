@@ -68,12 +68,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String issueRefreshToken(String email, String password) {
-        User user = users.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
-        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
-        }
+    public String generateRefreshToken(String userId) {
+        User user = users.findById(userId)
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "User not found"));
         return jwtService.generateRefreshToken(user);
     }
 

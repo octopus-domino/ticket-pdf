@@ -8,8 +8,10 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 @Service
 public class DejaVuFontProvider implements FontProvider {
@@ -18,6 +20,7 @@ public class DejaVuFontProvider implements FontProvider {
     private static final String DEFAULT_FILE = "/fonts/DejaVuSans.ttf";
 
     private static final Map<String, String> FILES = new HashMap<>();
+
     static {
         FILES.put("Arial",           "/fonts/DejaVuSans.ttf");
         FILES.put("Helvetica",       "/fonts/DejaVuSans.ttf");
@@ -29,26 +32,48 @@ public class DejaVuFontProvider implements FontProvider {
         FILES.put("Courier New",     "/fonts/DejaVuSansMono.ttf");
     }
 
+    /** Кэш байтов TTF — без PDDocument, живёт долго, безопасен. */
     private final Map<String, byte[]> bytesCache = new HashMap<>();
-    private final Map<PDDocument, Map<String, PDFont>> documentCache = new HashMap<>();
+
+    /**
+     * Кэш шрифтов, привязанных к PDDocument.
+     *
+     * Ключ — сам документ. WeakHashMap позволяет GC-собрать запись, когда
+     * документ больше не используется (после save + close). Значение (Map
+     * с PDFont) НЕ держит ссылку на ключ, поэтому entry реально собирается.
+     *
+     * synchronized — потому что WeakHashMap не потокобезопасен, а операции
+     * с одним PDDocument и так должны быть сериализованы (PDFBox не
+     * thread-safe per document).
+     */
+    private final Map<PDDocument, Map<String, PDFont>> documentCache =
+            Collections.synchronizedMap(new WeakHashMap<>());
 
     @Override
     public PDFont getFont(PDDocument doc, String family) throws IOException {
+        if (doc == null) throw new IllegalArgumentException("doc must not be null");
+
         String key = normalize(family);
 
-        Map<String, PDFont> cache = documentCache
-                .computeIfAbsent(doc, d -> new HashMap<>());
+        synchronized (documentCache) {
+            Map<String, PDFont> perDoc = documentCache.get(doc);
+            if (perDoc == null) {
+                perDoc = new HashMap<>(4);
+                documentCache.put(doc, perDoc);
+            }
+            PDFont cached = perDoc.get(key);
+            if (cached != null) return cached;
 
-        PDFont cached = cache.get(key);
-        if (cached != null) return cached;
+            byte[] ttf = loadTtf(key);
+            if (ttf == null) {
+                throw new IOException(
+                        "Шрифт не найден. Положите DejaVuSans.ttf в src/main/resources/fonts/");
+            }
 
-        byte[] ttf = loadTtf(key);
-        if (ttf == null) throw new IOException(
-                "Шрифт не найден. Положите DejaVuSans.ttf в src/main/resources/fonts/");
-
-        PDFont font = PDType0Font.load(doc, new ByteArrayInputStream(ttf), true);
-        cache.put(key, font);
-        return font;
+            PDFont font = PDType0Font.load(doc, new ByteArrayInputStream(ttf), true);
+            perDoc.put(key, font);
+            return font;
+        }
     }
 
     @Override
@@ -63,13 +88,19 @@ public class DejaVuFontProvider implements FontProvider {
     }
 
     private byte[] loadTtf(String family) {
-        return bytesCache.computeIfAbsent(family, k -> {
-            String path = FILES.getOrDefault(k, DEFAULT_FILE);
+        synchronized (bytesCache) {
+            byte[] cached = bytesCache.get(family);
+            if (cached != null) return cached;
+
+            String path = FILES.getOrDefault(family, DEFAULT_FILE);
             try (InputStream in = getClass().getResourceAsStream(path)) {
-                return in != null ? in.readAllBytes() : null;
+                if (in == null) return null;
+                byte[] bytes = in.readAllBytes();
+                bytesCache.put(family, bytes);
+                return bytes;
             } catch (IOException e) {
                 return null;
             }
-        });
+        }
     }
 }

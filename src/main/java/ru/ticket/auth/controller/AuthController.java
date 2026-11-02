@@ -35,7 +35,9 @@ public class AuthController {
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest req,
                                                  HttpServletResponse response) {
         AuthResponse auth = authService.register(req);
-        String refresh = authService.issueRefreshToken(req.email(), req.password());
+        // Пароль уже проверен внутри register() — генерируем refresh для user.id,
+        // без повторного bcrypt.
+        String refresh = authService.generateRefreshToken(auth.user().id());
         setRefreshCookie(response, refresh);
         return ResponseEntity.status(HttpStatus.CREATED).body(auth);
     }
@@ -44,26 +46,43 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest req,
                                               HttpServletResponse response) {
         AuthResponse auth = authService.login(req.email(), req.password());
-        String refresh = authService.issueRefreshToken(req.email(), req.password());
+        // Пароль проверен в login() — второй bcrypt не нужен.
+        String refresh = authService.generateRefreshToken(auth.user().id());
         setRefreshCookie(response, refresh);
         return ResponseEntity.ok(auth);
     }
 
     /**
-     * Обновление access-токена по refresh-cookie.
-     * НЕ пытаемся ротировать refresh и НЕ вызываем issueRefreshToken —
-     * это ломало вход после перезагрузки (падало на неверном пароле "").
+     * Обновление access-токена + ротация refresh-cookie.
+     *
+     * Ротация: выдаём НОВЫЙ refresh при каждом /refresh. Это закрывает
+     * сценарий «refresh утёк — им можно пользоваться 7 дней». После ротации
+     * старый refresh формально ещё валиден (нет blacklist), но браузер
+     * заменяет cookie новым, и старая копия живёт только у атакующего —
+     * которого можно вычислить по повторному использованию.
+     *
+     * ПОЛНОЦЕННЫЙ single-use + blacklist — отдельная задача (нужен
+     * персистентный store). Здесь — базовый шаг.
      */
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refresh(
-            @CookieValue(name = REFRESH_COOKIE, required = false) String refreshToken) {
+            @CookieValue(name = REFRESH_COOKIE, required = false) String refreshToken,
+            HttpServletResponse response) {
         if (refreshToken == null || refreshToken.isBlank()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         try {
             AuthResponse auth = authService.refresh(refreshToken);
+            // Ротация: старый refresh инвалидируется в браузере при первом же
+            // успешном ответе. Табы, которые гонятся за один /refresh,
+            // получат каждый свой новый refresh — последний выиграет cookie,
+            // оба access-токена рабочие (см. grace-период в JwtService, если
+            // понадобится ограничить).
+            String newRefresh = authService.generateRefreshToken(auth.user().id());
+            setRefreshCookie(response, newRefresh);
             return ResponseEntity.ok(auth);
         } catch (ApiException e) {
+            clearRefreshCookie(response);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
@@ -82,8 +101,11 @@ public class AuthController {
     private void setRefreshCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE, token)
                 .httpOnly(true)
-                .secure(false)          // на проде — true (HTTPS)
-                .sameSite("Lax")        // работает, т.к. фронт и бэк за одним origin через proxy
+                // ВНИМАНИЕ: secure(false) — только для локальной разработки
+                // по HTTP. В prod это должно читаться из app.cookie-secure
+                // (это B4, отдельная задача).
+                .secure(false)
+                .sameSite("Lax")
                 .path("/api/auth")
                 .maxAge(REFRESH_COOKIE_TTL)
                 .build();

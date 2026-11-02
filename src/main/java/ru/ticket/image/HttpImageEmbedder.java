@@ -1,5 +1,6 @@
 package ru.ticket.image;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -22,24 +23,27 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
-import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Встраивает внешние http(s)-изображения в SVG как data URL.
  *
  * Безопасность (SSRF-защита):
  *   - только http/https;
- *   - hostname резолвится ДО запроса, все IP проверяются:
- *     loopback, link-local (в т.ч. 169.254.169.254), site-local,
- *     multicast, unique-local IPv6, CGNAT — блокируются;
+ *   - hostname резолвится ДО запроса, все IP проверяются;
  *   - лимит размера ответа (10 MB);
- *   - таймауты на connect и на request;
+ *   - таймауты на connect и request;
  *   - парсер SVG с отключёнными DTD/внешними сущностями (XXE).
  *
- * Остаточный риск: DNS rebinding (между проверкой и connect).
- * Для полного устранения нужен connection через заранее
- * зафиксированный IP с Host-заголовком — вне scope MVP.
+ * Память:
+ *   - кэш url → data URL ограничен по байтам (default 64 MB) и по количеству;
+ *   - вытеснение не LRU, а best-effort: при переполнении удаляются
+ *     случайные записи до возврата под лимит (ConcurrentHashMap без
+ *     накладных расходов на порядок). Для одноразового экспорта этого
+ *     достаточно; для долгоживущего сервиса — заменить на Caffeine.
  */
 @Service
 public class HttpImageEmbedder implements ImageEmbedder {
@@ -53,12 +57,23 @@ public class HttpImageEmbedder implements ImageEmbedder {
 
     private static final long MAX_IMAGE_BYTES = 10L * 1024 * 1024; // 10 MB
 
+    /** Символы → байты: data URL — строка UTF-16, каждый символ ~2 байта. */
+    private static final long CACHE_BYTES_PER_CHAR = 2L;
+
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
-    private final Map<String, String> cache = new HashMap<>();
+    private final long maxCacheBytes;
+
+    private final Map<String, String> cache = new ConcurrentHashMap<>();
+    private final AtomicLong cacheBytes = new AtomicLong(0);
+
+    public HttpImageEmbedder(
+            @Value("${app.image-embedder.max-cache-bytes:67108864}") long maxCacheBytes) {
+        this.maxCacheBytes = Math.max(1_048_576L, maxCacheBytes); // минимум 1 MB
+    }
 
     @Override
     public String embed(String svg) {
@@ -75,7 +90,6 @@ public class HttpImageEmbedder implements ImageEmbedder {
     private Document parse(String svg) throws Exception {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         dbf.setNamespaceAware(true);
-        // XXE protection
         dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
         dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
         dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
@@ -94,7 +108,7 @@ public class HttpImageEmbedder implements ImageEmbedder {
             if (href == null) continue;
             if (!href.startsWith("http://") && !href.startsWith("https://")) continue;
 
-            String dataUrl = cache.computeIfAbsent(href, this::downloadAsDataUrl);
+            String dataUrl = getOrDownload(href);
             img.setAttributeNS(XLINK_NS, "xlink:href", dataUrl);
             img.setAttribute("href", dataUrl);
             changed = true;
@@ -106,6 +120,46 @@ public class HttpImageEmbedder implements ImageEmbedder {
         String href = img.getAttributeNS(XLINK_NS, "href");
         if (href == null || href.isEmpty()) href = img.getAttribute("href");
         return href == null || href.isEmpty() ? null : href;
+    }
+
+    /**
+     * Кэш-hit возвращает сразу. При miss — скачиваем БЕЗ lock (network под
+     * нагрузкой), потом кладём в кэш через bounded put.
+     */
+    private String getOrDownload(String url) {
+        String cached = cache.get(url);
+        if (cached != null) return cached;
+
+        String dataUrl = downloadAsDataUrl(url);
+        putWithEviction(url, dataUrl);
+        return dataUrl;
+    }
+
+    private void putWithEviction(String key, String value) {
+        if (value == null) return;
+
+        long valueBytes = value.length() * CACHE_BYTES_PER_CHAR;
+        if (valueBytes > maxCacheBytes) {
+            // одна запись больше лимита — не кэшируем, чтобы не вытеснить всё
+            return;
+        }
+
+        String previous = cache.put(key, value);
+        if (previous != null) {
+            cacheBytes.addAndGet(-previous.length() * CACHE_BYTES_PER_CHAR);
+        }
+        cacheBytes.addAndGet(valueBytes);
+
+        // best-effort вытеснение, пока не влезем в лимит
+        // ConcurrentHashMap.size() — O(1) в среднем, итератор — слабо-консистентный
+        while (cacheBytes.get() > maxCacheBytes && cache.size() > 1) {
+            Iterator<Map.Entry<String, String>> it = cache.entrySet().iterator();
+            if (!it.hasNext()) break;
+            Map.Entry<String, String> eldest = it.next();
+            if (cache.remove(eldest.getKey(), eldest.getValue())) {
+                cacheBytes.addAndGet(-eldest.getValue().length() * CACHE_BYTES_PER_CHAR);
+            }
+        }
     }
 
     private String serialize(Document doc) throws Exception {
@@ -144,7 +198,6 @@ public class HttpImageEmbedder implements ImageEmbedder {
                 return TRANSPARENT_PNG;
             }
 
-            // SSRF protection: резолвим и проверяем все IP до запроса.
             InetAddress[] addresses = InetAddress.getAllByName(host);
             for (InetAddress addr : addresses) {
                 if (!isPublicAddress(addr)) {
@@ -201,17 +254,13 @@ public class HttpImageEmbedder implements ImageEmbedder {
         if (b.length == 4) {
             int b0 = b[0] & 0xFF;
             int b1 = b[1] & 0xFF;
-            // 169.254.0.0/16 — link-local / cloud metadata
             if (b0 == 169 && b1 == 254) return false;
-            // 100.64.0.0/10 — CGNAT
             if (b0 == 100 && b1 >= 64 && b1 <= 127) return false;
-            // 0.0.0.0/8
             if (b0 == 0) return false;
         }
 
         if (b.length == 16) {
             int b0 = b[0] & 0xFF;
-            // fc00::/7 — unique local
             if ((b0 & 0xFE) == 0xFC) return false;
         }
 

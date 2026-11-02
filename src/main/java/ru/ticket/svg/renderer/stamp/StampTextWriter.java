@@ -26,6 +26,10 @@ public class StampTextWriter {
         }
     }
 
+    /* ============================================================
+       Straight — без изменений
+       ============================================================ */
+
     private void writeStraight(StringBuilder out, StampTextItem t) {
         String anchor = "center".equals(t.align) ? "middle"
                 : "right".equals(t.align)  ? "end"
@@ -51,44 +55,85 @@ public class StampTextWriter {
         }
     }
 
+    /* ============================================================
+       Arc — посимвольно, как drawArcText на канве.
+       Каждый символ поворачивается по касательной к эллипсу.
+       ============================================================ */
+
     private void writeArc(StringBuilder out, StampTextItem t, SvgContext ctx) {
         double rx = t.arcRx != null ? t.arcRx : t.arcRadius;
         double ry = t.arcRy != null ? t.arcRy : t.arcRadius;
 
-        String pathId = ctx.defs().nextId("arc-" + t.id);
-        String d = buildArcPath(t.arcCx, t.arcCy, rx, ry, t.arcStartDeg, t.arcEndDeg);
-
-        ctx.appendDefs(String.format(Locale.ROOT,
-                "<path id=\"%s\" d=\"%s\" fill=\"none\"/>", pathId, d));
+        String text = t.text == null ? "" : t.text;
+        if (text.isEmpty()) return;
 
         String fontWeight = isBold(t.fontStyle) ? "700" : "400";
         String fontStyle  = isItalic(t.fontStyle) ? "italic" : "normal";
 
-        out.append(String.format(Locale.ROOT,
-                "<text font-family=\"%s\" font-size=\"%.2f\" font-weight=\"%s\" " +
-                        "font-style=\"%s\" fill=\"%s\" xml:space=\"preserve\">\n" +
-                        "  <textPath href=\"#%s\" xlink:href=\"#%s\" startOffset=\"50%%\" " +
-                        "text-anchor=\"middle\">%s</textPath>\n" +
-                        "</text>\n",
-                XmlEscape.attr(t.fontFamily), t.fontSize, fontWeight, fontStyle,
-                t.fill, pathId, pathId, XmlEscape.escape(t.text)));
+        double a0 = Math.toRadians(t.arcStartDeg);
+        double a1 = Math.toRadians(t.arcEndDeg);
+        int n = text.length();
+
+        double totalLen = ellipseArcLength(rx, ry, a0, a1);
+        if (totalLen <= 0) return;
+
+        for (int i = 0; i < n; i++) {
+            char ch = text.charAt(i);
+            if (ch == ' ' || ch == '\t' || ch == '\n') continue;
+
+            double fraction = n > 1 ? (i + 0.5) / n : 0.5;
+            double a = angleAtArcFraction(rx, ry, a0, a1, fraction);
+            double cxA = t.arcCx + Math.cos(a) * rx;
+            double cyA = t.arcCy + Math.sin(a) * ry;
+            // Касательная к эллипсу: d/dt(rx·cos t, ry·sin t) = (-rx·sin t, ry·cos t)
+            double tx = -rx * Math.sin(a);
+            double ty = ry * Math.cos(a);
+            double rot = Math.toDegrees(Math.atan2(ty, tx));
+
+            out.append(String.format(Locale.ROOT,
+                    "<text x=\"0\" y=\"0\" font-family=\"%s\" font-size=\"%.2f\" " +
+                            "font-weight=\"%s\" font-style=\"%s\" fill=\"%s\" " +
+                            "text-anchor=\"middle\" dominant-baseline=\"middle\" " +
+                            "transform=\"translate(%.2f %.2f) rotate(%.2f)\" " +
+                            "xml:space=\"preserve\">%s</text>\n",
+                    XmlEscape.attr(t.fontFamily), t.fontSize,
+                    fontWeight, fontStyle, t.fill,
+                    cxA, cyA, rot,
+                    XmlEscape.escape(String.valueOf(ch))));
+        }
     }
 
-    private String buildArcPath(double cx, double cy, double rx, double ry,
-                                double startDeg, double endDeg) {
-        double sa = Math.toRadians(startDeg);
-        double ea = Math.toRadians(endDeg);
-        double sx = cx + rx * Math.cos(sa);
-        double sy = cy + ry * Math.sin(sa);
-        double ex = cx + rx * Math.cos(ea);
-        double ey = cy + ry * Math.sin(ea);
+    /* ============================================================
+       Эллиптическая дуга — то же, что lib/stamps/render.ts
+       ============================================================ */
 
-        int largeArc = Math.abs(endDeg - startDeg) > 180 ? 1 : 0;
-        int sweep = (endDeg > startDeg) ? 1 : 0;
+    private static double ellipseArcLength(double rx, double ry, double a0, double a1) {
+        int N = 64;
+        double h = (a1 - a0) / N;
+        double sum = 0;
+        for (int i = 0; i <= N; i++) {
+            double a = a0 + i * h;
+            double speed = Math.hypot(rx * Math.sin(a), ry * Math.cos(a));
+            double w = (i == 0 || i == N) ? 1 : (i % 2 == 0 ? 2 : 4);
+            sum += w * speed;
+        }
+        return Math.abs((h / 3) * sum);
+    }
 
-        return String.format(Locale.ROOT,
-                "M %.2f %.2f A %.2f %.2f 0 %d %d %.2f %.2f",
-                sx, sy, rx, ry, largeArc, sweep, ex, ey);
+    private static double angleAtArcFraction(double rx, double ry,
+                                             double aStart, double aEnd,
+                                             double fraction) {
+        double total = ellipseArcLength(rx, ry, aStart, aEnd);
+        if (total == 0) return aStart;
+        double target = total * fraction;
+        double lo = 0, hi = 1;
+        for (int it = 0; it < 40; it++) {
+            double mid = (lo + hi) / 2;
+            double a = aStart + (aEnd - aStart) * mid;
+            double len = ellipseArcLength(rx, ry, aStart, a);
+            if (len < target) lo = mid; else hi = mid;
+        }
+        return aStart + (aEnd - aStart) * (lo + hi) / 2;
     }
 
     private boolean isBold(String style)   { return style != null && style.contains("bold"); }

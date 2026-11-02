@@ -15,19 +15,23 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfigurationSource;
+import ru.ticket.config.RateLimitFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final CorsConfigurationSource corsConfigurationSource;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     public SecurityConfig(JwtAuthenticationFilter jwtFilter,
+                          RateLimitFilter rateLimitFilter,
                           CorsConfigurationSource corsConfigurationSource,
                           OAuth2SuccessHandler oAuth2SuccessHandler) {
         this.jwtFilter = jwtFilter;
+        this.rateLimitFilter = rateLimitFilter;
         this.corsConfigurationSource = corsConfigurationSource;
         this.oAuth2SuccessHandler = oAuth2SuccessHandler;
     }
@@ -52,8 +56,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()
                 )
-                // ВАЖНО: для API не редиректим на Google, а отдаём 401.
-                // Это позволяет фронтенду вызвать /api/auth/refresh и повторить запрос.
                 .exceptionHandling(e -> e
                         .defaultAuthenticationEntryPointFor(
                                 (request, response, authException) -> {
@@ -68,7 +70,10 @@ public class SecurityConfig {
                         .successHandler(oAuth2SuccessHandler)
                 )
                 .headers(h -> h.frameOptions(f -> f.sameOrigin()))
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                // rate-limit идёт ПОСЛЕ аутентификации: bucket-ключ = userId,
+                // а не IP за общим NAT.
+                .addFilterAfter(rateLimitFilter, JwtAuthenticationFilter.class);
         return http.build();
     }
 

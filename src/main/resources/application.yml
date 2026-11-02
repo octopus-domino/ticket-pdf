@@ -8,9 +8,6 @@ spring:
       max-file-size: 32MB
       max-request-size: 32MB
 
-  # Гибкая десериализация: неизвестные поля от фронта игнорируем.
-  # Без этого фронт присылает styleId / symbolId / rasterFill / valueField
-  # и т.п., которых нет в Java-DTO → Jackson 500.
   jackson:
     deserialization:
       fail-on-unknown-properties: false
@@ -53,6 +50,23 @@ spring:
 app:
   frontend-url: ${APP_FRONTEND_URL:https://www.codoc.site}
   cookie-secure: ${APP_COOKIE_SECURE:true}
+
+  # B11: скрывать ли детали исключений в 500-ответах.
+  # В prod — false (значение по умолчанию). В локальном профиле можно
+  # включить, чтобы видеть причину в браузере без похода в логи.
+  expose-error-details: ${APP_EXPOSE_ERROR_DETAILS:false}
+
+  # H1: rate limit для дорогих эндпоинтов.
+  # Токен-бакет per-user (или IP для анонимных). Значения — «за минуту».
+  rate-limit:
+    enabled: ${APP_RATE_LIMIT_ENABLED:true}
+    export-per-minute: ${APP_RATE_LIMIT_EXPORT:20}
+    generate-per-minute: ${APP_RATE_LIMIT_GENERATE:10}
+
+  # B8: лимит байтов кэша изображений в HttpImageEmbedder.
+  # При превышении старые записи вытесняются.
+  image-embedder:
+    max-cache-bytes: ${APP_IMAGE_CACHE_BYTES:67108864}  # 64 MB
 
 jwt:
   secret: ${JWT_SECRET:dev-only-secret-change-me-please-replace-me-in-prod-000000}
