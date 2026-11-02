@@ -13,6 +13,8 @@ import ru.ticket.generation.application.port.DocumentPackager;
 import ru.ticket.generation.application.port.DocumentRenderer;
 import ru.ticket.generation.domain.DataFiller;
 import ru.ticket.generation.domain.FilenameTemplate;
+import ru.ticket.template.domain.TemplateEntity;
+import ru.ticket.template.repository.TemplateRepository;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -25,15 +27,18 @@ public class GenerationService {
     private final Map<ExportFormat, DocumentRenderer> renderers;
     private final Map<String, DocumentPackager> packagers;
     private final DataModelRepository models;
+    private final TemplateRepository templates;
 
     public GenerationService(List<DocumentRenderer> renderers,
                              List<DocumentPackager> packagers,
-                             DataModelRepository models) {
+                             DataModelRepository models,
+                             TemplateRepository templates) {
         this.renderers = renderers.stream()
                 .collect(Collectors.toMap(DocumentRenderer::format, r -> r));
         this.packagers = packagers.stream()
                 .collect(Collectors.toMap(DocumentPackager::packAs, p -> p));
         this.models = models;
+        this.templates = templates;
     }
 
     /* ============================================================
@@ -65,7 +70,7 @@ public class GenerationService {
     public DocumentsResult generateDocuments(String userId,
                                              GenerationRequest req,
                                              ItemCallback onItem) {
-        List<Slide> template = requireTemplate(req);
+        List<Slide> template = requireTemplate(req, userId);
         DocumentRenderer renderer = rendererFor(ExportFormat.fromString(req.format));
         Map<String, DataModelEntity> byId = loadModels(userId, req.items);
 
@@ -79,7 +84,6 @@ public class GenerationService {
             try {
                 Map<String, Object> values = resolveValues(item, byId);
 
-                // Заполняем каждый слайд значениями
                 List<Slide> filled = new ArrayList<>(template.size());
                 for (Slide t : template) {
                     filled.add(DataFiller.fill(t, values));
@@ -111,7 +115,7 @@ public class GenerationService {
     }
 
     /* ============================================================
-       Упаковка: zip / single
+       Упаковка
        ============================================================ */
 
     public PackResult pack(String packAs, String format, List<NamedDocument> docs) {
@@ -147,10 +151,21 @@ public class GenerationService {
        Валидация / резолвинг
        ============================================================ */
 
-    private List<Slide> requireTemplate(GenerationRequest req) {
-        if (req.inlineSlides != null && !req.inlineSlides.isEmpty()) return req.inlineSlides;
+    /**
+     * templateId резолвится через TemplateRepository; inlineSlides — напрямую.
+     * Приоритет: inlineSlides (для тестов / предпросмотра) → templateId.
+     */
+    private List<Slide> requireTemplate(GenerationRequest req, String userId) {
+        if (req.inlineSlides != null && !req.inlineSlides.isEmpty()) {
+            return req.inlineSlides;
+        }
         if (req.templateId != null && !req.templateId.isBlank()) {
-            throw ApiException.badRequest("templateId storage not yet implemented; pass inlineSlides");
+            TemplateEntity t = templates.findByIdAndUserId(req.templateId, userId)
+                    .orElseThrow(() -> ApiException.notFound("Template"));
+            if (t.getSlides() == null || t.getSlides().isEmpty()) {
+                throw ApiException.badRequest("Template has no slides: " + req.templateId);
+            }
+            return t.getSlides();
         }
         throw ApiException.badRequest("Either templateId or inlineSlides required");
     }
@@ -181,21 +196,15 @@ public class GenerationService {
         throw new IllegalArgumentException("Item has neither inlineValues nor dataModelId");
     }
 
-    /**
-     * Имя файла БЕЗ расширения. Расширение добавляет DocumentRenderer.
-     */
     private String resolveFilenameBase(GenerationRequest.Item item,
                                        Map<String, Object> values,
                                        int idx) {
         String base;
         if (item.filenameOverride != null && !item.filenameOverride.isBlank()) {
-            base = FilenameTemplate.resolve(
-                    item.filenameOverride, values, "document-" + (idx + 1));
+            base = FilenameTemplate.resolve(item.filenameOverride, values, "document-" + (idx + 1));
         } else {
-            base = FilenameTemplate.resolve(
-                    null, values, "document-" + (idx + 1));
+            base = FilenameTemplate.resolve(null, values, "document-" + (idx + 1));
         }
-        // Убираем возможное расширение, чтобы не было "a.pdf.pdf"
         return base.replaceAll("\\.(svg|pdf|pdfa\\.pdf)$", "");
     }
 }
