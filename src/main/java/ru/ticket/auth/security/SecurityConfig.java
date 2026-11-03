@@ -21,64 +21,62 @@ import ru.ticket.config.RateLimitFilter;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtFilter;
-    private final RateLimitFilter rateLimitFilter;
-    private final CorsConfigurationSource corsConfigurationSource;
-    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+  private final JwtAuthenticationFilter jwtFilter;
+  private final RateLimitFilter rateLimitFilter;
+  private final CorsConfigurationSource corsConfigurationSource;
+  private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtFilter,
-                          RateLimitFilter rateLimitFilter,
-                          CorsConfigurationSource corsConfigurationSource,
-                          OAuth2SuccessHandler oAuth2SuccessHandler) {
-        this.jwtFilter = jwtFilter;
-        this.rateLimitFilter = rateLimitFilter;
-        this.corsConfigurationSource = corsConfigurationSource;
-        this.oAuth2SuccessHandler = oAuth2SuccessHandler;
-    }
+  public SecurityConfig(
+      JwtAuthenticationFilter jwtFilter,
+      RateLimitFilter rateLimitFilter,
+      CorsConfigurationSource corsConfigurationSource,
+      OAuth2SuccessHandler oAuth2SuccessHandler) {
+    this.jwtFilter = jwtFilter;
+    this.rateLimitFilter = rateLimitFilter;
+    this.corsConfigurationSource = corsConfigurationSource;
+    this.oAuth2SuccessHandler = oAuth2SuccessHandler;
+  }
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .cors(c -> c.configurationSource(corsConfigurationSource))
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(a -> a
-                        .requestMatchers(
-                                "/api/auth/register",
-                                "/api/auth/login",
-                                "/api/auth/refresh",
-                                "/api/auth/logout",
-                                "/api/qr",
-                                "/h2-console/**",
-                                "/oauth2/**",
-                                "/login/oauth2/**"
-                        ).permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .anyRequest().authenticated()
-                )
-                .exceptionHandling(e -> e
-                        .defaultAuthenticationEntryPointFor(
-                                (request, response, authException) -> {
-                                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                                    response.getWriter().write("{\"error\":\"Unauthorized\"}");
-                                },
-                                new AntPathRequestMatcher("/api/**")
-                        )
-                )
-                .oauth2Login(oauth2 -> oauth2
-                        .successHandler(oAuth2SuccessHandler)
-                )
-                .headers(h -> h.frameOptions(f -> f.sameOrigin()))
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                // rate-limit идёт ПОСЛЕ аутентификации: bucket-ключ = userId,
-                // а не IP за общим NAT.
-                .addFilterAfter(rateLimitFilter, JwtAuthenticationFilter.class);
-        return http.build();
-    }
+  @Bean
+  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http.cors(c -> c.configurationSource(corsConfigurationSource))
+        .csrf(AbstractHttpConfigurer::disable)
+        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(
+            a ->
+                a.requestMatchers(
+                        "/api/auth/register",
+                        "/api/auth/login",
+                        "/api/auth/refresh",
+                        "/api/auth/logout",
+                        "/api/qr",
+                        "/oauth2/**",
+                        "/login/oauth2/**")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.OPTIONS, "/**")
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated())
+        .exceptionHandling(
+            e ->
+                e.defaultAuthenticationEntryPointFor(
+                    (request, response, authException) -> {
+                      response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                      response.getWriter().write("{\"error\":\"Unauthorized\"}");
+                    },
+                    new AntPathRequestMatcher("/api/**")))
+        .oauth2Login(oauth2 -> oauth2.successHandler(oAuth2SuccessHandler))
+        .headers(h -> h.frameOptions(f -> f.sameOrigin()))
+        .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+        // rate-limit идёт ПОСЛЕ аутентификации: bucket-ключ = userId,
+        // а не IP за общим NAT.
+        .addFilterAfter(rateLimitFilter, JwtAuthenticationFilter.class);
+    return http.build();
+  }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
-    }
+  @Bean
+  public PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder(12);
+  }
 }

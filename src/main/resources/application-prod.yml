@@ -1,0 +1,16 @@
+spring:
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/upgrade-email-ledger.sql
+  h2:
+    console:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+jwt:
+  secret: ${JWT_SECRET}
+app:
+  cookie-secure: true
+  expose-error-details: false

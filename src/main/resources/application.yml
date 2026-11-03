@@ -31,7 +31,7 @@ spring:
 
   h2:
     console:
-      enabled: true
+      enabled: false
       path: /h2-console
 
   security:
@@ -53,7 +53,7 @@ spring:
     password: ${SMTP_PASSWORD:}
     properties:
       mail:
-        debug: true
+        debug: false
         smtp:
           auth: ${SMTP_AUTH:true}
           ssl:
@@ -98,7 +98,13 @@ jwt:
 
 logging:
   level:
-    ru.ticket: DEBUG
+    ru.ticket: INFO
     org.apache.pdfbox: WARN
     org.apache.batik: WARN
 
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
