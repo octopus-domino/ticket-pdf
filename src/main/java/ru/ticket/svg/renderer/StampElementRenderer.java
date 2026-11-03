@@ -5,7 +5,7 @@ import ru.ticket.dto.StampImageItem;
 import ru.ticket.dto.StampShapeItem;
 import ru.ticket.dto.StampTextItem;
 import ru.ticket.svg.SvgContext;
-import ru.ticket.svg.SvgSerializationUtil;
+import ru.ticket.svg.renderer.stamp.StampImageWriter;
 import ru.ticket.svg.renderer.stamp.AnchorFillWriter;
 import ru.ticket.svg.renderer.stamp.LegacyStampWriter;
 import ru.ticket.svg.renderer.stamp.StampShapeWriter;
@@ -23,15 +23,18 @@ public class StampElementRenderer implements ElementRenderer<StampElement> {
     private final StampTextWriter textWriter;
     private final AnchorFillWriter anchorFillWriter;
     private final LegacyStampWriter legacyWriter;
+    private final StampImageWriter imageWriter;
 
     public StampElementRenderer(StampShapeWriter shapeWriter,
                                 StampTextWriter textWriter,
                                 AnchorFillWriter anchorFillWriter,
-                                LegacyStampWriter legacyWriter) {
+                                LegacyStampWriter legacyWriter,
+                                StampImageWriter imageWriter) {
         this.shapeWriter = shapeWriter;
         this.textWriter = textWriter;
         this.anchorFillWriter = anchorFillWriter;
         this.legacyWriter = legacyWriter;
+        this.imageWriter = imageWriter;
     }
 
     @Override
@@ -107,11 +110,7 @@ public class StampElementRenderer implements ElementRenderer<StampElement> {
     private void writeImages(StringBuilder out, StampElement stamp) {
         if (stamp.images == null) return;
         for (StampImageItem im : stamp.images) {
-            if (Boolean.TRUE.equals(im.hidden)) continue;
-            if (im.src == null) continue;
-            out.append(SvgSerializationUtil.imageTag(
-                    im.src, im.x, im.y, im.width, im.height,
-                    " preserveAspectRatio=\"xMidYMid meet\""));
+            imageWriter.write(out, im);
         }
     }
 }
