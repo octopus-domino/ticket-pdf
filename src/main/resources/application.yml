@@ -46,6 +46,25 @@ spring:
         provider:
           google:
             issuer-uri: https://accounts.google.com
+  mail:
+    host: ${SMTP_HOST:smtp.mail.ru}
+    port: ${SMTP_PORT:465}
+    username: ${SMTP_USER:ksu_shest@mail.ru}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        debug: true
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          ssl:
+            enable: true
+          starttls:
+            enable: ${SMTP_TLS:false}
+            required: ${SMTP_TLS:false}
+        transport:
+          protocol: smtps
+        smtps:
+          port: ${SMTP_PORT_SSL:465}
 
 app:
   frontend-url: ${APP_FRONTEND_URL:https://www.codoc.site}
@@ -67,6 +86,9 @@ app:
   # При превышении старые записи вытесняются.
   image-embedder:
     max-cache-bytes: ${APP_IMAGE_CACHE_BYTES:67108864}  # 64 MB
+  email:
+    default-from: ${EMAIL_FROM:ksu_shest@mail.ru}
+    default-subject: ${EMAIL_SUBJECT:Документ от codoc}
 
 jwt:
   secret: ${JWT_SECRET:dev-only-secret-change-me-please-replace-me-in-prod-000000}
@@ -79,3 +101,4 @@ logging:
     ru.ticket: DEBUG
     org.apache.pdfbox: WARN
     org.apache.batik: WARN
+
