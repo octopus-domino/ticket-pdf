@@ -12,7 +12,7 @@ public final class EmailDtos {
 
   private EmailDtos() {}
 
-  public record EmailOptions(@Email String from, String replyTo, String subject) {}
+  public record EmailOptions(@Email String from, @Email String replyTo, String subject) {}
 
   public static class EmailItem {
     public String dataModelId;

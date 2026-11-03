@@ -48,7 +48,8 @@ spring:
             issuer-uri: https://accounts.google.com
   mail:
     host: ${SMTP_HOST:smtp.mail.ru}
-    port: ${SMTP_PORT:465}
+    port: ${SMTP_PORT:${SMTP_PORT_SSL:465}}
+    protocol: smtp
     username: ${SMTP_USER:ksu_shest@mail.ru}
     password: ${SMTP_PASSWORD:}
     properties:
@@ -56,15 +57,14 @@ spring:
         debug: false
         smtp:
           auth: ${SMTP_AUTH:true}
+          connectiontimeout: ${SMTP_CONNECTION_TIMEOUT:10000}
+          timeout: ${SMTP_READ_TIMEOUT:30000}
+          writetimeout: ${SMTP_WRITE_TIMEOUT:30000}
           ssl:
-            enable: true
+            enable: ${SMTP_SSL:true}
           starttls:
             enable: ${SMTP_TLS:false}
             required: ${SMTP_TLS:false}
-        transport:
-          protocol: smtps
-        smtps:
-          port: ${SMTP_PORT_SSL:465}
 
 app:
   frontend-url: ${APP_FRONTEND_URL:https://www.codoc.site}
@@ -87,7 +87,7 @@ app:
   image-embedder:
     max-cache-bytes: ${APP_IMAGE_CACHE_BYTES:67108864}  # 64 MB
   email:
-    default-from: ${EMAIL_FROM:ksu_shest@mail.ru}
+    default-from: ${EMAIL_FROM:${SMTP_USER:ksu_shest@mail.ru}}
     default-subject: ${EMAIL_SUBJECT:Документ от codoc}
 
 jwt:
