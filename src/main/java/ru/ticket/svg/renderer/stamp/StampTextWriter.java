@@ -86,8 +86,9 @@ public class StampTextWriter {
             double cxA = t.arcCx + Math.cos(a) * rx;
             double cyA = t.arcCy + Math.sin(a) * ry;
             // Касательная к эллипсу: d/dt(rx·cos t, ry·sin t) = (-rx·sin t, ry·cos t)
-            double tx = -rx * Math.sin(a);
-            double ty = ry * Math.cos(a);
+            double direction = Math.signum(a1 - a0);
+            double tx = direction * -rx * Math.sin(a);
+            double ty = direction * ry * Math.cos(a);
             double rot = Math.toDegrees(Math.atan2(ty, tx));
 
             out.append(String.format(Locale.ROOT,
