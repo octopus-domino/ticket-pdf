@@ -27,6 +27,9 @@ public class TemplateEntity {
     @Column(name = "schema_id", length = 36)
     private String schemaId;
 
+    @Column(name = "folder_id", length = 36)
+    private String folderId;
+
     @Column(nullable = false, length = 200)
     private String name;
 
@@ -64,6 +67,11 @@ public class TemplateEntity {
     public String getId() { return id; }
     public String getUserId() { return userId; }
     public String getSchemaId() { return schemaId; }
+    public String getFolderId() { return folderId; }
+    public void moveTo(String folderId) {
+        this.folderId = folderId;
+        this.updatedAt = Instant.now();
+    }
     public String getName() { return name; }
     public List<Slide> getSlides() { return slides; }
     public List<BindingDto> getBindings() { return bindings; }

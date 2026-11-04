@@ -50,6 +50,65 @@ class DocumentFlowTest {
 
   @Autowired TestRestTemplate http;
 
+  @Test
+  @SuppressWarnings("unchecked")
+  void templateLivesInWorkspaceFolderAndGeneratesWithoutSchema() {
+    var login = http.postForEntity("/api/auth/register", Map.of("email", "folder-owner@example.test",
+        "password", "test-password-123", "name", "Owner"), Map.class);
+    var headers = new HttpHeaders();
+    headers.setBearerAuth((String) login.getBody().get("accessToken"));
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    var folder = http.exchange("/api/workspace/folders", HttpMethod.POST,
+        new HttpEntity<>(Map.of("name", "Certificates"), headers), Map.class);
+    assertEquals(201, folder.getStatusCode().value());
+    String folderId = (String) folder.getBody().get("id");
+    var slide = Map.of("id", "page", "name", "Certificate", "width", 200, "height", 100,
+        "elements", List.of(Map.of("id", "label", "type", "text", "text", "STATIC CERTIFICATE",
+            "x", 5, "y", 5, "width", 190, "height", 50, "fontSize", 16)));
+    var payload = Map.of("name", "Certificate", "folderId", folderId,
+        "slides", List.of(slide), "bindings", List.of());
+    var template = http.exchange("/api/templates", HttpMethod.POST,
+        new HttpEntity<>(payload, headers), Map.class);
+    assertEquals(201, template.getStatusCode().value(), template.toString());
+    String id = (String) template.getBody().get("id");
+    assertNull(template.getBody().get("schemaId"));
+    assertEquals(folderId, template.getBody().get("folderId"));
+    var updated = http.exchange("/api/templates/" + id, HttpMethod.PUT,
+        new HttpEntity<>(Map.of("name", "Edited", "slides", List.of(slide), "bindings", List.of()), headers), Map.class);
+    assertEquals(folderId, updated.getBody().get("folderId"), "Saving content must retain folder");
+    var tree = http.exchange("/api/workspace/tree", HttpMethod.GET, new HttpEntity<>(headers), List.class);
+    Map<String, Object> parent = (Map<String, Object>) tree.getBody().stream()
+        .filter(node -> folderId.equals(((Map<?, ?>) node).get("id"))).findFirst().orElseThrow();
+    var children = (List<Map<String, Object>>) parent.get("children");
+    assertEquals(1, children.size());
+    assertEquals(id, children.get(0).get("id"));
+    assertEquals("template", children.get(0).get("type"));
+    var rendered = http.exchange("/api/generate/sync", HttpMethod.POST,
+        new HttpEntity<>(Map.of("templateId", id, "items", List.of(Map.of("inlineValues", Map.of())),
+            "format", "svg", "packAs", "single"), headers), String.class);
+    assertEquals(200, rendered.getStatusCode().value(), rendered.toString());
+    assertTrue(rendered.getBody().contains("STATIC CERTIFICATE"));
+    var outsider = http.postForEntity("/api/auth/register", Map.of("email", "folder-outsider@example.test",
+        "password", "test-password-123", "name", "Other"), Map.class);
+    var otherHeaders = new HttpHeaders();
+    otherHeaders.setBearerAuth((String) outsider.getBody().get("accessToken"));
+    otherHeaders.setContentType(MediaType.APPLICATION_JSON);
+    var denied = http.exchange("/api/templates", HttpMethod.POST,
+        new HttpEntity<>(payload, otherHeaders), Map.class);
+    assertEquals(404, denied.getStatusCode().value(), "Cannot create in another user's folder");
+    var otherTree = http.exchange("/api/workspace/tree", HttpMethod.GET,
+        new HttpEntity<>(otherHeaders), List.class);
+    assertTrue(otherTree.getBody().isEmpty());
+    var missingFolder = http.exchange("/api/templates/" + id + "/parent", HttpMethod.PUT,
+        new HttpEntity<>(Map.of("parentId", "missing"), headers), Map.class);
+    assertEquals(404, missingFolder.getStatusCode().value());
+    http.exchange("/api/workspace/folders/" + folderId, HttpMethod.DELETE,
+        new HttpEntity<>(headers), Void.class);
+    var removed = http.exchange("/api/templates/" + id, HttpMethod.GET,
+        new HttpEntity<>(headers), Map.class);
+    assertEquals(404, removed.getStatusCode().value(), "Folder deletion must not leave orphaned templates");
+  }
+
   @DynamicPropertySource
   static void storage(DynamicPropertyRegistry properties) throws Exception {
     String path = Files.createTempDirectory("ticket-contract-").toString();

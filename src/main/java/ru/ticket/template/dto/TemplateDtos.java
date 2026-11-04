@@ -21,7 +21,8 @@ public final class TemplateDtos {
             List<Slide> slides,
             List<BindingDto> bindings,
             Instant createdAt,
-            Instant updatedAt
+            Instant updatedAt,
+            String folderId
     ) { }
 
     public record TemplateSummaryDto(
@@ -29,14 +30,16 @@ public final class TemplateDtos {
             String schemaId,
             String name,
             int slideCount,
-            Instant updatedAt
+            Instant updatedAt,
+            String folderId
     ) { }
 
     public record SaveTemplateRequest(
             @Size(max = 36) String schemaId,
             @NotBlank @Size(max = 200) String name,
             @NotNull @Valid List<Slide> slides,
-            @Valid List<BindingDto> bindings
+            @Valid List<BindingDto> bindings,
+            @Size(max = 36) String folderId
     ) { }
 
     public record RenameTemplateRequest(

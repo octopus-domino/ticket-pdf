@@ -18,5 +18,7 @@ public interface TemplateService {
 
     TemplateDto rename(String userId, String templateId, String name);
 
+    TemplateDto move(String userId, String templateId, String folderId);
+
     void delete(String userId, String templateId);
 }

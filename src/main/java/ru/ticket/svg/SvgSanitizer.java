@@ -107,6 +107,8 @@ public final class SvgSanitizer {
       Node attr = element.getAttributes().item(i);
       String key = attr.getNodeName().toLowerCase(Locale.ROOT);
       String value = attr.getNodeValue().trim();
+      if ((key.equals("fill") || key.equals("stroke")) && value.equalsIgnoreCase("transparent"))
+        element.setAttribute(attr.getNodeName(), "none");
       boolean remove =
           key.startsWith("on")
               || key.equals("srcdoc")
@@ -143,6 +145,8 @@ public final class SvgSanitizer {
       String[] pair = declaration.split(":", 2);
       if (pair.length != 2) continue;
       String key = pair[0].trim().toLowerCase(Locale.ROOT), value = pair[1].trim();
+      if ((key.equals("fill") || key.equals("stroke")) && value.equalsIgnoreCase("transparent"))
+        value = "none";
       if (CSS.contains(key)
           && value.matches("[a-zA-Z0-9#.,%()'\" /-]+")
           && !value.toLowerCase(Locale.ROOT).contains("url(")

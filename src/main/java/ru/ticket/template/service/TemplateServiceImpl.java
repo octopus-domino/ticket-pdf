@@ -17,10 +17,13 @@ public class TemplateServiceImpl implements TemplateService {
 
     private final TemplateRepository templates;
     private final SchemaRepository schemas;
+    private final ru.ticket.workspace.repository.FolderRepository folders;
 
-    public TemplateServiceImpl(TemplateRepository templates, SchemaRepository schemas) {
+    public TemplateServiceImpl(TemplateRepository templates, SchemaRepository schemas,
+            ru.ticket.workspace.repository.FolderRepository folders) {
         this.templates = templates;
         this.schemas = schemas;
+        this.folders = folders;
     }
 
     @Override
@@ -35,7 +38,7 @@ public class TemplateServiceImpl implements TemplateService {
                         t.getSchemaId(),
                         t.getName(),
                         t.getSlides() == null ? 0 : t.getSlides().size(),
-                        t.getUpdatedAt()))
+                        t.getUpdatedAt(), t.getFolderId()))
                 .toList();
     }
 
@@ -48,6 +51,7 @@ public class TemplateServiceImpl implements TemplateService {
     @Transactional
     public TemplateDto create(String userId, SaveTemplateRequest req) {
         assertSchema(userId, req.schemaId());
+        String folderId = assertFolder(userId, req.folderId());
         TemplateEntity t = new TemplateEntity(
                 userId,
                 blankToNull(req.schemaId()),
@@ -55,6 +59,7 @@ public class TemplateServiceImpl implements TemplateService {
                 req.slides(),
                 req.bindings()
         );
+        t.moveTo(folderId);
         return toDto(templates.save(t));
     }
 
@@ -87,6 +92,21 @@ public class TemplateServiceImpl implements TemplateService {
         templates.delete(t);
     }
 
+    @Override
+    @Transactional
+    public TemplateDto move(String userId, String templateId, String folderId) {
+        TemplateEntity template = find(userId, templateId);
+        template.moveTo(assertFolder(userId, folderId));
+        return toDto(templates.save(template));
+    }
+
+    private String assertFolder(String userId, String folderId) {
+        String normalized = blankToNull(folderId);
+        if (normalized != null && folders.findByIdAndUserId(normalized, userId).isEmpty())
+            throw ApiException.notFound("Folder");
+        return normalized;
+    }
+
     /* ============================================================ */
 
     private TemplateEntity find(String userId, String id) {
@@ -113,7 +133,7 @@ public class TemplateServiceImpl implements TemplateService {
                 t.getSlides(),
                 t.getBindings(),
                 t.getCreatedAt(),
-                t.getUpdatedAt()
+                t.getUpdatedAt(), t.getFolderId()
         );
     }
 }

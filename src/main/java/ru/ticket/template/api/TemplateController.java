@@ -46,6 +46,13 @@ public class TemplateController {
                 .body(service.create(me.userId(), req));
     }
 
+    @PutMapping("/{id}/parent")
+    public TemplateDto move(@AuthenticationPrincipal UserIdPrincipal me,
+            @PathVariable String id,
+            @RequestBody ru.ticket.workspace.dto.WorkspaceDtos.MoveRequest req) {
+        return service.move(me.userId(), id, req.parentId());
+    }
+
     @PutMapping("/{id}")
     public TemplateDto update(
             @AuthenticationPrincipal UserIdPrincipal me,

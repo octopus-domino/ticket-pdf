@@ -1,0 +1,1 @@
+ALTER TABLE templates ADD COLUMN IF NOT EXISTS folder_id VARCHAR(36);

@@ -27,10 +27,13 @@ public class FolderServiceImpl implements FolderService {
 
     private final FolderRepository folders;
     private final DocumentRepository documents;
+    private final ru.ticket.template.repository.TemplateRepository templates;
 
-    public FolderServiceImpl(FolderRepository folders, DocumentRepository documents) {
+    public FolderServiceImpl(FolderRepository folders, DocumentRepository documents,
+            ru.ticket.template.repository.TemplateRepository templates) {
         this.folders = folders;
         this.documents = documents;
+        this.templates = templates;
     }
 
     @Override
@@ -44,7 +47,9 @@ public class FolderServiceImpl implements FolderService {
         Map<String, List<DocumentEntity>> docsByFolder = allDocs.stream()
                 .collect(Collectors.groupingBy(d -> key(d.getFolderId())));
 
-        return buildChildren(ROOT, foldersByParent, docsByFolder);
+        var templatesByFolder = templates.findAllByUserIdOrderByUpdatedAtDesc(userId).stream()
+                .collect(Collectors.groupingBy(t -> key(t.getFolderId())));
+        return buildChildren(ROOT, foldersByParent, docsByFolder, templatesByFolder);
     }
 
     @Override
@@ -140,20 +145,25 @@ public class FolderServiceImpl implements FolderService {
             documents.flush();
         }
 
+        var templatesToDelete = templates.findAllByUserIdOrderByUpdatedAtDesc(userId).stream()
+                .filter(t -> folderIdsToDelete.contains(t.getFolderId())).toList();
+        templates.deleteAll(templatesToDelete);
+        templates.flush();
         folders.deleteAllByIdInBatch(folderIdsToDelete);
     }
 
     private List<TreeNodeDto> buildChildren(
             String parentKey,
             Map<String, List<FolderEntity>> foldersByParent,
-            Map<String, List<DocumentEntity>> docsByFolder) {
+            Map<String, List<DocumentEntity>> docsByFolder,
+            Map<String, List<ru.ticket.template.domain.TemplateEntity>> templatesByFolder) {
 
         List<TreeNodeDto> result = new ArrayList<>();
 
         for (FolderEntity f : foldersByParent.getOrDefault(parentKey, List.of())) {
             result.add(new TreeNodeDto(
                     f.getId(), "folder", f.getName(), f.getParentId(), null,
-                    buildChildren(f.getId(), foldersByParent, docsByFolder)
+                    buildChildren(f.getId(), foldersByParent, docsByFolder, templatesByFolder)
             ));
         }
         for (DocumentEntity d : docsByFolder.getOrDefault(parentKey, List.of())) {
@@ -161,6 +171,10 @@ public class FolderServiceImpl implements FolderService {
                     d.getId(), "document", d.getName(), d.getFolderId(),
                     d.getUpdatedAt(), List.of()
             ));
+        }
+        for (var t : templatesByFolder.getOrDefault(parentKey, List.of())) {
+            result.add(new TreeNodeDto(t.getId(), "template", t.getName(), t.getFolderId(),
+                    t.getUpdatedAt(), List.of()));
         }
         return result;
     }
