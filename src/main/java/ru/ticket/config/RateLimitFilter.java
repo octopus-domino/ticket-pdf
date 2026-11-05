@@ -111,6 +111,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
   }
 
   private String routePrefixFor(String path) {
+    if (path.startsWith("/api/connectors/") && (path.endsWith("/preview") || path.endsWith("/import"))) return "generate";
+    if (path.equals("/api/recognition")||path.equals("/api/guest/recognition")) return "generate";
+    if(path.startsWith("/api/guest/export/"))return "export";
+    if(path.startsWith("/api/guest/generate/"))return "generate";
     if (path.startsWith("/api/export/")) return "export";
     if (path.startsWith("/api/generate")) return "generate";
     if (path.startsWith("/api/email/")) return "email";

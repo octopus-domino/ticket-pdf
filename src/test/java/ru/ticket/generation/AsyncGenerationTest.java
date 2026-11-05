@@ -59,7 +59,7 @@ class AsyncGenerationTest {
       var entered = new CountDownLatch(1);
       var release = new CountDownLatch(1);
       var exited = new CountDownLatch(1);
-      when(context.getBean(GenerationService.class).generateDocuments(anyString(), any(), any()))
+      when(context.getBean(GenerationService.class).generateDocuments(anyString(), any(), any(), any()))
           .thenAnswer(
               call -> {
                 entered.countDown();

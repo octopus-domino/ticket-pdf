@@ -253,7 +253,7 @@ public class ShapeElementRenderer implements ElementRenderer<ShapeElement> {
       case "triangle" -> {
         // Пользователь мог перетащить вершины (polygonPoints).
         // Если они заданы — рисуем по точкам, как на канве.
-        if (s.polygonPoints != null && s.polygonPoints.size() >= 6) {
+        if (s.polygonPoints != null && s.polygonPoints.size() >= 6 && !s.polygonPoints.equals(java.util.List.of(75.0,0.0,150.0,150.0,0.0,150.0))) {
           String pts = formatPolygonPoints(s.polygonPoints);
           if (!pts.isEmpty()) {
             out.append(String.format("<polygon points=\"%s\" %s/>\n", pts, common));

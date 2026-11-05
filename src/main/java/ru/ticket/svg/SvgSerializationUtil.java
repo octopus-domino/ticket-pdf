@@ -14,6 +14,9 @@ public final class SvgSerializationUtil {
 
     public static String imageTag(String url, double x, double y,
                                   double w, double h, String extra) {
+        if (url != null && url.startsWith("data:image/svg+xml")) {
+            return SvgSanitizer.inlineSvgImage(url, x, y, w, h, extra);
+        }
         String u = XmlEscape.attr(url);
         return String.format(Locale.ROOT,
                 "<image href=\"%s\" xlink:href=\"%s\" x=\"%.2f\" y=\"%.2f\" " +

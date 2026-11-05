@@ -79,9 +79,12 @@ public class DataModelServiceImpl implements DataModelService {
         }
         String name =
             (it.name() == null || it.name().isBlank()) ? "model-" + (i + 1) : it.name().trim();
-        models.save(
-            new DataModelEntity(
-                userId, req.schemaId(), name, validateDraft(userId, req.schemaId(), it.values())));
+        var values=validateDraft(userId,req.schemaId(),it.values());
+        if(it.id()!=null&&!it.id().isBlank()) {
+          var existing=models.findByIdAndUserId(it.id(),userId).orElseThrow(()->ApiException.notFound("DataModel"));
+          if(!existing.getSchemaId().equals(req.schemaId()))throw ApiException.badRequest("DataModel belongs to another schema");
+          existing.rename(name);existing.replaceValues(values);models.save(existing);
+        } else models.save(new DataModelEntity(userId, req.schemaId(), name, values));
         imported++;
       } catch (Exception e) {
         issues.add(new ImportIssue(i, e.getMessage()));

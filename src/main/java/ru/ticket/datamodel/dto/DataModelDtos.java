@@ -28,7 +28,10 @@ public final class DataModelDtos {
       @NotNull @Size(max = 500) Map<String, Object> values) {}
 
   public record ImportItem(
-      @Size(max = 200) String name, @NotNull @Size(max = 500) Map<String, Object> values) {}
+      @Size(max = 200) String name, @NotNull @Size(max = 500) Map<String, Object> values,
+      @Size(max = 255) String id) {
+    public ImportItem(String name, Map<String,Object> values) { this(name, values, null); }
+  }
 
   public record ImportRequest(
       @NotBlank String schemaId,

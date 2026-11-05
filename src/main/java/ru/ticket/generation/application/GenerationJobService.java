@@ -22,6 +22,10 @@ public class GenerationJobService {
   }
 
   public synchronized GenerationJob enqueue(String userId, GenerationRequest req) {
+    return enqueue(userId, req, null);
+  }
+
+  public synchronized GenerationJob enqueue(String userId, GenerationRequest req, GenerationSource source) {
     if (jobStore.findByUser(userId).stream()
             .filter(
                 j ->
@@ -29,7 +33,7 @@ public class GenerationJobService {
                         || j.status() == GenerationJob.Status.RUNNING)
             .count()
         >= 2) throw ApiException.conflict("Two generation jobs are already active");
-    GenerationJob job = new GenerationJob(userId, req);
+    GenerationJob job = new GenerationJob(userId, req, source);
     jobStore.create(job);
     try {
       worker.run(job.id());
@@ -39,6 +43,17 @@ public class GenerationJobService {
       throw error;
     }
     return job;
+  }
+
+  public GenerationJob archiveSync(String userId, GenerationRequest request, GenerationSource source,
+      GenerationService.SyncResult result, JobFileStorage storage) {
+    var job = new GenerationJob(userId, request, source); job.start();
+    String path = storage.save(job.id(), result.packed().filename(), result.packed().content());
+    job.progress(result.count(), result.issues().size());
+    for (var error : result.issues()) job.recordError(error.index(), error.message());
+    job.done(path);
+    try { jobStore.create(job); return job; }
+    catch (RuntimeException error) { storage.delete(job.id()); throw error; }
   }
 
   public GenerationJob find(String userId, String jobId) {

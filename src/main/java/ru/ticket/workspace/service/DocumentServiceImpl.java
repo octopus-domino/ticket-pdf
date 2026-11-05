@@ -18,10 +18,12 @@ public class DocumentServiceImpl implements DocumentService {
 
     private final DocumentRepository documents;
     private final FolderRepository folders;
+    private final ru.ticket.history.ResourceHistory history;
 
-    public DocumentServiceImpl(DocumentRepository documents, FolderRepository folders) {
+    public DocumentServiceImpl(DocumentRepository documents, FolderRepository folders,ru.ticket.history.ResourceHistory history) {
         this.documents = documents;
         this.folders = folders;
+        this.history = history;
     }
 
     @Override
@@ -45,9 +47,10 @@ public class DocumentServiceImpl implements DocumentService {
     @Transactional
     public DocumentDto save(String userId, String docId, String content) {
         DocumentEntity doc = find(userId, docId);
+        history.capture(userId,"document",docId,toDto(doc));
         doc.saveContent(content);
         documents.save(doc);
-        return toDto(doc);
+        var dto=toDto(doc);history.capture(userId,"document",docId,dto);return dto;
     }
 
     @Override

@@ -40,18 +40,35 @@ public class DiskJobStore implements JobStore<GenerationJob> {
   public synchronized GenerationJob update(GenerationJob job) {
     try {
       files.write(files.path(job.id(), ".json"), mapper.writeValueAsBytes(job.snapshot()));
-      jobs.put(job.id(), job);
+      jobs.put(job.id(), compact(job));
       return job;
     } catch (Exception error) {
       throw new IllegalStateException("Cannot persist job", error);
     }
   }
 
-  public Optional<GenerationJob> find(String id) {
-    return Optional.ofNullable(jobs.get(id));
+  public synchronized Optional<GenerationJob> find(String id) {
+    var cached = jobs.get(id);
+    if (cached == null) return Optional.empty();
+    if (cached.status() == GenerationJob.Status.QUEUED || cached.status() == GenerationJob.Status.RUNNING)
+      return Optional.of(cached);
+    try { return Optional.of(new GenerationJob(mapper.readValue(files.path(id, ".json").toFile(), GenerationJob.Snapshot.class))); }
+    catch (java.io.IOException error) { throw new IllegalStateException("Cannot load generation job", error); }
   }
 
-  public void delete(String id) {
+  /** Completed snapshots stay on disk; retaining every template/model payload in RAM exhausts small VMs. */
+  private GenerationJob compact(GenerationJob job) {
+    if (job.status() == GenerationJob.Status.QUEUED || job.status() == GenerationJob.Status.RUNNING) return job;
+    var snapshot = job.snapshot();
+    var request = new ru.ticket.generation.application.dto.GenerationRequest();
+    request.templateId = job.request().templateId; request.schemaId = job.request().schemaId;
+    request.format = job.request().format; request.packAs = job.request().packAs; request.items = List.of();
+    var marker = job.source() == null ? null : new ru.ticket.generation.application.dto.GenerationSource(null, Map.of());
+    return new GenerationJob(new GenerationJob.Snapshot(snapshot.id(),snapshot.userId(),request,snapshot.createdAt(),snapshot.expiresAt(),snapshot.startedAt(),snapshot.finishedAt(),
+        snapshot.status(),snapshot.total(),snapshot.completed(),snapshot.failed(),snapshot.errors(),snapshot.resultPath(),marker));
+  }
+
+  public synchronized void delete(String id) {
     try {
       Files.deleteIfExists(files.path(id, ".json"));
       jobs.remove(id);

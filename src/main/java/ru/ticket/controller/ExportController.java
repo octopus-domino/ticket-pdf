@@ -12,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/export")
+@RequestMapping({"/api/export","/api/guest/export"})
 public class ExportController {
 
     private final ExportFacade facade;

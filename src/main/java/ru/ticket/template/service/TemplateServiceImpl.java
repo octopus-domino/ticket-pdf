@@ -18,12 +18,14 @@ public class TemplateServiceImpl implements TemplateService {
     private final TemplateRepository templates;
     private final SchemaRepository schemas;
     private final ru.ticket.workspace.repository.FolderRepository folders;
+    private final ru.ticket.history.ResourceHistory history;
 
     public TemplateServiceImpl(TemplateRepository templates, SchemaRepository schemas,
-            ru.ticket.workspace.repository.FolderRepository folders) {
+            ru.ticket.workspace.repository.FolderRepository folders,ru.ticket.history.ResourceHistory history) {
         this.templates = templates;
         this.schemas = schemas;
         this.folders = folders;
+        this.history = history;
     }
 
     @Override
@@ -60,13 +62,14 @@ public class TemplateServiceImpl implements TemplateService {
                 req.bindings()
         );
         t.moveTo(folderId);
-        return toDto(templates.save(t));
+        var dto=toDto(templates.save(t));history.capture(userId,"template",t.getId(),dto);return dto;
     }
 
     @Override
     @Transactional
     public TemplateDto update(String userId, String templateId, SaveTemplateRequest req) {
         TemplateEntity t = find(userId, templateId);
+        history.capture(userId,"template",t.getId(),toDto(t));
         assertSchema(userId, req.schemaId());
         t.replace(
                 blankToNull(req.schemaId()),
@@ -74,7 +77,7 @@ public class TemplateServiceImpl implements TemplateService {
                 req.slides(),
                 req.bindings()
         );
-        return toDto(templates.save(t));
+        var dto=toDto(templates.save(t));history.capture(userId,"template",t.getId(),dto);return dto;
     }
 
     @Override

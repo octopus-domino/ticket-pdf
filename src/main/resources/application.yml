@@ -45,7 +45,11 @@ spring:
             redirect-uri: "${APP_FRONTEND_URL:https://www.codoc.site}/login/oauth2/code/google"
         provider:
           google:
-            issuer-uri: https://accounts.google.com
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://openidconnect.googleapis.com/v1/userinfo
+            jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
+            user-name-attribute: sub
   mail:
     host: ${SMTP_HOST:smtp.mail.ru}
     port: ${SMTP_PORT:${SMTP_PORT_SSL:465}}

@@ -39,14 +39,39 @@ public class GenerationController {
           .body(
               Map.of("error", "Batch size exceeds 100, use /api/generate (async)", "status", 413));
     }
-    GenerationService.SyncResult r = syncService.generateSync(me.userId(), req);
-    return bytesResponse(r.packed(), r.count(), r.issues());
+    var source = syncService.freezeSource(me.userId(), req);
+    var docs = syncService.generateDocuments(me.userId(), req, (i,c,f) -> {}, source);
+    if (docs.documents().isEmpty()) throw ru.ticket.common.ApiException.badRequest("All items failed: " + docs.issues());
+    var r = new GenerationService.SyncResult(syncService.pack(req.packAs,req.format,docs.documents()), req.items.size()-docs.issues().size(),docs.issues());
+    String historyId="unavailable";
+    try { historyId=jobService.archiveSync(me.userId(), req, source, r, fileStorage).id(); }
+    catch (RuntimeException failure) { org.slf4j.LoggerFactory.getLogger(getClass()).warn("generation.history_unavailable"); }
+    var response=bytesResponse(r.packed(), r.count(), r.issues());
+    var headers=new HttpHeaders();headers.putAll(response.getHeaders());headers.set("X-Generation-History",historyId);
+    return new ResponseEntity<>(response.getBody(),headers,response.getStatusCode());
+  }
+
+  @PostMapping("/preview")
+  public ResponseEntity<?> preview(@AuthenticationPrincipal UserIdPrincipal me,
+      @Valid @RequestBody GenerationRequest req,@RequestParam(defaultValue="0") int page) {
+    if (req.items.size() != 1 || !"svg".equals(req.format) || !"single".equals(req.packAs))
+      throw ru.ticket.common.ApiException.badRequest("Preview requires one item, SVG and single packaging");
+    var source=syncService.freezeSource(me.userId(),req);
+    int pages=source.template().slides().size();
+    if(page<0||page>=pages)throw ru.ticket.common.ApiException.badRequest("Invalid preview page");
+    var template=source.template();
+    var single=new ru.ticket.generation.application.dto.GenerationSource(new ru.ticket.generation.application.port.GenerationCatalog.Template(
+        java.util.List.of(template.slides().get(page)),template.schemaId(),template.fields(),template.bindings()),source.models());
+    var result=syncService.generateDocuments(me.userId(),req,(i,c,f)->{},single);
+    if(result.documents().isEmpty())throw ru.ticket.common.ApiException.badRequest("Preview failed: "+result.issues());
+    return ResponseEntity.ok().contentType(MediaType.valueOf("image/svg+xml"))
+        .header("Cache-Control", "no-store").header("X-Preview-Pages",String.valueOf(pages)).body(result.documents().get(0).content());
   }
 
   @PostMapping
   public ResponseEntity<?> generateAsync(
       @AuthenticationPrincipal UserIdPrincipal me, @Valid @RequestBody GenerationRequest req) {
-    GenerationJob job = jobService.enqueue(me.userId(), req);
+    GenerationJob job = jobService.enqueue(me.userId(), req, syncService.freezeSource(me.userId(), req));
     return ResponseEntity.status(HttpStatus.ACCEPTED)
         .body(
             Map.of(
@@ -72,6 +97,29 @@ public class GenerationController {
     return ResponseEntity.ok(response);
   }
 
+  @GetMapping
+  public java.util.List<Map<String,Object>> history(@AuthenticationPrincipal UserIdPrincipal me) {
+    return jobService.listByUser(me.userId()).stream().filter(job -> job.expiresAt().isAfter(java.time.Instant.now()))
+        .sorted(java.util.Comparator.comparing(GenerationJob::createdAt).reversed()).limit(100)
+        .map(job -> Map.<String,Object>of("jobId",job.id(),"status",job.status().name().toLowerCase(),
+          "createdAt",job.createdAt().toString(),"expiresAt",job.expiresAt().toString(),"total",job.total(),
+          "completed",job.completed(),"failed",job.failed(),"format",job.request().format,"hasSnapshot",job.source()!=null)).toList();
+  }
+
+  @PostMapping("/{jobId}/retry")
+  public Map<String,Object> retry(@AuthenticationPrincipal UserIdPrincipal me,@PathVariable String jobId) {
+    var previous=jobService.find(me.userId(),jobId);
+    if (!java.util.Set.of(GenerationJob.Status.DONE,GenerationJob.Status.FAILED).contains(previous.status()))
+      throw ru.ticket.common.ApiException.conflict("Wait for the original job to finish");
+    var indices=previous.errors().stream().map(GenerationJob.ItemError::index).filter(index->index>=0).distinct().toList();
+    if(indices.isEmpty())throw ru.ticket.common.ApiException.badRequest("No failed items to retry");
+    var request=new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules().convertValue(previous.request(),GenerationRequest.class);
+    request.items=indices.stream().map(index->request.items.get(index)).toList();
+    var source=previous.source()==null?syncService.freezeSource(me.userId(),request):previous.source();
+    var next=jobService.enqueue(me.userId(),request,source);
+    return Map.of("jobId",next.id(),"total",next.total());
+  }
+
   @GetMapping("/{jobId}/result")
   public ResponseEntity<byte[]> downloadResult(
       @AuthenticationPrincipal UserIdPrincipal me, @PathVariable String jobId) {
@@ -85,10 +133,7 @@ public class GenerationController {
             : filename.endsWith(".svg")
                 ? MediaType.parseMediaType("image/svg+xml")
                 : MediaType.APPLICATION_PDF;
-    return ResponseEntity.ok()
-        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-        .contentType(type)
-        .body(content);
+    return bytesResponse(new PackResult(content,filename,type.toString()),j.completed(),j.errors());
   }
 
   @DeleteMapping("/{jobId}")
@@ -98,7 +143,7 @@ public class GenerationController {
     return ResponseEntity.noContent().build();
   }
 
-  private String errorsJson(java.util.List<GenerationJob.ItemError> issues) {
+  private static String errorsJson(java.util.List<GenerationJob.ItemError> issues) {
     try {
       return new com.fasterxml.jackson.databind.ObjectMapper()
           .writeValueAsString(
@@ -119,9 +164,10 @@ public class GenerationController {
     }
   }
 
-  private ResponseEntity<byte[]> bytesResponse(
+  static ResponseEntity<byte[]> bytesResponse(
       PackResult packed, int count, java.util.List<GenerationJob.ItemError> issues) {
     return ResponseEntity.ok()
+        .header("Cache-Control","no-store")
         .header(
             HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + packed.filename() + "\"")
         .header(

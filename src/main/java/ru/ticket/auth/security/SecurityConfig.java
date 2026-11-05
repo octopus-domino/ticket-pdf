@@ -25,16 +25,19 @@ public class SecurityConfig {
   private final RateLimitFilter rateLimitFilter;
   private final CorsConfigurationSource corsConfigurationSource;
   private final OAuth2SuccessHandler oAuth2SuccessHandler;
+  private final ru.ticket.clientapi.ClientApiKeyFilter clientKeyFilter;
 
   public SecurityConfig(
       JwtAuthenticationFilter jwtFilter,
       RateLimitFilter rateLimitFilter,
       CorsConfigurationSource corsConfigurationSource,
-      OAuth2SuccessHandler oAuth2SuccessHandler) {
+      OAuth2SuccessHandler oAuth2SuccessHandler,
+      ru.ticket.clientapi.ClientApiKeyFilter clientKeyFilter) {
     this.jwtFilter = jwtFilter;
     this.rateLimitFilter = rateLimitFilter;
     this.corsConfigurationSource = corsConfigurationSource;
     this.oAuth2SuccessHandler = oAuth2SuccessHandler;
+    this.clientKeyFilter = clientKeyFilter;
   }
 
   @Bean
@@ -50,6 +53,12 @@ public class SecurityConfig {
                         "/api/auth/refresh",
                         "/api/auth/logout",
                         "/api/qr",
+                        "/api/guest/export/svg",
+                        "/api/guest/export/pdf",
+                        "/api/guest/recognition",
+                        "/api/guest/recognition/capabilities",
+                        "/api/guest/generate/sync",
+                        "/api/guest/generate/preview",
                         "/oauth2/**",
                         "/login/oauth2/**")
                     .permitAll()
@@ -69,10 +78,17 @@ public class SecurityConfig {
         .oauth2Login(oauth2 -> oauth2.successHandler(oAuth2SuccessHandler))
         .headers(h -> h.frameOptions(f -> f.sameOrigin()))
         .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterBefore(clientKeyFilter, JwtAuthenticationFilter.class)
         // rate-limit идёт ПОСЛЕ аутентификации: bucket-ключ = userId,
         // а не IP за общим NAT.
         .addFilterAfter(rateLimitFilter, JwtAuthenticationFilter.class);
     return http.build();
+  }
+
+  @Bean
+  public org.springframework.boot.web.servlet.FilterRegistrationBean<ru.ticket.clientapi.ClientApiKeyFilter> clientKeyFilterRegistration() {
+    var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(clientKeyFilter);
+    registration.setEnabled(false); return registration;
   }
 
   @Bean

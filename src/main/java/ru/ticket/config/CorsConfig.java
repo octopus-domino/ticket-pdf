@@ -32,7 +32,7 @@ public class CorsConfig {
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
     config.setAllowedHeaders(List.of("*"));
     config.setExposedHeaders(
-        List.of("Content-Disposition", "X-Generation-Errors", "X-Generation-Count", "X-Generation-Failed"));
+        List.of("Content-Disposition", "X-Generation-Errors", "X-Generation-Count", "X-Generation-Failed", "X-Preview-Pages", "X-Generation-History"));
     config.setAllowCredentials(true);
     config.setMaxAge(3600L);
 

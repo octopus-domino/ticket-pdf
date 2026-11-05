@@ -46,7 +46,7 @@ public class GenerationWorker {
                   throw new java.util.concurrent.CancellationException();
                 job.progress(completed, failed);
                 jobStore.update(job);
-              });
+              }, job.source());
 
       for (GenerationJob.ItemError err : result.issues()) {
         job.recordError(err.index(), err.message());

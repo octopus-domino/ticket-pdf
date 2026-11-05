@@ -2,7 +2,7 @@ spring:
   sql:
     init:
       mode: always
-      schema-locations: classpath:db/upgrade-email-ledger.sql
+      schema-locations: classpath:db/upgrade-email-ledger.sql,classpath:db/upgrade-template-folders.sql,classpath:db/upgrade-client-api.sql,classpath:db/upgrade-connectors.sql,classpath:db/upgrade-history.sql,classpath:db/upgrade-libraries.sql,classpath:db/upgrade-profile.sql
   h2:
     console:
       enabled: false

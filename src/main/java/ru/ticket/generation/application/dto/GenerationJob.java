@@ -22,6 +22,7 @@ public final class GenerationJob {
   private final String id;
   private final String userId;
   private final GenerationRequest request;
+  private final GenerationSource source;
   private final Instant createdAt;
   private final Instant expiresAt;
   private Instant startedAt;
@@ -34,9 +35,14 @@ public final class GenerationJob {
   private volatile String resultPath;
 
   public GenerationJob(String userId, GenerationRequest request) {
+    this(userId, request, null);
+  }
+
+  public GenerationJob(String userId, GenerationRequest request, GenerationSource source) {
     this.id = "gen-" + UUID.randomUUID();
     this.userId = userId;
-    this.request = request;
+    this.request = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules().convertValue(request, GenerationRequest.class);
+    this.source = source;
     this.createdAt = Instant.now();
     this.expiresAt = createdAt.plusSeconds(7L * 24 * 60 * 60);
     this.total = request.items != null ? request.items.size() : 0;
@@ -55,12 +61,14 @@ public final class GenerationJob {
       int completed,
       int failed,
       List<ItemError> errors,
-      String resultPath) {}
+      String resultPath,
+      GenerationSource source) {}
 
   public GenerationJob(Snapshot s) {
     id = s.id();
     userId = s.userId();
     request = s.request();
+    source = s.source();
     createdAt = s.createdAt();
     expiresAt = s.expiresAt();
     startedAt = s.startedAt();
@@ -87,7 +95,7 @@ public final class GenerationJob {
         completed,
         failed,
         List.copyOf(errors),
-        resultPath);
+        resultPath, source);
   }
 
   public String id() {
@@ -101,6 +109,8 @@ public final class GenerationJob {
   public GenerationRequest request() {
     return request;
   }
+
+  public GenerationSource source() { return source; }
 
   public Instant createdAt() {
     return createdAt;

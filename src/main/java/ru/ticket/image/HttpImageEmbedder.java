@@ -68,6 +68,8 @@ public class HttpImageEmbedder implements ImageEmbedder {
       Document doc = parse(svg);
       boolean changed = embedAllImages(doc);
       return changed ? serialize(doc) : svg;
+    } catch (IllegalArgumentException e) {
+      throw e;
     } catch (Exception e) {
       System.err.println("[ImageEmbedder] failed: " + e.getMessage());
       return svg;
@@ -92,10 +94,14 @@ public class HttpImageEmbedder implements ImageEmbedder {
     for (int i = 0; i < images.getLength(); i++) {
       Element img = (Element) images.item(i);
       String href = resolveHref(img);
-      if (href == null) continue;
-      if (!href.startsWith("http://") && !href.startsWith("https://")) continue;
-
-      String dataUrl = getOrDownload(href);
+      if (href == null) throw new IllegalArgumentException("Image source is missing or unsupported; use an embedded PNG/JPEG or a public HTTP(S) image");
+      boolean remote = href.startsWith("http://") || href.startsWith("https://");
+      // Batik/FOP requires SVG 1.1 xlink:href even for already embedded SVG 2 images.
+      // Do not download data URLs; preserve their bytes and normalize both attributes.
+      if (!remote && !href.startsWith("data:image/")) continue;
+      String dataUrl = remote ? getOrDownload(href) : href;
+      if (dataUrl.equals(img.getAttributeNS(XLINK_NS, "href"))
+          && dataUrl.equals(img.getAttribute("href"))) continue;
       img.setAttributeNS(XLINK_NS, "xlink:href", dataUrl);
       img.setAttribute("href", dataUrl);
       changed = true;

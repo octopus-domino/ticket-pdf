@@ -14,6 +14,7 @@ public final class SvgSanitizer {
       Set.of(
           "svg",
           "g",
+          "switch",
           "defs",
           "symbol",
           "use",
@@ -75,20 +76,51 @@ public final class SvgSanitizer {
 
   private SvgSanitizer() {}
 
+  /** Keep uploaded vector logos as sanitized vectors, not unsupported SVG-in-image data URLs. */
+  public static String inlineSvgImage(String url, double x, double y, double width, double height, String extra) {
+    try {
+      int comma = url.indexOf(',');
+      if (comma < 0 || url.length() > 3_000_000) throw new IllegalArgumentException("Invalid SVG image data");
+      String header = url.substring(0, comma);
+      String content = header.endsWith(";base64")
+          ? new String(Base64.getDecoder().decode(url.substring(comma + 1)), java.nio.charset.StandardCharsets.UTF_8)
+          : java.net.URLDecoder.decode(url.substring(comma + 1).replace("+", "%2B"), java.nio.charset.StandardCharsets.UTF_8);
+      var root = parse(sanitize(content)).getDocumentElement();
+      if (!root.hasAttribute("viewBox")) {
+        String w = root.getAttribute("width").replaceFirst("px$", "");
+        String h = root.getAttribute("height").replaceFirst("px$", "");
+        if (!w.matches("[0-9.]+") || !h.matches("[0-9.]+")) throw new IllegalArgumentException("SVG image requires a viewBox or numeric dimensions");
+        root.setAttribute("viewBox", "0 0 " + w + " " + h);
+      }
+      root.setAttribute("x", Double.toString(x)); root.setAttribute("y", Double.toString(y));
+      root.setAttribute("width", Double.toString(width)); root.setAttribute("height", Double.toString(height));
+      root.removeAttribute("preserveAspectRatio");
+      root.removeAttribute("overflow");
+      var writer = new StringWriter();
+      var transformer = TransformerFactory.newInstance().newTransformer();
+      transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+      transformer.transform(new DOMSource(root), new StreamResult(writer));
+      return writer.toString().replaceFirst("<svg", "<svg" + java.util.regex.Matcher.quoteReplacement(extra == null ? "" : extra));
+    } catch (Exception error) {
+      throw new IllegalArgumentException("Invalid embedded SVG image", error);
+    }
+  }
+
+  private static Document parse(String svg) throws Exception {
+    var factory = DocumentBuilderFactory.newInstance();
+    factory.setNamespaceAware(true);
+    factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+    factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+    factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+    factory.setXIncludeAware(false);
+    factory.setExpandEntityReferences(false);
+    return factory.newDocumentBuilder().parse(new ByteArrayInputStream(svg.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+  }
+
   public static String sanitize(String svg) {
     try {
-      var factory = DocumentBuilderFactory.newInstance();
-      factory.setNamespaceAware(true);
-      factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-      factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-      factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-      factory.setXIncludeAware(false);
-      factory.setExpandEntityReferences(false);
-      var doc =
-          factory
-              .newDocumentBuilder()
-              .parse(
-                  new ByteArrayInputStream(svg.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+      var doc = parse(svg);
+      if(doc.getElementsByTagNameNS("http://www.w3.org/2000/svg","foreignObject").getLength()>0)doc=parse(DrawioLabelNormalizer.normalize(svg));
       if (!"svg".equals(doc.getDocumentElement().getLocalName()))
         throw new IllegalArgumentException("SVG root required");
       clean(doc.getDocumentElement());
@@ -107,6 +139,9 @@ public final class SvgSanitizer {
       Node attr = element.getAttributes().item(i);
       String key = attr.getNodeName().toLowerCase(Locale.ROOT);
       String value = attr.getNodeValue().trim();
+      if (Set.of("fill","stroke","color","stop-color","flood-color").contains(key)) {
+        value=printColor(value);element.setAttribute(attr.getNodeName(),value);
+      }
       if ((key.equals("fill") || key.equals("stroke")) && value.equalsIgnoreCase("transparent"))
         element.setAttribute(attr.getNodeName(), "none");
       boolean remove =
@@ -144,7 +179,7 @@ public final class SvgSanitizer {
     for (String declaration : css.split(";")) {
       String[] pair = declaration.split(":", 2);
       if (pair.length != 2) continue;
-      String key = pair[0].trim().toLowerCase(Locale.ROOT), value = pair[1].trim();
+      String key = pair[0].trim().toLowerCase(Locale.ROOT), value = printColor(pair[1].trim());
       if ((key.equals("fill") || key.equals("stroke")) && value.equalsIgnoreCase("transparent"))
         value = "none";
       if (CSS.contains(key)
@@ -154,5 +189,16 @@ public final class SvgSanitizer {
         result.append(key).append(':').append(value).append(';');
     }
     return result.toString();
+  }
+  /** Batik implements SVG 1.1 CSS. Resolve modern theme colors for a white printed page. */
+  static String printColor(String value) {
+    for(int iteration=0;iteration<16;iteration++) {
+      int start=value.toLowerCase(Locale.ROOT).indexOf("light-dark(");if(start<0)return value;
+      int depth=1,comma=-1,end=-1;
+      for(int i=start+11;i<value.length();i++) {char c=value.charAt(i);if(c=='(')depth++;else if(c==')'){if(--depth==0){end=i;break;}}else if(c==','&&depth==1&&comma<0)comma=i;}
+      if(comma<0||end<0)throw new IllegalArgumentException("A diagram contains an invalid light/dark color. Choose a solid color and export again.");
+      value=value.substring(0,start)+value.substring(start+11,comma).trim()+value.substring(end+1);
+    }
+    throw new IllegalArgumentException("A diagram contains too many nested theme colors. Choose solid colors and export again.");
   }
 }

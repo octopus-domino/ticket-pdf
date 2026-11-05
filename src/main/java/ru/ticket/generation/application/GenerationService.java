@@ -50,9 +50,24 @@ public class GenerationService {
 
   public DocumentsResult generateDocuments(
       String userId, GenerationRequest req, ItemCallback progress) {
+    return generateDocuments(userId, req, progress, null);
+  }
+
+  public GenerationSource freezeSource(String userId, GenerationRequest request) {
+    var ids = request.items.stream().map(item -> item.dataModelId).filter(Objects::nonNull).collect(Collectors.toSet());
+    var source = new GenerationSource(catalog.template(userId, request), catalog.models(userId, ids));
+    try {
+      var mapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
+      byte[] bytes = mapper.writeValueAsBytes(source);
+      if (bytes.length > 20 * 1024 * 1024) throw ApiException.badRequest("Generation snapshot exceeds 20 MB; split the batch");
+      return mapper.readValue(bytes, GenerationSource.class);
+    } catch (java.io.IOException error) { throw new IllegalArgumentException("Cannot snapshot generation source", error); }
+  }
+
+  public DocumentsResult generateDocuments(String userId, GenerationRequest req, ItemCallback progress, GenerationSource source) {
     if (req.items == null || req.items.isEmpty() || req.items.size() > 10000)
       throw ApiException.badRequest("Expected 1..10000 items");
-    var template = catalog.template(userId, req);
+    var template = source == null ? catalog.template(userId, req) : source.template();
     var renderer = rendererFor(ExportFormat.fromString(req.format));
     if (req.options != null && !"pdf/a-2b".equals(req.options.pdfVersion))
       throw ApiException.badRequest("Unsupported PDF version");
@@ -63,7 +78,7 @@ public class GenerationService {
             .map(i -> i.dataModelId)
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
-    var models = catalog.models(userId, ids);
+    var models = source == null ? catalog.models(userId, ids) : source.models();
     Set<String> known = template.fields().stream().map(f -> f.path()).collect(Collectors.toSet());
     for (var binding : template.bindings()) {
       if ("ignored".equals(binding.status)) continue;
