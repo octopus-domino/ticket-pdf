@@ -1,8 +1,10 @@
 package ru.ticket.history;
 
+
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
+
 
 @Entity @Table(name="resource_revisions", indexes={@Index(name="idx_revision_owner",columnList="user_id"),@Index(name="idx_revision_resource",columnList="resource_id")})
 public class ResourceRevision {

@@ -1,5 +1,7 @@
 package ru.ticket.profile;
+
 import jakarta.persistence.*;
+
 @Entity @Table(name="client_profiles")
 public class ClientProfile {
   @Id @Column(name="user_id",length=36) public String userId;

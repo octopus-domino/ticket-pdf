@@ -1,10 +1,12 @@
 package ru.ticket.connectors;
 
+
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+
 
 @Entity @Table(name="source_connections", indexes=@Index(name="idx_source_owner", columnList="user_id"))
 public class SourceConnection {

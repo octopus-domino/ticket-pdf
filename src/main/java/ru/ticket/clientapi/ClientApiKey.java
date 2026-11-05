@@ -1,8 +1,10 @@
 package ru.ticket.clientapi;
 
+
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
+
 
 @Entity @Table(name="api_client_keys", indexes=@Index(name="idx_api_keys_owner", columnList="user_id"))
 public class ClientApiKey {

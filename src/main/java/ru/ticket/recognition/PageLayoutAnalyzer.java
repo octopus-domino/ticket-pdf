@@ -10,6 +10,9 @@ import ru.ticket.recognition.RecognitionDraft.Item;
 /** Deterministic geometric reconstruction; uncertain artwork stays an editable raster crop. */
 @Component
 public class PageLayoutAnalyzer {
+  private static final int RULE_NEIGHBOR_DISTANCE = 3;
+  private static final int MIN_RULE_CONTRAST = 60;
+
   private record Rule(int x, int y, int width, int height) {}
   public RecognitionDraft analyze(BufferedImage image, List<OcrEngine.Word> words) {
     int w = image.getWidth(), h = image.getHeight();
@@ -97,22 +100,41 @@ public class PageLayoutAnalyzer {
     return result.size() <= 80 ? result : List.of();
   }
   private static boolean thin(BufferedImage image, boolean vertical, int row, int start, int length) {
-    int thick = 0;
+    int contrastingSamples = 0;
     for (int quarter = 1; quarter <= 3; quarter++) {
       int pos = start + length * quarter / 4;
-      int x = vertical ? row : pos, y = vertical ? pos : row;
-      int ax = vertical ? x - 3 : x, ay = vertical ? y : y - 3;
-      int bx = vertical ? x + 3 : x, by = vertical ? y : y + 3;
-      if (ax >= 0 && ay >= 0 && bx < image.getWidth() && by < image.getHeight()
-          && dark(image.getRGB(ax, ay)) && dark(image.getRGB(bx, by))) thick++;
+      int x = vertical ? row : pos;
+      int y = vertical ? pos : row;
+      int beforeX = vertical ? x - RULE_NEIGHBOR_DISTANCE : x;
+      int beforeY = vertical ? y : y - RULE_NEIGHBOR_DISTANCE;
+      int afterX = vertical ? x + RULE_NEIGHBOR_DISTANCE : x;
+      int afterY = vertical ? y : y + RULE_NEIGHBOR_DISTANCE;
+      if (beforeX < 0 || beforeY < 0
+          || afterX >= image.getWidth() || afterY >= image.getHeight()) {
+        continue;
+      }
+      int center = brightness(image.getRGB(x, y));
+      // A rule must contrast with BOTH sides. A solid panel edge has the panel's color
+      // on one side and must remain part of the artwork rather than being erased as a rule.
+      if (brightness(image.getRGB(beforeX, beforeY)) > center + MIN_RULE_CONTRAST
+          && brightness(image.getRGB(afterX, afterY)) > center + MIN_RULE_CONTRAST) {
+        contrastingSamples++;
+      }
     }
-    return thick < 2;
+    return contrastingSamples >= 2;
   }
+
   private static boolean adjacent(Rule a, Rule b, boolean vertical) {
     return vertical ? Math.abs(a.x - b.x) <= 3 && Math.abs(a.y - b.y) <= 2 && Math.abs(a.height - b.height) <= 3
         : Math.abs(a.y - b.y) <= 3 && Math.abs(a.x - b.x) <= 2 && Math.abs(a.width - b.width) <= 3;
   }
-  private static boolean dark(int rgb) { return ((rgb >> 16 & 255) + (rgb >> 8 & 255) + (rgb & 255)) < 360; }
+  private static int brightness(int rgb) {
+    return (rgb >> 16 & 255) + (rgb >> 8 & 255) + (rgb & 255);
+  }
+
+  private static boolean dark(int rgb) {
+    return brightness(rgb) < 360;
+  }
   private static void mask(boolean[] mask, int w, int h, int x, int y, int width, int height) {
     for (int row = Math.max(0, y); row < Math.min(h, y + height); row++)
       Arrays.fill(mask, row * w + Math.max(0, x), row * w + Math.max(0, Math.min(w, x + width)), true);
@@ -141,10 +163,8 @@ public class PageLayoutAnalyzer {
       }
       int x = x0 * tile, y = y0 * tile, width = Math.min(w, (x1 + 1) * tile) - x, height = Math.min(h, (y1 + 1) * tile) - y;
       if (count < 5 || width < 24 || height < 24 || ++crops > 32) continue;
-      // Excluded text must not be duplicated inside the crop.
-      var crop = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-      for (int cy = 0; cy < height; cy++) for (int cx = 0; cx < width; cx++)
-        crop.setRGB(cx, cy, excluded[(y + cy) * w + x + cx] ? 0xffffff : image.getRGB(x + cx, y + cy));
+      // Remove extracted ink using the local background, not an assumed white page.
+      var crop = ArtworkBackground.restore(image, excluded, x, y, width, height);
       int[] colors = new int[4096];
       for (int cy = 0; cy < height; cy++) for (int cx = 0; cx < width; cx++) {
         int rgb = crop.getRGB(cx, cy);

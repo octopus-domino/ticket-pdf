@@ -1,5 +1,6 @@
 package ru.ticket.clientapi;
 
+
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import java.io.IOException;
@@ -12,14 +13,18 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import ru.ticket.auth.security.UserIdPrincipal;
 import ru.ticket.common.ApiException;
 
+
 @Component
 public class ClientApiKeyFilter extends OncePerRequestFilter {
   private final ClientApiKeyService service;
+
   public ClientApiKeyFilter(ClientApiKeyService service) { this.service = service; }
   @Override protected boolean shouldNotFilter(HttpServletRequest request) { return request.getHeader("X-API-Key") == null || request.getMethod().equals("OPTIONS"); }
   @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
     try {
-      if (request.getHeader("Authorization") != null) throw ApiException.badRequest("Use either X-API-Key or Authorization");
+      if (request.getHeader("Authorization") != null) {
+        throw ApiException.badRequest("Use either X-API-Key or Authorization");
+      }
       String owner = service.authenticate(request.getHeader("X-API-Key"), request.getMethod(), request.getRequestURI());
       SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(new UserIdPrincipal(owner), null, List.of(new SimpleGrantedAuthority("ROLE_USER"))));
     } catch (ApiException error) {

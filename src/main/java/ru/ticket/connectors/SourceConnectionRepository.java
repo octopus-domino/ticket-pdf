@@ -1,5 +1,6 @@
 package ru.ticket.connectors;
 
+
 import jakarta.persistence.LockModeType;
 import java.util.*;
 import org.springframework.data.jpa.repository.*;

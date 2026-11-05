@@ -1,5 +1,6 @@
 package ru.ticket.clientapi;
 
+
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.*;
@@ -8,16 +9,20 @@ import javax.crypto.spec.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+
 @Component
 public class SecretCipher {
   private final SecretKeySpec key;
+
   public SecretCipher(@Value("${app.secrets.encryption-key:${jwt.secret}}") String secret) {
     key = new SecretKeySpec(HexFormat.of().parseHex(hash("codoc-connector-v1:" + secret)), "AES");
   }
+
   public static String hash(String value) {
     try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8))); }
     catch (GeneralSecurityException error) { throw new IllegalStateException(error); }
   }
+
   public String encrypt(String value) {
     try {
       byte[] nonce = new byte[12]; new SecureRandom().nextBytes(nonce);
@@ -26,6 +31,7 @@ public class SecretCipher {
       return Base64.getEncoder().encodeToString(nonce) + "." + Base64.getEncoder().encodeToString(encrypted);
     } catch (GeneralSecurityException error) { throw new IllegalStateException("Secret encryption failed", error); }
   }
+
   public String decrypt(String value) {
     try {
       String[] parts = value.split("\\.", 2);
