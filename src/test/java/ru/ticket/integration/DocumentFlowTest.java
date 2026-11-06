@@ -21,7 +21,10 @@ import org.springframework.test.context.DynamicPropertySource;
           "app.rate-limit.enabled=false",
       "spring.security.oauth2.client.registration.google.client-id=test",
           "spring.security.oauth2.client.registration.google.client-secret=test",
-      "spring.security.oauth2.client.provider.google.issuer-uri=https://accounts.google.com"
+      "spring.security.oauth2.client.provider.google.issuer-uri=https://accounts.google.com",
+            "SMTP_HOST=localhost",
+            "SMTP_USER=test@example.invalid",
+            "EMAIL_FROM=test@example.invalid",
     })
 class DocumentFlowTest {
   @org.springframework.boot.test.context.TestConfiguration
