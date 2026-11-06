@@ -7,12 +7,13 @@ import ru.ticket.recognition.OcrEngine;
 import ru.ticket.recognition.tesseract.TesseractProcessRunner;
 
 /**
- * hOCR-проход Tesseract с расширенными подсказками шрифта.
+ * hOCR pass over Tesseract.
  *
- * <p><b>Роль.</b> При {@code -c hocr_font_info=1} Tesseract пытается отдать
- * {@code x_font, x_fsize, x_bold, x_italic}. Подсказки ненадёжны, но когда
- * приходят — это осознанное подтверждение движка, и
- * {@code CompositeTextStyleAnalyzer} использует их с приоритетом.
+ * <p><b>No {@code hocr_font_info}.</b> Tesseract's font hints are noisy:
+ * they frequently report wrong sizes and bold/italic states. When present, they
+ * override the far more accurate pixel-based {@code CompositeTextStyleAnalyzer}.
+ * Omitting them keeps the pre-fusion style quality: font family, weight, italic
+ * and colour are inferred directly from the glyph bitmaps.
  */
 @Component
 public class TesseractHocrEngine implements OcrEngine {
@@ -30,8 +31,7 @@ public class TesseractHocrEngine implements OcrEngine {
     @Override
     public List<Word> recognize(BufferedImage image, String language) {
         var request = new TesseractProcessRunner.Request(
-                List.of("-l", language, "--psm", "3", "hocr",
-                        "-c", "hocr_font_info=1"),
+                List.of("-l", language, "--psm", "3", "hocr"),
                 MAX_OUTPUT_BYTES);
         return parser.parse(runner.run(image, request));
     }

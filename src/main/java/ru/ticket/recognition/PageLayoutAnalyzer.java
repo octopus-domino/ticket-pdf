@@ -2,6 +2,7 @@ package ru.ticket.recognition;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,17 +15,6 @@ import ru.ticket.recognition.layout.RuledTableDetector;
 import ru.ticket.recognition.layout.TextElementBuilder;
 import ru.ticket.recognition.layout.TextMask;
 
-/**
- * Оркестратор детерминированного разбора растрового документа.
- *
- * <ol>
- *   <li>Обнаружение таблиц ({@link RuledTableDetector}).</li>
- *   <li>Сборка текстовых элементов ({@link TextElementBuilder}).</li>
- *   <li>Свободные линии вне таблиц.</li>
- *   <li>Artwork-эвристика ({@link ArtworkDetector}) — только если вызывающий
- *       код не подменил её своим {@code ShapeRecognizer}.</li>
- * </ol>
- */
 @Component
 public class PageLayoutAnalyzer {
 
@@ -74,9 +64,32 @@ public class PageLayoutAnalyzer {
       if (consumed.contains(word)) continue;
       lines.computeIfAbsent(word.line(), k -> new ArrayList<>()).add(word);
     }
+
+    // Разбиваем слова в одной строке Tesseract на отдельные блоки,
+    // если между ними большой горизонтальный разрыв (таблицы, колонки).
+    int maxGap = Math.max(40, width / 20); // ~5% ширины страницы
     for (List<OcrEngine.Word> line : lines.values()) {
-      Item item = textBuilder.build(image, line, width, height);
-      if (item != null) items.add(item);
+      if (line.isEmpty()) continue;
+
+      List<OcrEngine.Word> sorted = new ArrayList<>(line);
+      sorted.sort(Comparator.comparingInt(OcrEngine.Word::x));
+
+      List<OcrEngine.Word> current = new ArrayList<>();
+      int lastRight = -1;
+
+      for (OcrEngine.Word word : sorted) {
+        if (lastRight != -1 && word.x() - lastRight > maxGap) {
+          Item item = textBuilder.build(image, current, width, height);
+          if (item != null) items.add(item);
+          current.clear();
+        }
+        current.add(word);
+        lastRight = word.x() + word.width();
+      }
+      if (!current.isEmpty()) {
+        Item item = textBuilder.build(image, current, width, height);
+        if (item != null) items.add(item);
+      }
     }
 
     for (Rule rule : tableResult.remainingHorizontal()) {

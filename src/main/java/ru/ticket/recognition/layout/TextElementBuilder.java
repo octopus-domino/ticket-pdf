@@ -36,8 +36,6 @@ public class TextElementBuilder {
                 .max()
                 .orElse(canvasWidth);
 
-        // Берем медианную высоту слова в строке, чтобы гигантский логотип
-        // (ошибочно принятый за слово) не раздувал шрифт всей строки.
         List<Integer> heights = line.stream().map(Word::height).sorted().toList();
         int medianHeight = heights.get(heights.size() / 2);
         double lineFontSize = Math.max(8.0, medianHeight * 1.05);

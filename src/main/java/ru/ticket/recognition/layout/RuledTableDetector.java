@@ -13,13 +13,6 @@ import ru.ticket.recognition.OcrEngine.Word;
 import ru.ticket.recognition.RecognitionDraft.Item;
 import ru.ticket.recognition.RuleDetector.Rule;
 
-/**
- * Детектор регулярной таблицы по полной сетке линий.
- *
- * <p><b>SRP.</b> Одна задача: если есть ортогональная сетка (≥3
- * горизонтальных «через всю ширину» и ≥2 вертикальных «через высоту»),
- * сгруппировать слова по ячейкам и вернуть один {@code Item("table")}.
- */
 @Component
 public class RuledTableDetector {
 
@@ -76,14 +69,23 @@ public class RuledTableDetector {
             var cells = new ArrayList<String>();
             for (int col = 0; col < xs.size() - 1; col++) {
                 var inCell = new ArrayList<Word>();
+
+                double cellX1 = xs.get(col);
+                double cellX2 = xs.get(col + 1);
+                double cellY1 = ys.get(row);
+                double cellY2 = ys.get(row + 1);
+
                 for (Word word : words) {
-                    double cx = word.x() + word.width() / 2.0;
-                    double cy = word.y() + word.height() / 2.0;
-                    if (cx > xs.get(col) && cx < xs.get(col + 1)
-                            && cy > ys.get(row) && cy < ys.get(row + 1)) {
+                    double wx1 = word.x();
+                    double wx2 = word.x() + word.width();
+                    double wy1 = word.y();
+                    double wy2 = word.y() + word.height();
+
+                    if (wx1 < cellX2 && wx2 > cellX1 && wy1 < cellY2 && wy2 > cellY1) {
                         inCell.add(word);
                     }
                 }
+
                 inCell.sort(Comparator.comparingInt(Word::y).thenComparingInt(Word::x));
                 cells.add(String.join(" ", inCell.stream().map(Word::text).toList()));
                 consumed.addAll(inCell);
