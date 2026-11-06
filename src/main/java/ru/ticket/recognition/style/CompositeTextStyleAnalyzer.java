@@ -8,28 +8,25 @@ import ru.ticket.recognition.OcrEngine.StyleHints;
 import ru.ticket.recognition.OcrEngine.Word;
 
 /**
- * Combines ink-based style analysis (bold/italic/underline/colour/family)
- * with optional OCR hints.
+ * Combines ink-based style analysis with optional OCR hints.
  *
- * <p><b>Why pixels win over hints.</b> Tesseract's {@code x_bold},
- * {@code x_italic} and {@code x_fsize} are classifier guesses trained on
- * generic corpora. In practice they fire spuriously on serif rendering,
- * anti-aliasing, and small skew — a single false positive flips
- * {@link InkBasedRunSplitter} into creating a run boundary that fragments the
- * line. Ink analysis ({@link StrokeAnalyzer}, {@link InkStyleSampler}) works
- * on the actual glyph bitmaps and is stable across neighbouring words, so it
- * is the primary signal for everything that can be measured from pixels.
- *
- * <p>Hints are retained only as a <em>font-family fallback</em>: when pixel
- * matching returns the default {@code Arial} but hOCR provides a concrete
- * family name (e.g. via {@code hocr_font_info=1}), the hint is accepted. Bold,
- * italic, size and underline from hints are ignored — pixel analysis is more
- * accurate for those.
+ * <p><b>Precedence — explicit hints win.</b> hOCR's {@code x_font},
+ * {@code x_fsize}, {@code x_bold}, {@code x_italic} are produced by
+ * Tesseract's own font-info pass and, when present, are generally more
+ * accurate than pixel heuristics (which fire spuriously on serif rendering,
+ * anti-aliasing and small skew). So:
+ * <ul>
+ *   <li>pixel analysis provides the baseline</li>
+ *   <li>a non-{@code null} hint overrides the corresponding baseline value</li>
+ *   <li>the analyzer never merges — a word with no hints keeps its pixel
+ *       result untouched</li>
+ * </ul>
+ * This is the same contract as before this change; the layout regression was
+ * upstream in fusion (lost line ids) and downstream in HTML serialisation
+ * (per-span font-size), not in this precedence rule.
  */
 @Component
 public class CompositeTextStyleAnalyzer implements TextStyleAnalyzer {
-
-    private static final String DEFAULT_FAMILY = "Arial";
 
     private final FontMatcher fontMatcher;
 
@@ -53,16 +50,12 @@ public class CompositeTextStyleAnalyzer implements TextStyleAnalyzer {
         String family = fontMatcher.match(word, profile);
 
         StyleHints hints = word.hints() == null ? StyleHints.NONE : word.hints();
-
-        // Family: adopt the hOCR hint only if pixel matching was inconclusive
-        // (fell back to Arial) and the hint names a different family.
-        if (DEFAULT_FAMILY.equals(family)
-                && hints.fontFamily() != null
-                && !hints.fontFamily().isBlank()
-                && !hints.fontFamily().equalsIgnoreCase(DEFAULT_FAMILY)) {
+        if (hints.fontSize() != null) fontSize = hints.fontSize();
+        if (hints.bold() != null) bold = hints.bold();
+        if (hints.italic() != null) italic = hints.italic();
+        if (hints.fontFamily() != null && !hints.fontFamily().isBlank()) {
             family = hints.fontFamily();
         }
-        // bold/italic/underline/size from hints are intentionally ignored.
 
         return new TextStyle(color, fontSize, bold, italic, underline, strike, family);
     }

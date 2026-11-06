@@ -10,31 +10,29 @@ import ru.ticket.recognition.OcrEngine.Word;
 /**
  * Merges TSV and hOCR word streams.
  *
- * <p><b>Policy — TSV is authoritative.</b> The plain-Tesseract pipeline
- * produced excellent geometry and line grouping from the start. Everything
- * that drives layout (position, bbox, line id) is taken from TSV unchanged.
- * hOCR contributes only optional {@link StyleHints} (font-family) that pixel
- * analysis cannot reliably recover; its own geometry and line ids are
- * discarded. This guarantees that enabling hOCR cannot shift a single line
- * boundary or bbox — it can only enrich style metadata.
+ * <p><b>Policy — TSV is authoritative for structure, hOCR enriches.</b>
+ * When a TSV word matches an hOCR word (IoU ≥ 0.5), geometry and line id come
+ * from TSV; hOCR contributes only {@link StyleHints}. This is what restores
+ * the plain-Tesseract layout quality while keeping style metadata.
  *
- * <ol>
- *   <li>For each TSV word, find the best hOCR match by IoU ≥ 0.5.</li>
- *   <li>On match: keep TSV geometry and line; merge hints; boost confidence
- *       on text agreement.</li>
- *   <li>On no match: keep the TSV word as-is.</li>
- *   <li>Leftover hOCR-only words are deliberately <em>not</em> appended.
- *       Their line ids belong to a different numbering space and would
- *       create phantom lines; dropping them keeps the layout graph clean.</li>
- * </ol>
+ * <p><b>hOCR-only words are preserved.</b> When TSV fails on a line (dense
+ * small text, damaged input), hOCR is the only source of truth we have.
+ * Dropping those words silently loses text. Their line ids, however, use a
+ * different numbering space ({@code L1, L2, …} vs {@code page:block:par:line}),
+ * so they are prefixed with {@code hocr:} to guarantee they can never collide
+ * with a TSV line in {@code PageLayoutAnalyzer}'s grouping.
+ *
+ * <p><b>Ordering</b> is preserved as before: words sorted by (x, y).
  */
 @Component
 public class OcrResultFusion {
 
     public static final double IOU_THRESHOLD = 0.5;
 
+    private static final String HOCR_LINE_PREFIX = "hocr:";
+
     public List<FusedWord> fuse(List<Word> tsv, List<Word> hocr) {
-        List<FusedWord> result = new ArrayList<>(tsv.size());
+        List<FusedWord> result = new ArrayList<>(tsv.size() + hocr.size());
         boolean[] usedHocr = new boolean[hocr.size()];
 
         for (Word a : tsv) {
@@ -49,7 +47,18 @@ public class OcrResultFusion {
             usedHocr[match] = true;
             result.add(mergePair(a, b));
         }
-        // Intentionally do NOT iterate over remaining hOCR words.
+
+        // hOCR-only words: keep text, prefix line id, no geometry override.
+        for (int i = 0; i < hocr.size(); i++) {
+            if (usedHocr[i]) continue;
+            Word b = hocr.get(i);
+            String line = b.line() == null || b.line().isBlank()
+                    ? null
+                    : HOCR_LINE_PREFIX + b.line();
+            result.add(new FusedWord(
+                    b.text(), b.x(), b.y(), b.width(), b.height(),
+                    b.confidence(), 1, hintsOf(b), false, line));
+        }
 
         result.sort(Comparator.comparingInt(FusedWord::x).thenComparingInt(FusedWord::y));
         return result;
@@ -68,7 +77,6 @@ public class OcrResultFusion {
         StyleHints hints = hintsOf(hocr);
         if (hints == StyleHints.NONE) hints = hintsOf(tsv);
 
-        // TSV is the source of truth for x/y/w/h/line. hOCR only feeds hints.
         return new FusedWord(
                 text,
                 tsv.x(), tsv.y(), tsv.width(), tsv.height(),

@@ -15,25 +15,21 @@ import ru.ticket.util.XmlEscape;
 /**
  * Builds exactly one {@code Item("text", …)} per visual line.
  *
- * <p><b>Typography is line-level; styles are run-level.</b> This is the core
- * invariant that keeps the output visually stable across scanners and DPI
- * variations.
- *
+ * <p><b>Typography invariant.</b> Inside a visual line there is at most one
+ * rendered size:
  * <ul>
- *   <li><b>Font size</b> is derived <em>once</em> from the line's bounding
- *       box using the same {@code (bottom − top) × 1.05} formula that the
- *       pre-fusion plain-Tesseract pipeline used. Pixel-level per-word
- *       estimates (x-height vs descender) are noisy, so they are never
- *       allowed to override the line size.</li>
- *   <li><b>Style</b> differences (colour, bold, italic, underline, strike,
- *       family) are surfaced as {@code <span>}s in an HTML representation —
- *       the plain text and line-level {@code fontSize} stay intact.</li>
- *   <li>Single-style lines produce a plain text element (no HTML, no spans).
- *       Mixed-style lines produce HTML but every span carries the
- *       <em>same</em> {@code font-size} = line size. This deliberately
- *       sacrifices exotic mixed-size lines (drop caps) in favour of
- *       rock-solid consistency for 99 % of documents; users can edit an
- *       individual span in the editor if they need a special size.</li>
+ *   <li><b>Multi-run HTML</b> (mixed colour / bold / italic / family) —
+ *       every {@code <span>} carries {@code font-size = lineFontSize}. The
+ *       per-run pixel estimate is deliberately not used here: it differs from
+ *       the line average by 15–25 % even when the font is uniform (x-height
+ *       words vs. words with ascenders/descenders), and that is what produced
+ *       the "jumping letters" artefact.</li>
+ *   <li><b>Single-run plain text</b> — the analyzer's own estimate
+ *       ({@code style.fontSize()}) is used. There is a single span, so no
+ *       jumping is possible; the pixel estimate is the more accurate of the
+ *       two for a representative word.</li>
+ *   <li><b>No style data</b> — the plain-Tesseract formula
+ *       {@code (bottom − top) × 1.05}.</li>
  * </ul>
  */
 @Component
@@ -60,7 +56,6 @@ public class TextElementBuilder {
                 .max()
                 .orElse(canvasWidth);
 
-        // Line-level font size — byte-for-byte the baseline Tesseract formula.
         double lineFontSize = Math.max(8.0, (bottom - top) * 1.05);
 
         List<StyledRun> runs;
@@ -79,7 +74,7 @@ public class TextElementBuilder {
         if (runs.isEmpty()) {
             properties = plainProperties(line, lineFontSize);
         } else if (runs.size() == 1) {
-            properties = singleRunProperties(runs.get(0), line, lineFontSize);
+            properties = singleRunProperties(runs.get(0), line);
         } else {
             properties = multiRunProperties(runs, line, lineFontSize);
         }
@@ -107,16 +102,16 @@ public class TextElementBuilder {
     }
 
     /* ============================================================
-       Single-style line — apply style at element level, no HTML.
+       Single-style line — one span, one size; use the analyzer's estimate.
        ============================================================ */
 
     private static Map<String, Object> singleRunProperties(
-            StyledRun run, List<Word> line, double lineFontSize) {
+            StyledRun run, List<Word> line) {
         TextStyle style = run.style();
         var properties = new LinkedHashMap<String, Object>();
         properties.put("text", String.join(" ",
                 line.stream().map(Word::text).toList()));
-        properties.put("fontSize", lineFontSize);
+        properties.put("fontSize", style.fontSize());
         properties.put("fill", style.color());
         properties.put("fontFamily", style.fontFamily());
         properties.put("fontStyle", fontStyleOf(style));
@@ -128,7 +123,7 @@ public class TextElementBuilder {
     }
 
     /* ============================================================
-       Mixed-style line — HTML with per-span style, line-level size.
+       Mixed-style line — HTML with per-span style, uniform line-level size.
        ============================================================ */
 
     private static Map<String, Object> multiRunProperties(
@@ -178,10 +173,7 @@ public class TextElementBuilder {
             if (!firstRun) html.append(' ');
             firstRun = false;
 
-            // font-size is the line base for every span. Deliberately not
-            // per-run: pixel estimates for a single word differ from the
-            // line average by 15–25 % even when the font is uniform, and
-            // would produce the "jumping letters" artefact.
+            // Line base font-size for every span — no per-span size drift.
             html.append("<span style=\"")
                     .append("color:").append(s.color()).append(';')
                     .append("font-size:").append(Math.round(lineFontSize)).append("px;")
