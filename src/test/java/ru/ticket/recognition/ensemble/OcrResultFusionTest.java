@@ -26,7 +26,7 @@ class OcrResultFusionTest {
 
     @Test
     void hocrHintsAreCarriedThrough() {
-        Word tsv  = new Word("Total", 10, 10, 60, 20, 88, "L1");
+        Word tsv = new Word("Total", 10, 10, 60, 20, 88, "L1");
         Word hocr = new Word("Total", 10, 10, 60, 20, 90, "L1",
                 new StyleHints("Georgia", 16.0, true, false));
 
@@ -40,7 +40,7 @@ class OcrResultFusionTest {
 
     @Test
     void differingTextIsFlaggedForReview() {
-        Word a = new Word("Helo",  10, 10, 50, 20, 70, "L1");
+        Word a = new Word("Helo", 10, 10, 50, 20, 70, "L1");
         Word b = new Word("Hello", 11, 10, 50, 20, 95, "L1");
 
         var fused = fusion.fuse(List.of(a), List.of(b));
@@ -52,7 +52,7 @@ class OcrResultFusionTest {
 
     @Test
     void nonOverlappingWordsStaySeparate() {
-        Word a = new Word("Left",  0,   0, 40, 20, 90, "L1");
+        Word a = new Word("Left", 0, 0, 40, 20, 90, "L1");
         Word b = new Word("Right", 200, 0, 40, 20, 90, "L1");
 
         var fused = fusion.fuse(List.of(a), List.of(b));
@@ -74,7 +74,8 @@ class OcrResultFusionTest {
     @Test
     void emptyInputsProduceEmptyOutput() {
         assertThat(fusion.fuse(List.of(), List.of())).isEmpty();
-        assertThat(fusion.fuse(List.of(), List.of(new Word("x", 0, 0, 10, 10, 90, "L"))))
+        assertThat(fusion.fuse(List.of(),
+                List.of(new Word("x", 0, 0, 10, 10, 90, "L"))))
                 .hasSize(1);
     }
 }

@@ -12,7 +12,8 @@ import ru.ticket.text.AwtTextLayoutService;
 class CompositeTextStyleAnalyzerTest {
 
     private final CompositeTextStyleAnalyzer analyzer =
-            new CompositeTextStyleAnalyzer(new AwtFontMatcher(new AwtTextLayoutService()));
+            new CompositeTextStyleAnalyzer(
+                    new AwtFontMatcher(new AwtTextLayoutService()));
 
     @Test
     void explicitHintsOverrideVisualAnalysis() {

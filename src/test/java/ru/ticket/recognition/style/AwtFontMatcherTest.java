@@ -23,7 +23,8 @@ class AwtFontMatcherTest {
 
     @Test
     void singleCandidateAlwaysWins() {
-        AwtFontMatcher single = new AwtFontMatcher(textLayout, List.of("Courier New"));
+        AwtFontMatcher single =
+                new AwtFontMatcher(textLayout, List.of("Courier New"));
         var rendered = TestImages.renderWord("test", "Courier New", 20,
                 Font.PLAIN, Color.BLACK, 2, 2);
         Word word = rendered.toWord(95);

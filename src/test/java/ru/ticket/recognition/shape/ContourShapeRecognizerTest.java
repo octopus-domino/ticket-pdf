@@ -47,20 +47,18 @@ class ContourShapeRecognizerTest {
         Graphics2D g = img.createGraphics();
         try {
             g.setColor(Color.BLACK);
-            g.fillRect(20, 20, 100, 60);   // фигура
-            g.drawString("TEXT", 150, 50); // текст
+            g.fillRect(20, 20, 100, 60);
+            g.drawString("TEXT", 150, 50);
         } finally {
             g.dispose();
         }
         boolean[] mask = new boolean[200 * 100];
-        // Маскируем область текста
         for (int y = 30; y < 70; y++) {
             for (int x = 140; x < 195; x++) {
                 mask[y * 200 + x] = true;
             }
         }
         var shapes = recognizer.recognize(img, mask);
-        // Фигура найдена, текст — нет
         assertThat(shapes).isNotEmpty();
         assertThat(shapes).noneMatch(s -> s.x() > 140);
     }

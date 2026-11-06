@@ -14,8 +14,8 @@ class StrokeAnalyzerTest {
     @Test
     void medianRunLengthOnSolidBarEqualsBarWidth() {
         BufferedImage bar = TestImages.solidBlack(100, 10);
-        double median = StrokeAnalyzer.medianHorizontalRunLength(bar, 0, 0, 100, 10);
-        assertThat(median).isEqualTo(100.0);
+        assertThat(StrokeAnalyzer.medianHorizontalRunLength(bar, 0, 0, 100, 10))
+                .isEqualTo(100.0);
     }
 
     @Test
@@ -29,12 +29,12 @@ class StrokeAnalyzerTest {
         } finally {
             g.dispose();
         }
-        double median = StrokeAnalyzer.medianHorizontalRunLength(img, 0, 0, 100, 10);
-        assertThat(median).isEqualTo(20.0);
+        assertThat(StrokeAnalyzer.medianHorizontalRunLength(img, 0, 0, 100, 10))
+                .isEqualTo(20.0);
     }
 
     @Test
-    void xHeightOnLowercaseLettersIsLessThanBoxHeight() {
+    void xHeightOnLowercaseIsLessThanBoxHeight() {
         var rendered = TestImages.renderWord("aaaa", "SansSerif", 40,
                 Font.PLAIN, Color.BLACK, 2, 2);
         double xh = StrokeAnalyzer.xHeight(
@@ -47,8 +47,7 @@ class StrokeAnalyzerTest {
     @Test
     void xHeightOnSolidBarEqualsBoxHeight() {
         BufferedImage bar = TestImages.solidBlack(50, 20);
-        double xh = StrokeAnalyzer.xHeight(bar, 0, 0, 50, 20);
-        assertThat(xh).isEqualTo(20.0);
+        assertThat(StrokeAnalyzer.xHeight(bar, 0, 0, 50, 20)).isEqualTo(20.0);
     }
 
     @Test
@@ -59,7 +58,6 @@ class StrokeAnalyzerTest {
             g.setColor(Color.BLACK);
             g.setFont(new Font("SansSerif", Font.PLAIN, 20));
             g.drawString("Hi", 5, 20);
-            // сплошная линия в нижней четверти бокса
             g.fillRect(5, 33, 100, 2);
         } finally {
             g.dispose();
@@ -88,8 +86,7 @@ class StrokeAnalyzerTest {
         } finally {
             g.dispose();
         }
-        double skew = StrokeAnalyzer.italicSkew(img, 0, 0, 50, 50);
-        assertThat(skew).isPositive();
+        assertThat(StrokeAnalyzer.italicSkew(img, 0, 0, 50, 50)).isPositive();
     }
 
     @Test

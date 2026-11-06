@@ -14,17 +14,17 @@ class HocrParserTest {
     @Test
     void parsesBasicWordWithBboxAndConfidence() {
         String hocr = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <html xmlns="http://www.w3.org/1999/xhtml">
-          <body>
-            <div class='ocr_page'>
-              <span class='ocr_line' id='line_1'>
-                <span class='ocrx_word' title='bbox 10 20 50 40; x_wconf 96'>Hello</span>
-              </span>
-            </div>
-          </body>
-        </html>
-        """;
+            <?xml version="1.0" encoding="UTF-8"?>
+            <html xmlns="http://www.w3.org/1999/xhtml">
+              <body>
+                <div class='ocr_page'>
+                  <span class='ocr_line' id='line_1'>
+                    <span class='ocrx_word' title='bbox 10 20 50 40; x_wconf 96'>Hello</span>
+                  </span>
+                </div>
+              </body>
+            </html>
+            """;
 
         List<Word> words = parser.parse(hocr);
 
@@ -43,15 +43,15 @@ class HocrParserTest {
     @Test
     void parsesExtendedStyleHints() {
         String hocr = """
-        <html><body>
-          <span class='ocr_line'>
-            <span class='ocrx_word'
-                  title='bbox 5 5 60 30; x_wconf 88; x_font Arial; x_fsize 14; x_bold 1; x_italic 0'>
-              Hi
-            </span>
-          </span>
-        </body></html>
-        """;
+            <html><body>
+              <span class='ocr_line'>
+                <span class='ocrx_word'
+                      title='bbox 5 5 60 30; x_wconf 88; x_font Arial; x_fsize 14; x_bold 1; x_italic 0'>
+                  Hi
+                </span>
+              </span>
+            </body></html>
+            """;
 
         List<Word> words = parser.parse(hocr);
 
@@ -66,16 +66,16 @@ class HocrParserTest {
     @Test
     void groupsWordsIntoLines() {
         String hocr = """
-        <html><body>
-          <span class='ocr_line'>
-            <span class='ocrx_word' title='bbox 0 0 50 20; x_wconf 90'>Hello</span>
-            <span class='ocrx_word' title='bbox 55 0 120 20; x_wconf 90'>world</span>
-          </span>
-          <span class='ocr_line'>
-            <span class='ocrx_word' title='bbox 0 30 40 50; x_wconf 90'>Second</span>
-          </span>
-        </body></html>
-        """;
+            <html><body>
+              <span class='ocr_line'>
+                <span class='ocrx_word' title='bbox 0 0 50 20; x_wconf 90'>Hello</span>
+                <span class='ocrx_word' title='bbox 55 0 120 20; x_wconf 90'>world</span>
+              </span>
+              <span class='ocr_line'>
+                <span class='ocrx_word' title='bbox 0 30 40 50; x_wconf 90'>Second</span>
+              </span>
+            </body></html>
+            """;
 
         List<Word> words = parser.parse(hocr);
 
@@ -87,16 +87,15 @@ class HocrParserTest {
     @Test
     void skipsWordsWithoutBbox() {
         String hocr = """
-        <html><body>
-          <span class='ocr_line'>
-            <span class='ocrx_word' title='x_wconf 90'>no bbox</span>
-            <span class='ocrx_word' title='bbox 0 0 10 10; x_wconf 90'>ok</span>
-          </span>
-        </body></html>
-        """;
+            <html><body>
+              <span class='ocr_line'>
+                <span class='ocrx_word' title='x_wconf 90'>no bbox</span>
+                <span class='ocrx_word' title='bbox 0 0 10 10; x_wconf 90'>ok</span>
+              </span>
+            </body></html>
+            """;
 
         List<Word> words = parser.parse(hocr);
-
         assertThat(words).hasSize(1);
         assertThat(words.get(0).text()).isEqualTo("ok");
     }
@@ -112,16 +111,15 @@ class HocrParserTest {
     @Test
     void malformedTitleFieldsAreIgnored() {
         String hocr = """
-        <html><body>
-          <span class='ocr_line'>
-            <span class='ocrx_word' title='bbox abc def 10 10; x_wconf 90'>bad</span>
-            <span class='ocrx_word' title='bbox 0 0 10 10; x_wconf 90'>ok</span>
-          </span>
-        </body></html>
-        """;
+            <html><body>
+              <span class='ocr_line'>
+                <span class='ocrx_word' title='bbox abc def 10 10; x_wconf 90'>bad</span>
+                <span class='ocrx_word' title='bbox 0 0 10 10; x_wconf 90'>ok</span>
+              </span>
+            </body></html>
+            """;
 
         List<Word> words = parser.parse(hocr);
-
         assertThat(words).extracting(Word::text).containsExactly("ok");
     }
 }
