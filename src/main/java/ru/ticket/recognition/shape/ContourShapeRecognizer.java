@@ -16,7 +16,7 @@ import ru.ticket.recognition.RecognitionDraft.Item;
  *
  * <p>Для каждой связной компоненты:
  * <ul>
- *   <li>простая геометрия (rect/circle/triangle) → {@code ShapeElement};</li>
+ *   <li>простая геометрия (circle/rect/triangle) → {@code ShapeElement};</li>
  *   <li>простой полигон (≤6 сторон) → {@code PathElement};</li>
  *   <li>сложная графика → {@code ImageElement} с точным кропом.</li>
  * </ul>
@@ -63,33 +63,42 @@ public class ContourShapeRecognizer implements ShapeRecognizer {
             double fillRatio = (double) component.size() / (bw * bh);
             int approxSides = countDominantSides(component, minX, minY, bw, bh);
 
-            if (approxSides <= 4 && fillRatio > 0.65) {
-                result.add(new Item("shape", minX, minY, bw, bh,
-                        Map.of("shape", "rect",
-                                "fill", dominantColor(image, component),
-                                "stroke", "transparent",
-                                "strokeWidth", 0.0)));
-            } else if (approxSides <= 5
-                    && Math.abs(fillRatio - Math.PI / 4) < 0.12) {
+            // 1. Круг проверяем ПЕРВЫМ, так как его заполнение (π/4 ≈ 0.785)
+            // больше порога прямоугольника (0.65). Если проверять прямоугольник
+            // первым, круг будет ошибочно классифицирован как rect.
+            if (approxSides <= 5 && Math.abs(fillRatio - Math.PI / 4) < 0.12) {
                 result.add(new Item("shape", minX, minY, bw, bh,
                         Map.of("shape", "circle",
                                 "fill", dominantColor(image, component),
                                 "stroke", "transparent",
                                 "strokeWidth", 0.0)));
-            } else if (approxSides == 3) {
+            }
+            // 2. Прямоугольник: почти полное заполнение bbox
+            else if (approxSides <= 4 && fillRatio > 0.85) {
+                result.add(new Item("shape", minX, minY, bw, bh,
+                        Map.of("shape", "rect",
+                                "fill", dominantColor(image, component),
+                                "stroke", "transparent",
+                                "strokeWidth", 0.0)));
+            }
+            // 3. Треугольник: 3 доминирующие стороны
+            else if (approxSides == 3) {
                 result.add(new Item("shape", minX, minY, bw, bh,
                         Map.of("shape", "triangle",
                                 "fill", dominantColor(image, component),
                                 "stroke", "transparent",
                                 "strokeWidth", 0.0)));
-            } else if (approxSides <= COMPLEX_SIDES) {
+            }
+            // 4. Простой полигон
+            else if (approxSides <= COMPLEX_SIDES) {
                 result.add(new Item("path", minX, minY, bw, bh,
                         Map.of("d", polygonPath(minX, minY, bw, bh),
                                 "fill", dominantColor(image, component),
                                 "stroke", "transparent",
                                 "strokeWidth", 0.0)));
-            } else {
-                // Сложная графика: не выдумываем вектор, отдаём точный кроп.
+            }
+            // 5. Сложная графика: отдаем точный растровый кроп
+            else {
                 result.add(new Item("image", minX, minY, bw, bh,
                         Map.of("src", ImageEncoding.pngDataUrl(
                                 image.getSubimage(minX, minY, bw, bh)))));

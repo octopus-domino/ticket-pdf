@@ -58,14 +58,17 @@ final class StrokeAnalyzer {
     }
 
     static boolean hasUnderline(BufferedImage img, int x, int y, int w, int h) {
-        int top = y + (int) (h * 0.82);
-        int bottom = y + (int) (h * 0.95);
+        // Расширяем зону поиска до 98%, так как подчеркивание часто рисуется
+        // на самом краю bbox (или чуть ниже baseline).
+        int top = y + (int) (h * 0.80);
+        int bottom = y + (int) (h * 0.98);
         return hasHorizontalRun(img, x, w, top, bottom, 0.6);
     }
 
     static boolean hasStrikethrough(BufferedImage img, int x, int y, int w, int h) {
+        // Зачеркивание проходит примерно по центру x-height
         int top = y + (int) (h * 0.40);
-        int bottom = y + (int) (h * 0.55);
+        int bottom = y + (int) (h * 0.60);
         return hasHorizontalRun(img, x, w, top, bottom, 0.7);
     }
 
