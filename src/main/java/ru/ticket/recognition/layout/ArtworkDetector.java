@@ -12,12 +12,14 @@ import ru.ticket.recognition.ImageEncoding;
 import ru.ticket.recognition.RecognitionDraft.Item;
 
 /**
- * Тайловая эвристика «здесь что-то нарисовано» — fallback, когда точный
- * {@code ShapeRecognizer} недоступен.
+ * Fallback artwork detector: segments connected non-text regions and returns
+ * them as image crops or (for small uniform regions) solid rectangles.
  *
- * <p><b>Почему тайлы.</b> Пиксельная сегментация на 4096² была бы слишком
- * медленной; сетка 12×12 в 34000 раз меньше по числу итераций и достаточно
- * точна для блочной графики.
+ * <p><b>Large uniform regions become images, not shapes.</b> A shape larger
+ * than 40% of the page is a background panel, not a design element. Emitting
+ * it as a shape makes the frontend composite layer treat it as an opaque
+ * overlay on top of the original raster. Emitting it as an image lets the
+ * composite layer keep the original pixels in place.
  */
 @Component
 public class ArtworkDetector {
@@ -94,12 +96,21 @@ public class ArtworkDetector {
             }
 
             var crop = ArtworkBackground.restore(image, excluded, x, y, w, h);
+            long area = (long) w * h;
+            long pageArea = (long) width * height;
 
             if (isUniform(crop)) {
                 int color = crop.getRGB(0, 0);
-                result.add(new Item("shape", x, y, w, h,
-                        Map.of("shape", "rect",
-                                "fill", String.format(Locale.ROOT, "#%06x", color & 0xffffff))));
+                // Large uniform area -> keep as image so frontend can use it
+                // as a background layer instead of an opaque shape overlay.
+                if (area > pageArea * 0.4) {
+                    result.add(new Item("image", x, y, w, h,
+                            Map.of("src", ImageEncoding.pngDataUrl(crop))));
+                } else {
+                    result.add(new Item("shape", x, y, w, h,
+                            Map.of("shape", "rect",
+                                    "fill", String.format(Locale.ROOT, "#%06x", color & 0xffffff))));
+                }
             } else {
                 result.add(new Item("image", x, y, w, h,
                         Map.of("src", ImageEncoding.pngDataUrl(crop))));

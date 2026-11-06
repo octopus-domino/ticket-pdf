@@ -12,15 +12,13 @@ import ru.ticket.recognition.ImageEncoding;
 import ru.ticket.recognition.RecognitionDraft.Item;
 
 /**
- * Детерминированный контурный анализ замаскированного растра.
+ * Contour-based shape recognizer.
  *
- * <p>Для каждой связной компоненты:
- * <ul>
- *   <li>простая геометрия (circle/rect/triangle) → {@code ShapeElement};</li>
- *   <li>простой полигон (≤6 сторон) → {@code PathElement};</li>
- *   <li>сложная графика → {@code ImageElement} с точным кропом.</li>
- * </ul>
- * Решение «shape vs image» не выдумывает вектор там, где его нет.
+ * <p><b>Large contours are ignored.</b> A contour that covers more than 40% of
+ * the page is a background panel or a segmentation artifact (e.g. the
+ * diagonal of a card being approximated as a giant black triangle). Such
+ * regions are handled by {@code ArtworkDetector} as raster crops. Letting
+ * them through here produces an opaque primitive covering the whole page.
  */
 @Component
 public class ContourShapeRecognizer implements ShapeRecognizer {
@@ -28,6 +26,7 @@ public class ContourShapeRecognizer implements ShapeRecognizer {
     private static final int MIN_AREA = 400;
     private static final int MAX_SHAPES = 64;
     private static final int COMPLEX_SIDES = 6;
+    private static final double MAX_PAGE_AREA_RATIO = 0.4;
 
     @Override
     public List<Item> recognize(BufferedImage image, boolean[] textMask) {
@@ -60,45 +59,39 @@ public class ContourShapeRecognizer implements ShapeRecognizer {
             int bw = maxX - minX + 1, bh = maxY - minY + 1;
             if (bw < 20 || bh < 20) continue;
 
+            // Гигантские контуры — это фон/артефакт, его обрабатывает ArtworkDetector.
+            if ((long) bw * bh > (long) w * h * MAX_PAGE_AREA_RATIO) {
+                continue;
+            }
+
             double fillRatio = (double) component.size() / (bw * bh);
             int approxSides = countDominantSides(component, minX, minY, bw, bh);
 
-            // 1. Круг проверяем ПЕРВЫМ, так как его заполнение (π/4 ≈ 0.785)
-            // больше порога прямоугольника (0.65). Если проверять прямоугольник
-            // первым, круг будет ошибочно классифицирован как rect.
             if (approxSides <= 5 && Math.abs(fillRatio - Math.PI / 4) < 0.12) {
                 result.add(new Item("shape", minX, minY, bw, bh,
                         Map.of("shape", "circle",
                                 "fill", dominantColor(image, component),
                                 "stroke", "transparent",
                                 "strokeWidth", 0.0)));
-            }
-            // 2. Прямоугольник: почти полное заполнение bbox
-            else if (approxSides <= 4 && fillRatio > 0.85) {
+            } else if (approxSides <= 4 && fillRatio > 0.85) {
                 result.add(new Item("shape", minX, minY, bw, bh,
                         Map.of("shape", "rect",
                                 "fill", dominantColor(image, component),
                                 "stroke", "transparent",
                                 "strokeWidth", 0.0)));
-            }
-            // 3. Треугольник: 3 доминирующие стороны
-            else if (approxSides == 3) {
+            } else if (approxSides == 3) {
                 result.add(new Item("shape", minX, minY, bw, bh,
                         Map.of("shape", "triangle",
                                 "fill", dominantColor(image, component),
                                 "stroke", "transparent",
                                 "strokeWidth", 0.0)));
-            }
-            // 4. Простой полигон
-            else if (approxSides <= COMPLEX_SIDES) {
+            } else if (approxSides <= COMPLEX_SIDES) {
                 result.add(new Item("path", minX, minY, bw, bh,
                         Map.of("d", polygonPath(minX, minY, bw, bh),
                                 "fill", dominantColor(image, component),
                                 "stroke", "transparent",
                                 "strokeWidth", 0.0)));
-            }
-            // 5. Сложная графика: отдаем точный растровый кроп
-            else {
+            } else {
                 result.add(new Item("image", minX, minY, bw, bh,
                         Map.of("src", ImageEncoding.pngDataUrl(
                                 image.getSubimage(minX, minY, bw, bh)))));
