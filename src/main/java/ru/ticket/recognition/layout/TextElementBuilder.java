@@ -12,26 +12,6 @@ import ru.ticket.recognition.style.StyledRunSplitter;
 import ru.ticket.recognition.style.TextStyle;
 import ru.ticket.util.XmlEscape;
 
-/**
- * Builds exactly one {@code Item("text", …)} per visual line.
- *
- * <p><b>Typography invariant.</b> Inside a visual line there is at most one
- * rendered size:
- * <ul>
- *   <li><b>Multi-run HTML</b> (mixed colour / bold / italic / family) —
- *       every {@code <span>} carries {@code font-size = lineFontSize}. The
- *       per-run pixel estimate is deliberately not used here: it differs from
- *       the line average by 15–25 % even when the font is uniform (x-height
- *       words vs. words with ascenders/descenders), and that is what produced
- *       the "jumping letters" artefact.</li>
- *   <li><b>Single-run plain text</b> — the analyzer's own estimate
- *       ({@code style.fontSize()}) is used. There is a single span, so no
- *       jumping is possible; the pixel estimate is the more accurate of the
- *       two for a representative word.</li>
- *   <li><b>No style data</b> — the plain-Tesseract formula
- *       {@code (bottom − top) × 1.05}.</li>
- * </ul>
- */
 @Component
 public class TextElementBuilder {
 
@@ -56,7 +36,11 @@ public class TextElementBuilder {
                 .max()
                 .orElse(canvasWidth);
 
-        double lineFontSize = Math.max(8.0, (bottom - top) * 1.05);
+        // Берем медианную высоту слова в строке, чтобы гигантский логотип
+        // (ошибочно принятый за слово) не раздувал шрифт всей строки.
+        List<Integer> heights = line.stream().map(Word::height).sorted().toList();
+        int medianHeight = heights.get(heights.size() / 2);
+        double lineFontSize = Math.max(8.0, medianHeight * 1.05);
 
         List<StyledRun> runs;
         try {
@@ -82,10 +66,6 @@ public class TextElementBuilder {
         return new Item("text", boxX, boxY, boxW, boxH, properties);
     }
 
-    /* ============================================================
-       Plain text — no style analysis available.
-       ============================================================ */
-
     private static Map<String, Object> plainProperties(List<Word> line, double lineFontSize) {
         var properties = new LinkedHashMap<String, Object>();
         properties.put("text", String.join(" ",
@@ -100,10 +80,6 @@ public class TextElementBuilder {
                 line.stream().mapToDouble(Word::confidence).average().orElse(0));
         return properties;
     }
-
-    /* ============================================================
-       Single-style line — one span, one size; use the analyzer's estimate.
-       ============================================================ */
 
     private static Map<String, Object> singleRunProperties(
             StyledRun run, List<Word> line) {
@@ -121,10 +97,6 @@ public class TextElementBuilder {
                 line.stream().mapToDouble(Word::confidence).average().orElse(0));
         return properties;
     }
-
-    /* ============================================================
-       Mixed-style line — HTML with per-span style, uniform line-level size.
-       ============================================================ */
 
     private static Map<String, Object> multiRunProperties(
             List<StyledRun> runs, List<Word> line, double lineFontSize) {
@@ -173,7 +145,6 @@ public class TextElementBuilder {
             if (!firstRun) html.append(' ');
             firstRun = false;
 
-            // Line base font-size for every span — no per-span size drift.
             html.append("<span style=\"")
                     .append("color:").append(s.color()).append(';')
                     .append("font-size:").append(Math.round(lineFontSize)).append("px;")
