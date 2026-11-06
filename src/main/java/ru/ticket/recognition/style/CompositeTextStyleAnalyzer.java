@@ -8,14 +8,28 @@ import ru.ticket.recognition.OcrEngine.StyleHints;
 import ru.ticket.recognition.OcrEngine.Word;
 
 /**
- * Комбинирует визуальный анализ растра с подсказками OCR.
+ * Combines ink-based style analysis (bold/italic/underline/colour/family)
+ * with optional OCR hints.
  *
- * <p>Подсказки hOCR/API имеют приоритет — это осознанное подтверждение
- * движка. Когда их нет — визуальный анализ полностью определяет стиль.
- * Цвет и декорации всегда берутся из пикселей: Tesseract их не отдаёт.
+ * <p><b>Why pixels win over hints.</b> Tesseract's {@code x_bold},
+ * {@code x_italic} and {@code x_fsize} are classifier guesses trained on
+ * generic corpora. In practice they fire spuriously on serif rendering,
+ * anti-aliasing, and small skew — a single false positive flips
+ * {@link InkBasedRunSplitter} into creating a run boundary that fragments the
+ * line. Ink analysis ({@link StrokeAnalyzer}, {@link InkStyleSampler}) works
+ * on the actual glyph bitmaps and is stable across neighbouring words, so it
+ * is the primary signal for everything that can be measured from pixels.
+ *
+ * <p>Hints are retained only as a <em>font-family fallback</em>: when pixel
+ * matching returns the default {@code Arial} but hOCR provides a concrete
+ * family name (e.g. via {@code hocr_font_info=1}), the hint is accepted. Bold,
+ * italic, size and underline from hints are ignored — pixel analysis is more
+ * accurate for those.
  */
 @Component
 public class CompositeTextStyleAnalyzer implements TextStyleAnalyzer {
+
+    private static final String DEFAULT_FAMILY = "Arial";
 
     private final FontMatcher fontMatcher;
 
@@ -39,12 +53,16 @@ public class CompositeTextStyleAnalyzer implements TextStyleAnalyzer {
         String family = fontMatcher.match(word, profile);
 
         StyleHints hints = word.hints() == null ? StyleHints.NONE : word.hints();
-        if (hints.fontSize() != null) fontSize = hints.fontSize();
-        if (hints.bold() != null) bold = hints.bold();
-        if (hints.italic() != null) italic = hints.italic();
-        if (hints.fontFamily() != null && !hints.fontFamily().isBlank()) {
+
+        // Family: adopt the hOCR hint only if pixel matching was inconclusive
+        // (fell back to Arial) and the hint names a different family.
+        if (DEFAULT_FAMILY.equals(family)
+                && hints.fontFamily() != null
+                && !hints.fontFamily().isBlank()
+                && !hints.fontFamily().equalsIgnoreCase(DEFAULT_FAMILY)) {
             family = hints.fontFamily();
         }
+        // bold/italic/underline/size from hints are intentionally ignored.
 
         return new TextStyle(color, fontSize, bold, italic, underline, strike, family);
     }

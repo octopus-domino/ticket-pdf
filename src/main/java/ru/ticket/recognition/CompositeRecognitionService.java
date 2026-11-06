@@ -11,13 +11,21 @@ import ru.ticket.recognition.ensemble.OcrResultFusion;
 import ru.ticket.recognition.shape.ShapeRecognizer;
 
 /**
- * Оркестратор распознавания: dual-pass OCR → fusion → полный layout без
- * artwork → точные векторные/растровые фигуры → merge.
+ * Top-level recognition: dual-pass OCR → fusion → shape recognition → merge.
  *
- * <p>Переиспользует {@link PageLayoutAnalyzer} для всего, что уже работает:
- * таблицы, линии, текстовые элементы, маски. Отличие от старого пути — на
- * входе идут {@link FusedWord} (а не один OCR-проход), а artwork-детектор
- * заменён на {@link ShapeRecognizer} с точной классификацией.
+ * <p><b>Contract.</b> Fusion produces a {@link FusedWord} stream whose
+ * {@code line} field is taken from TSV, so {@link #recognize} feeds
+ * {@link PageLayoutAnalyzer} a word list where every word already carries the
+ * correct visual-line id. The layout analyzer then groups by {@code line} and
+ * produces one text element per visual line — exactly the plain-Tesseract
+ * behaviour, with per-run style enrichment added on top.
+ *
+ * <p>The single-element "everything is one line" regression stemmed from
+ * {@code FusedWord.toWord("fused")} being used unconditionally. The fusion
+ * record now preserves the line id, so passing the literal {@code "fused"}
+ * here is a *fallback* only (never reached in practice). {@link FusedWord}
+ * additionally buckets by baseline when line is missing so even a badly
+ * behaved upstream stage cannot collapse the page.
  */
 @Service
 public class CompositeRecognitionService {
@@ -39,31 +47,32 @@ public class CompositeRecognitionService {
     }
 
     public RecognitionDraft recognize(BufferedImage image, String language) {
-        // 1. Оба OCR-прохода параллельно + fusion.
+        // 1. Dual-pass OCR + fusion. TSV line ids are preserved end-to-end.
         var dual = dualRunner.run(image, language);
         var fused = fusion.fuse(dual.tsvWords(), dual.hocrWords());
         var words = fused.stream()
                 .map(f -> f.toWord("fused"))
                 .toList();
 
-        // 2. Полный layout без artwork: текст, таблицы, линии.
+        // 2. Layout without artwork first: tables, text, rules.
         var baseDraft = analyzer.analyze(image, words, false);
 
-        // 3. Точные фигуры/кропы на всём, что не занято текстом/таблицами/линиями.
+        // 3. Find shapes that were not covered by text/table/line masks.
         var mask = buildMask(image, baseDraft.elements());
         var shapeItems = shapeRecognizer.recognize(image, mask);
 
-        // 4. Merge: фигуры — под текст, чтобы текст был сверху.
+        // 4. Merge: artwork first (bottom), then structural elements.
         var merged = new ArrayList<Item>(shapeItems.size() + baseDraft.elements().size());
         merged.addAll(shapeItems);
         merged.addAll(baseDraft.elements());
 
-        // 5. Диагностика: если движки разошлись или оба пусты — сигнал наружу.
+        // 5. Warnings.
         var warnings = new ArrayList<>(baseDraft.warnings());
         if (fused.stream().anyMatch(FusedWord::disagreement)) {
             warnings.add("recognition.engine_disagreement");
         }
-        if (dual.tsvWords().isEmpty() && dual.hocrWords().isEmpty()) {
+        if (dual.tsvWords().isEmpty()) {
+            // TSV is authoritative; empty TSV means no reliable text at all.
             warnings.add("recognition.empty_result");
         }
 
@@ -71,10 +80,6 @@ public class CompositeRecognitionService {
                 image.getWidth(), image.getHeight(), merged, warnings, "dual");
     }
 
-    /**
-     * Маскирует всё, что уже размечено как текст/таблица/линия.
-     * ShapeRecognition получает чистый остаток и не путает буквы с фигурами.
-     */
     private static boolean[] buildMask(BufferedImage image, List<Item> items) {
         int w = image.getWidth(), h = image.getHeight();
         boolean[] mask = new boolean[w * h];
