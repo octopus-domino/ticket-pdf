@@ -52,7 +52,7 @@ public final class TestImages {
             int paddingX,
             int paddingY) {
 
-        Font font = new Font(family, fontStyle, fontSize);
+        Font font = new Font(ru.ticket.text.FontFamilyResolver.resolve(family), fontStyle, fontSize);
         FontMetrics metrics = measure(font);
 
         int textWidth = Math.max(1, metrics.stringWidth(text));
