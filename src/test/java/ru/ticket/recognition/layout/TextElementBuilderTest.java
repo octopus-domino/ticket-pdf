@@ -13,6 +13,15 @@ import ru.ticket.recognition.style.StyledRunSplitter;
 import ru.ticket.recognition.style.TextStyle;
 
 class TextElementBuilderTest {
+    @Test void richTextKeepsDifferentRunSizesAndExplicitRegularStyle() {
+        var heading = new TextStyle("#ffffff", 28, true, true, true, false, "Arial");
+        var body = new TextStyle("#ffffff", 13, false, false, false, false, "Arial");
+        var w1 = word("Heading", 0, 80);
+        var w2 = word("body", 85, 40);
+        var builder = new TextElementBuilder(new FixedSplitter(List.of(new StyledRun(w1, heading), new StyledRun(w2, body))));
+        String html = (String)builder.build(DUMMY, List.of(w1, w2), 200, 50).properties().get("html");
+        assertThat(html).contains("font-size:28.0px", "font-size:13.0px", "font-weight:400", "font-style:normal", "text-decoration:none");
+    }
 
     private static final BufferedImage DUMMY =
             new BufferedImage(200, 50, BufferedImage.TYPE_INT_RGB);

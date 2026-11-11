@@ -87,13 +87,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
       return;
     }
 
-    String route = "POST".equals(req.getMethod()) ? routePrefixFor(req.getRequestURI()) : null;
+    String route = req.getRequestURI().startsWith("/api/journeys/") && req.getRequestURI().endsWith("/pdf") ? "export" : "POST".equals(req.getMethod()) || "PUT".equals(req.getMethod()) ? routePrefixFor(req.getRequestURI()) : null;
     if (route == null) {
       chain.doFilter(req, res);
       return;
     }
 
-    int limit = "export".equals(route) ? exportPerMinute : generatePerMinute;
+    int limit = "artwork".equals(route)?120:"export".equals(route) ? exportPerMinute : generatePerMinute;
     String bucketKey = route + "|" + clientKey(req);
 
     TokenBucket bucket = buckets.computeIfAbsent(bucketKey, k -> new TokenBucket(limit));
@@ -111,6 +111,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
   }
 
   private String routePrefixFor(String path) {
+    if(path.equals("/api/journeys/artwork"))return "artwork";
+    if (path.startsWith("/api/journeys") || path.startsWith("/api/journey-sites")) return "generate";
     if (path.startsWith("/api/connectors/") && (path.endsWith("/preview") || path.endsWith("/import"))) return "generate";
     if (path.equals("/api/recognition")||path.equals("/api/guest/recognition")) return "generate";
     if(path.startsWith("/api/guest/export/"))return "export";

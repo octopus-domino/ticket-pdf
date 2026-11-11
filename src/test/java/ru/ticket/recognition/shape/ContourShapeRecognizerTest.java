@@ -8,6 +8,13 @@ import java.awt.image.BufferedImage;
 import org.junit.jupiter.api.Test;
 
 class ContourShapeRecognizerTest {
+    @Test void repeatedLargeBackgroundsUseBoundedPrimitiveStorage() {
+        for(int scan=0;scan<3;scan++){
+            var image=new BufferedImage(2400,2400,BufferedImage.TYPE_INT_RGB);
+            assertThat(new ContourShapeRecognizer().recognize(image,new boolean[2400*2400])).isEmpty();
+            image.flush();
+        }
+    }
 
     private final ContourShapeRecognizer recognizer = new ContourShapeRecognizer();
 

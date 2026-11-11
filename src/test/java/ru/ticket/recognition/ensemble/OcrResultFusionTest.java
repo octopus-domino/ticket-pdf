@@ -21,7 +21,7 @@ class OcrResultFusionTest {
         assertThat(fused).hasSize(1);
         assertThat(fused.get(0).sources()).isEqualTo(2);
         assertThat(fused.get(0).disagreement()).isFalse();
-        assertThat(fused.get(0).confidence()).isGreaterThan(90);
+        assertThat(fused.get(0).confidence()).isEqualTo(90);
     }
 
     @Test
@@ -46,8 +46,13 @@ class OcrResultFusionTest {
         var fused = fusion.fuse(List.of(a), List.of(b));
 
         assertThat(fused).hasSize(1);
-        assertThat(fused.get(0).text()).isEqualTo("Hello");
+        assertThat(fused.get(0).text()).isEqualTo("Helo");
         assertThat(fused.get(0).disagreement()).isTrue();
+        var output=fused.get(0).toWord(null);
+        assertThat(output.text()).isEqualTo(a.text());
+        assertThat(output.x()).isEqualTo(a.x());assertThat(output.y()).isEqualTo(a.y());
+        assertThat(output.width()).isEqualTo(a.width());assertThat(output.height()).isEqualTo(a.height());
+        assertThat(output.line()).isEqualTo(a.line());
     }
 
     @Test

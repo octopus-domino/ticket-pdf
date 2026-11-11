@@ -18,6 +18,7 @@ public class BatikSvgToPdfConverter implements SvgToPdfConverter {
     @Override
     public byte[] convert(String svg, float widthPx, float heightPx) throws Exception {
         PDFTranscoder transcoder = new PDFTranscoder();
+        ru.ticket.pdf.font.FopBundledFonts.configure(transcoder);
         transcoder.addTranscodingHint(PDFTranscoder.KEY_PIXEL_UNIT_TO_MILLIMETER, 25.4f / 96f);
         transcoder.addTranscodingHint(PDFTranscoder.KEY_STROKE_TEXT, false);
         transcoder.addTranscodingHint(PDFTranscoder.KEY_AUTO_FONTS, true);

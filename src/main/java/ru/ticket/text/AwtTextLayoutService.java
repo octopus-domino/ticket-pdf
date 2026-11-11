@@ -87,6 +87,6 @@ public class AwtTextLayoutService implements TextLayoutService {
             if (style.contains("bold"))   s |= Font.BOLD;
             if (style.contains("italic")) s |= Font.ITALIC;
         }
-        return new Font(family != null ? family : "Arial", s, size);
+        return new Font(FontFamilyResolver.resolve(family), s, size);
     }
 }

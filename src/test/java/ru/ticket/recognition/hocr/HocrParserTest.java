@@ -8,6 +8,12 @@ import ru.ticket.recognition.OcrEngine.StyleHints;
 import ru.ticket.recognition.OcrEngine.Word;
 
 class HocrParserTest {
+    @Test void readsTesseractEmphasisTagsWithoutInventingNegativeHints() {
+        var words = new HocrParser().parse("<div class='ocr_line'><span class='ocrx_word' title='bbox 1 2 50 22'><strong><em>Bold</em></strong></span><span class='ocrx_word' title='bbox 60 2 90 22'>Plain</span></div>");
+        assertThat(words.get(0).hints().bold()).isTrue();
+        assertThat(words.get(0).hints().italic()).isTrue();
+        assertThat(words.get(1).hints().bold()).isNull();
+    }
 
     private final HocrParser parser = new HocrParser();
 

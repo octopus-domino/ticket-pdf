@@ -60,7 +60,7 @@ public class HocrParser {
                 bbox[3] - bbox[1],
                 confidence,
                 lineId,
-                parseHints(props)));
+                parseHints(props, el)));
     }
 
     private static Map<String, String> parseTitle(String title) {
@@ -88,7 +88,7 @@ public class HocrParser {
         }
     }
 
-    private static StyleHints parseHints(Map<String, String> props) {
+    private static StyleHints parseHints(Map<String, String> props, Element element) {
         String family = props.get("x_font");
         Double size = null;
         if (props.containsKey("x_fsize")) {
@@ -97,6 +97,10 @@ public class HocrParser {
         }
         Boolean bold = boolOf(props.get("x_bold"));
         Boolean italic = boolOf(props.get("x_italic"));
+        if (bold == null && (!element.select("strong, b").isEmpty()
+                || element.parents().stream().anyMatch(parent -> parent.normalName().equals("strong") || parent.normalName().equals("b")))) bold = true;
+        if (italic == null && (!element.select("em, i").isEmpty()
+                || element.parents().stream().anyMatch(parent -> parent.normalName().equals("em") || parent.normalName().equals("i")))) italic = true;
 
         if (family == null && size == null && bold == null && italic == null) {
             return StyleHints.NONE;

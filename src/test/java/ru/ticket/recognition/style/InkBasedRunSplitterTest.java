@@ -9,6 +9,20 @@ import org.junit.jupiter.api.Test;
 import ru.ticket.recognition.OcrEngine.Word;
 
 class InkBasedRunSplitterTest {
+    @Test void minorColorNoiseDoesNotCreateDifferentStylesForEveryWord() {
+        var first = new TextStyle("#a1a1a3", 14, false, false, false, false, "Arial");
+        var second = new TextStyle("#a8a8aa", 14, false, false, false, false, "Arial");
+        var splitter = new InkBasedRunSplitter(new StubAnalyzer(Map.of("Hello", first, "world", second)));
+        assertThat(splitter.split(DUMMY, List.of(word("Hello", 0, 50), word("world", 55, 60)))).hasSize(1);
+    }
+    @Test void realSizeChangesRemainSeparateRuns() {
+        var small = new TextStyle("#ffffff", 14, false, false, false, false, "Arial");
+        var large = new TextStyle("#ffffff", 28, false, false, false, false, "Arial");
+        var splitter = new InkBasedRunSplitter(new StubAnalyzer(Map.of("Hello", small, "world", large)));
+        var runs = splitter.split(DUMMY, List.of(word("Hello", 0, 50), word("world", 55, 60)));
+        assertThat(runs).hasSize(2);
+        assertThat(runs.get(1).style().fontSize()).isEqualTo(28);
+    }
 
     private static final BufferedImage DUMMY =
             new BufferedImage(200, 50, BufferedImage.TYPE_INT_RGB);

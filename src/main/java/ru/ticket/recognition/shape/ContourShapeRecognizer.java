@@ -42,20 +42,15 @@ public class ContourShapeRecognizer implements ShapeRecognizer {
         }
 
         boolean[] visited = new boolean[w * h];
+        int[] pending = new int[w * h];
         List<Item> result = new ArrayList<>();
 
         for (int i = 0; i < ink.length && result.size() < MAX_SHAPES; i++) {
             if (!ink[i] || visited[i]) continue;
-            List<int[]> component = floodFill(ink, visited, w, h, i);
-            if (component.size() < MIN_AREA) continue;
+            Component component = floodFill(image, ink, visited, pending, w, h, i);
+            if (component.count() < MIN_AREA) continue;
 
-            int minX = w, minY = h, maxX = 0, maxY = 0;
-            for (int[] p : component) {
-                minX = Math.min(minX, p[0]);
-                minY = Math.min(minY, p[1]);
-                maxX = Math.max(maxX, p[0]);
-                maxY = Math.max(maxY, p[1]);
-            }
+            int minX = component.left(), minY = component.top(), maxX = component.right(), maxY = component.bottom();
             int bw = maxX - minX + 1, bh = maxY - minY + 1;
             if (bw < 20 || bh < 20) continue;
 
@@ -64,31 +59,31 @@ public class ContourShapeRecognizer implements ShapeRecognizer {
                 continue;
             }
 
-            double fillRatio = (double) component.size() / (bw * bh);
-            int approxSides = countDominantSides(component, minX, minY, bw, bh);
+            double fillRatio = (double) component.count() / (bw * bh);
+            int approxSides = component.sides();
 
             if (approxSides <= 5 && Math.abs(fillRatio - Math.PI / 4) < 0.12) {
                 result.add(new Item("shape", minX, minY, bw, bh,
                         Map.of("shape", "circle",
-                                "fill", dominantColor(image, component),
+                                "fill", component.color(),
                                 "stroke", "transparent",
                                 "strokeWidth", 0.0)));
             } else if (approxSides <= 4 && fillRatio > 0.85) {
                 result.add(new Item("shape", minX, minY, bw, bh,
                         Map.of("shape", "rect",
-                                "fill", dominantColor(image, component),
+                                "fill", component.color(),
                                 "stroke", "transparent",
                                 "strokeWidth", 0.0)));
             } else if (approxSides == 3) {
                 result.add(new Item("shape", minX, minY, bw, bh,
                         Map.of("shape", "triangle",
-                                "fill", dominantColor(image, component),
+                                "fill", component.color(),
                                 "stroke", "transparent",
                                 "strokeWidth", 0.0)));
             } else if (approxSides <= COMPLEX_SIDES) {
                 result.add(new Item("path", minX, minY, bw, bh,
                         Map.of("d", polygonPath(minX, minY, bw, bh),
-                                "fill", dominantColor(image, component),
+                                "fill", component.color(),
                                 "stroke", "transparent",
                                 "strokeWidth", 0.0)));
             } else {
@@ -100,46 +95,42 @@ public class ContourShapeRecognizer implements ShapeRecognizer {
         return result;
     }
 
-    private List<int[]> floodFill(boolean[] ink, boolean[] visited, int w, int h, int start) {
-        List<int[]> component = new ArrayList<>();
-        var stack = new ArrayDeque<Integer>();
-        stack.push(start);
+    private record Component(int count, int left, int top, int right, int bottom, int sides, String color) {}
+
+    private Component floodFill(BufferedImage image, boolean[] ink, boolean[] visited, int[] pending, int w, int h, int start) {
+        int head = 0, tail = 1, left = w, top = h, right = 0, bottom = 0;
+        pending[0] = start;
         visited[start] = true;
-        while (!stack.isEmpty()) {
-            int idx = stack.pop();
-            int x = idx % w, y = idx / w;
-            component.add(new int[]{x, y});
-            for (int dy = -1; dy <= 1; dy++) {
-                for (int dx = -1; dx <= 1; dx++) {
-                    int nx = x + dx, ny = y + dy;
-                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-                    int next = ny * w + nx;
-                    if (ink[next] && !visited[next]) {
-                        visited[next] = true;
-                        stack.push(next);
-                    }
-                }
+        int[] colors = new int[4096];
+        long[] red = new long[4096], green = new long[4096], blue = new long[4096];
+        while (head < tail) {
+            int pixel = pending[head++], x = pixel % w, y = pixel / w;
+            left = Math.min(left, x); top = Math.min(top, y);
+            right = Math.max(right, x); bottom = Math.max(bottom, y);
+            int rgb = image.getRGB(x, y), r = rgb >> 16 & 255, g = rgb >> 8 & 255, b = rgb & 255;
+            int bin = (r >> 4) * 256 + (g >> 4) * 16 + (b >> 4);
+            colors[bin]++; red[bin] += r; green[bin] += g; blue[bin] += b;
+            for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) {
+                int nx = x + dx, ny = y + dy;
+                if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                int next = ny * w + nx;
+                if (ink[next] && !visited[next]) { visited[next] = true; pending[tail++] = next; }
             }
         }
-        return component;
-    }
-
-    private int countDominantSides(
-            List<int[]> component, int x0, int y0, int bw, int bh) {
-
-        int top = 0, right = 0, bottom = 0, left = 0;
-        for (int[] p : component) {
-            int relX = p[0] - x0, relY = p[1] - y0;
-            if (relY < 2) top++;
-            else if (relY > bh - 3) bottom++;
-            else if (relX < 2) left++;
-            else if (relX > bw - 3) right++;
+        int[] edges = new int[4];
+        for (int i = 0; i < tail; i++) {
+            int x = pending[i] % w, y = pending[i] / w;
+            if (y - top < 2) edges[0]++;
+            else if (bottom - y < 2) edges[1]++;
+            else if (x - left < 2) edges[2]++;
+            else if (right - x < 2) edges[3]++;
         }
-        int active = 0;
-        for (int count : new int[]{top, right, bottom, left}) {
-            if (count > 3) active++;
-        }
-        return active >= 4 ? 4 : active;
+        int sides = 0, best = 0;
+        for (int edge : edges) if (edge > 3) sides++;
+        for (int i = 1; i < colors.length; i++) if (colors[i] > colors[best]) best = i;
+        int count = Math.max(1, colors[best]);
+        String color = String.format(Locale.ROOT, "#%02x%02x%02x", red[best] / count, green[best] / count, blue[best] / count);
+        return new Component(tail, left, top, right, bottom, sides, color);
     }
 
     private String polygonPath(int x0, int y0, int bw, int bh) {
@@ -157,13 +148,4 @@ public class ContourShapeRecognizer implements ShapeRecognizer {
         return d.toString();
     }
 
-    private String dominantColor(BufferedImage image, List<int[]> component) {
-        var counts = new HashMap<Integer, Integer>();
-        for (int[] p : component) {
-            counts.merge(image.getRGB(p[0], p[1]) & 0xffffff, 1, Integer::sum);
-        }
-        int rgb = counts.entrySet().stream()
-                .max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(0x000000);
-        return String.format(Locale.ROOT, "#%06x", rgb);
-    }
 }

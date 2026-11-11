@@ -15,9 +15,9 @@ public class AsyncConfig {
   @Bean(name = "generationExecutor")
   public Executor generationExecutor() {
     ThreadPoolTaskExecutor ex = new ThreadPoolTaskExecutor();
-    ex.setCorePoolSize(2);
-    ex.setMaxPoolSize(2);
-    ex.setQueueCapacity(8);
+    ex.setCorePoolSize(1);
+    ex.setMaxPoolSize(1);
+    ex.setQueueCapacity(2);
     ex.setThreadNamePrefix("gen-");
     ex.initialize();
     return ex;

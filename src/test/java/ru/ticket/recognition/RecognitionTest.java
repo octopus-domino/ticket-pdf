@@ -42,7 +42,7 @@ class RecognitionTest {
     decoder = mock(ImageDecoder.class);
     composite = mock(CompositeRecognitionService.class);
     vision = mock(LocalVisionRecognizer.class);
-    service = new ImageRecognitionService(decoder, composite, vision);
+    service = new ImageRecognitionService(decoder, composite, vision,new ru.ticket.common.HeavyOperationCapacity());
   }
 
   @Test

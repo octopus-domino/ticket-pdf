@@ -14,6 +14,6 @@ public class ResourceRevision {
   @Column(name="resource_id",nullable=false) public String resourceId;
   @Column(name="content_hash",nullable=false,length=64) public String contentHash;
   @Column(name="created_at",nullable=false) public Instant createdAt=Instant.now();
-  @Lob @Column(nullable=false) public String payload;
+  @Column(nullable=false, columnDefinition="TEXT") public String payload;
   @Column(name="payload_bytes",nullable=false) public int payloadBytes;
 }

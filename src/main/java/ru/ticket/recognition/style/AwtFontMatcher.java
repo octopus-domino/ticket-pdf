@@ -29,7 +29,7 @@ public class AwtFontMatcher implements FontMatcher {
 
     AwtFontMatcher(TextLayoutService textLayout, List<String> candidates) {
         this.textLayout = textLayout;
-        this.candidates = List.copyOf(candidates);
+        this.candidates = candidates.stream().filter(ru.ticket.text.FontFamilyResolver::available).toList();
     }
 
     @Override
@@ -43,6 +43,11 @@ public class AwtFontMatcher implements FontMatcher {
                 stroke / Math.max(1, h),
                 xh / Math.max(1, h),
                 skew);
+    }
+
+    @Override
+    public FontMatch resolve(Word word, BufferedImage image, VisualFontProfile profile) {
+        return GlyphTemplateMatcher.match(image, word, candidates, FontMatcher.super.resolve(word, image, profile));
     }
 
     @Override
@@ -78,12 +83,7 @@ public class AwtFontMatcher implements FontMatcher {
      * x-height / em ≈ 0.52. Если x-height ≈ высоте бокса — это CAPS: em ≈ box / 0.7.
      */
     static double estimateFontSize(Word word, VisualFontProfile profile) {
-        double boxHeight = word.height();
-        double xHeight = profile.xHeightRatio() * boxHeight;
-        double byXh = xHeight / 0.52;
-        double byCaps = boxHeight / 0.7;
-        double estimate = profile.xHeightRatio() > 0.82 ? byCaps : byXh;
-        return Math.max(8.0, Math.min(estimate, boxHeight * 1.4));
+        return profile.estimateSize(word.height());
     }
 
     private static double expectedStrokeRatio(String family) {

@@ -28,7 +28,7 @@ class EmbeddedImagePdfTest {
     assertTrue(svg.contains("THIRD"),"Third line missing: "+svg);
     assertTrue(svg.contains("font-weight=\"700\""),"Bold style missing: "+svg);
     for(byte[] bytes:List.of(new PdfASvgToPdfConverter().convertMultiPage(List.of(svg,svg)),new BatikSvgToPdfConverter().convertMultiPage(List.of(svg))))try(var pdf=Loader.loadPDF(bytes)){
-      var raster=new PDFRenderer(pdf).renderImage(0);int dark=0;for(int y=10;y<raster.getHeight()-10;y++)for(int x=10;x<raster.getWidth()-10;x++)if((raster.getRGB(x,y)&0xffffff)<0x777777)dark++;assertTrue(dark>400,"HTML label must visibly render in the PDF");
+      var raster=new PDFRenderer(pdf).renderImage(0);int dark=0;for(int y=10;y<raster.getHeight()-10;y++)for(int x=10;x<raster.getWidth()-10;x++)if((raster.getRGB(x,y)&0xffffff)<0x777777)dark++;java.nio.file.Files.write(java.nio.file.Path.of("target/drawio-label-"+pdf.getNumberOfPages()+".pdf"),bytes);javax.imageio.ImageIO.write(raster,"png",java.nio.file.Path.of("target/drawio-label-"+pdf.getNumberOfPages()+".png").toFile());assertTrue(dark>400,"HTML label must visibly render in the PDF; pages="+pdf.getNumberOfPages()+", dark pixels="+dark);
     }
   }
   @Test void drawioThemeColorsRenderAsTheLightPrintedColors() throws Exception {

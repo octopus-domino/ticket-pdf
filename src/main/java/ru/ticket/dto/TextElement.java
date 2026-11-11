@@ -1,6 +1,7 @@
 package ru.ticket.dto;
 
 public class TextElement extends Element {
+    public com.fasterxml.jackson.databind.JsonNode browserLayout;
     public String text = "";
     public String html;
     public Boolean richText;

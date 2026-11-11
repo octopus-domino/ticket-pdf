@@ -2,7 +2,6 @@ package ru.ticket.recognition;
 
 import java.awt.image.BufferedImage;
 import java.util.Set;
-import java.util.concurrent.Semaphore;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import ru.ticket.common.ApiException;
@@ -23,15 +22,16 @@ public class ImageRecognitionService {
   private final LocalVisionRecognizer vision;
 
   // Один одновременный OCR-проход: tesseract сам по себе CPU-bound.
-  private final Semaphore capacity = new Semaphore(1);
+  private final ru.ticket.common.HeavyOperationCapacity capacity;
 
   public ImageRecognitionService(
           ImageDecoder decoder,
           CompositeRecognitionService composite,
-          LocalVisionRecognizer vision) {
+          LocalVisionRecognizer vision,ru.ticket.common.HeavyOperationCapacity capacity) {
     this.decoder = decoder;
     this.composite = composite;
     this.vision = vision;
+    this.capacity = capacity;
   }
 
   public RecognitionDraft recognize(String data, String language, String engine) {
@@ -42,12 +42,14 @@ public class ImageRecognitionService {
     if (!capacity.tryAcquire()) {
       throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "recognition.busy");
     }
+    BufferedImage image = null;
     try {
-      BufferedImage image = decoder.decode(data);
+      image = decoder.decode(data);
       return "ollama".equals(engine)
               ? vision.recognize(image)
               : composite.recognize(image, language);
     } finally {
+      if (image != null) image.flush();
       capacity.release();
     }
   }

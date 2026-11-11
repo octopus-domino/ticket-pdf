@@ -16,8 +16,8 @@ class CompositeTextStyleAnalyzerTest {
                     new AwtFontMatcher(new AwtTextLayoutService()));
 
     @Test
-    void explicitHintsOverrideVisualAnalysis() {
-        var rendered = TestImages.renderWord("Hello", "SansSerif", 24,
+    void unreliableOcrHintsDoNotOverrideClearlyRenderedGlyphs() {
+        var rendered = TestImages.renderWord("Recognition", "Arial", 32,
                 Font.PLAIN, Color.BLACK, 2, 2);
         Word word = new Word(
                 rendered.text(), rendered.x(), rendered.y(),
@@ -26,10 +26,10 @@ class CompositeTextStyleAnalyzerTest {
 
         TextStyle style = analyzer.analyze(rendered.image(), word);
 
-        assertThat(style.fontFamily()).isEqualTo("Georgia");
-        assertThat(style.fontSize()).isEqualTo(18.0);
-        assertThat(style.bold()).isTrue();
-        assertThat(style.italic()).isTrue();
+        assertThat(style.fontFamily()).isEqualTo("Arial");
+        assertThat(style.fontSize()).isBetween(29.0, 35.0);
+        assertThat(style.bold()).isFalse();
+        assertThat(style.italic()).isFalse();
     }
 
     @Test

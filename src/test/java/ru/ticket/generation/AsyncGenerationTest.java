@@ -59,11 +59,13 @@ class AsyncGenerationTest {
       var entered = new CountDownLatch(1);
       var release = new CountDownLatch(1);
       var exited = new CountDownLatch(1);
-      when(context.getBean(GenerationService.class).generateDocuments(anyString(), any(), any(), any()))
+      when(context
+              .getBean(GenerationService.class)
+              .generateDocuments(anyString(), any(), any(), any()))
           .thenAnswer(
               call -> {
                 entered.countDown();
-                release.await(5, TimeUnit.SECONDS);
+                release.await();
                 try {
                   ((GenerationService.ItemCallback) call.getArgument(2)).onItem(0, 0, 0);
                 } finally {
@@ -74,15 +76,22 @@ class AsyncGenerationTest {
       var service = context.getBean(GenerationJobService.class);
       var request = new GenerationRequest();
       request.items = List.of(new GenerationRequest.Item());
-      GenerationJob job =
-          assertTimeoutPreemptively(
-              java.time.Duration.ofSeconds(1), () -> service.enqueue("u", request));
-      assertTrue(entered.await(2, TimeUnit.SECONDS));
-      service.cancel("u", job.id());
-      release.countDown();
-      assertTrue(exited.await(2, TimeUnit.SECONDS));
-      assertEquals(GenerationJob.Status.CANCELLED, job.status());
-      assertThrows(RuntimeException.class, () -> service.find("other", job.id()));
+      var caller = Executors.newSingleThreadExecutor();
+      try {
+        var queued = caller.submit(() -> service.enqueue("u", request));
+        assertTrue(entered.await(10, TimeUnit.SECONDS), "Rendering must start on the worker");
+        // A synchronous regression cannot return here: rendering waits for this test to release it.
+        GenerationJob job = queued.get(10, TimeUnit.SECONDS);
+        assertEquals(1L, release.getCount(), "Enqueue must return while rendering is blocked");
+        service.cancel("u", job.id());
+        release.countDown();
+        assertTrue(exited.await(10, TimeUnit.SECONDS));
+        assertEquals(GenerationJob.Status.CANCELLED, job.status());
+        assertThrows(RuntimeException.class, () -> service.find("other", job.id()));
+      } finally {
+        release.countDown();
+        caller.shutdownNow();
+      }
     }
   }
 }

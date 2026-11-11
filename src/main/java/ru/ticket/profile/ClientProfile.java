@@ -8,5 +8,5 @@ public class ClientProfile {
   @Column(nullable=false,length=200) public String organization="";
   @Column(nullable=false,length=100) public String position="";
   @Column(nullable=false,length=50) public String phone="";
-  @Lob @Column(nullable=false) public String avatar="";
+  @Column(nullable=false, columnDefinition="TEXT") public String avatar="";
 }

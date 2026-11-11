@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
+import ru.ticket.recognition.InkStyleSampler;
 import ru.ticket.recognition.OcrEngine.Word;
 import ru.ticket.recognition.RecognitionDraft.Item;
 import ru.ticket.recognition.style.StyledRun;
@@ -54,7 +55,7 @@ public class TextElementBuilder {
 
         Map<String, Object> properties;
         if (runs.isEmpty()) {
-            properties = plainProperties(line, lineFontSize);
+            properties = plainProperties(image, line, lineFontSize);
         } else if (runs.size() == 1) {
             properties = singleRunProperties(runs.get(0), line);
         } else {
@@ -64,12 +65,12 @@ public class TextElementBuilder {
         return new Item("text", boxX, boxY, boxW, boxH, properties);
     }
 
-    private static Map<String, Object> plainProperties(List<Word> line, double lineFontSize) {
+    private static Map<String, Object> plainProperties(BufferedImage image, List<Word> line, double lineFontSize) {
         var properties = new LinkedHashMap<String, Object>();
         properties.put("text", String.join(" ",
                 line.stream().map(Word::text).toList()));
         properties.put("fontSize", lineFontSize);
-        properties.put("fill", "#202020");
+        properties.put("fill", InkStyleSampler.textColor(image, line));
         properties.put("fontFamily", "Arial");
         properties.put("fontStyle", "normal");
         properties.put("textDecoration", "");
@@ -107,7 +108,7 @@ public class TextElementBuilder {
 
         var properties = new LinkedHashMap<String, Object>();
         properties.put("text", plainText);
-        properties.put("html", buildHtml(runs, lineFontSize));
+        properties.put("html", buildHtml(runs));
         properties.put("richText", true);
         properties.put("fontSize", lineFontSize);
         properties.put("fill", first.style().color());
@@ -135,7 +136,7 @@ public class TextElementBuilder {
         return sb.toString();
     }
 
-    private static String buildHtml(List<StyledRun> runs, double lineFontSize) {
+    private static String buildHtml(List<StyledRun> runs) {
         StringBuilder html = new StringBuilder("<div>");
         boolean firstRun = true;
         for (StyledRun run : runs) {
@@ -145,14 +146,12 @@ public class TextElementBuilder {
 
             html.append("<span style=\"")
                     .append("color:").append(s.color()).append(';')
-                    .append("font-size:").append(Math.round(lineFontSize)).append("px;")
+                    .append("font-size:").append(Math.round(s.fontSize() * 100) / 100.0).append("px;")
                     .append("font-family:'").append(XmlEscape.attr(s.fontFamily())).append("';");
-            if (s.bold()) html.append("font-weight:700;");
-            if (s.italic()) html.append("font-style:italic;");
+            html.append(s.bold() ? "font-weight:700;" : "font-weight:400;");
+            html.append(s.italic() ? "font-style:italic;" : "font-style:normal;");
             String decoration = decorationOf(s);
-            if (!decoration.isEmpty()) {
-                html.append("text-decoration:").append(decoration).append(';');
-            }
+            html.append("text-decoration:").append(decoration.isEmpty() ? "none" : decoration).append(';');
             html.append("\">")
                     .append(XmlEscape.escape(run.word().text()))
                     .append("</span>");

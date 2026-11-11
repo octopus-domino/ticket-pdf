@@ -117,8 +117,10 @@ public final class RuleDetector {
           BufferedImage image, boolean vertical, int row, int start, int length) {
 
     int contrastingSamples = 0;
-    for (int quarter = 1; quarter <= 3; quarter++) {
-      int pos = start + length * quarter / 4;
+    int samples = 31;
+    int minRed = 255, minGreen = 255, minBlue = 255, maxRed = 0, maxGreen = 0, maxBlue = 0;
+    for (int sample = 1; sample <= samples; sample++) {
+      int pos = start + length * sample / (samples + 1);
       int x = vertical ? row : pos;
       int y = vertical ? pos : row;
 
@@ -132,13 +134,19 @@ public final class RuleDetector {
         continue;
       }
 
-      int center = brightness(image.getRGB(x, y));
+      int rgb = image.getRGB(x, y);
+      int red = rgb >> 16 & 255, green = rgb >> 8 & 255, blue = rgb & 255;
+      minRed = Math.min(minRed, red); minGreen = Math.min(minGreen, green); minBlue = Math.min(minBlue, blue);
+      maxRed = Math.max(maxRed, red); maxGreen = Math.max(maxGreen, green); maxBlue = Math.max(maxBlue, blue);
+      int center = brightness(rgb);
       if (brightness(image.getRGB(beforeX, beforeY)) > center + MIN_RULE_CONTRAST
               && brightness(image.getRGB(afterX, afterY)) > center + MIN_RULE_CONTRAST) {
         contrastingSamples++;
       }
     }
-    return contrastingSamples >= 2;
+    // Photographic edges can contrast at a few isolated points, but a printed rule
+    // has a consistent stroke and clear background on both sides along its length.
+    return contrastingSamples >= 27 && maxRed - minRed <= 48 && maxGreen - minGreen <= 48 && maxBlue - minBlue <= 48;
   }
 
   private static boolean adjacent(Rule a, Rule b, boolean vertical) {

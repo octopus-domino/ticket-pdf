@@ -16,6 +16,23 @@ import ru.ticket.recognition.ensemble.OcrResultFusion;
 import ru.ticket.recognition.shape.ShapeRecognizer;
 
 class CompositeRecognitionServiceTest {
+    @Test void hocrOnlyResultIsNotDiscardedWhenTsvFails() {
+        var image = new BufferedImage(200, 100, BufferedImage.TYPE_INT_RGB);
+        var dual = mock(DualEngineOcrRunner.class);
+        var word = new OcrEngine.Word("Recovered", 10, 10, 80, 20, 95, "L1");
+        when(dual.run(any(), anyString())).thenReturn(new DualEngineOcrRunner.DualResult(List.of(), List.of(word)));
+        var analyzer = mock(PageLayoutAnalyzer.class);
+        when(analyzer.analyze(any(), any(), anyBoolean())).thenAnswer(invocation -> {
+            List<OcrEngine.Word> words = invocation.getArgument(1);
+            assertThat(words).hasSize(1);
+            assertThat(words.get(0).line()).isEqualTo("hocr:L1");
+            return new RecognitionDraft(200, 100, List.of(), List.of(), "ocr");
+        });
+        var shapes = mock(ShapeRecognizer.class);
+        when(shapes.recognize(any(), any())).thenReturn(List.of());
+        var result = new CompositeRecognitionService(dual, new OcrResultFusion(), analyzer, shapes).recognize(image, "eng");
+        assertThat(result.warnings()).doesNotContain("recognition.empty_result");
+    }
 
     @Test
     void dualEngineAndShapesAreMergedIntoOneDraft() {

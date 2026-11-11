@@ -66,15 +66,10 @@ public class OcrResultFusion {
 
     private FusedWord mergePair(Word tsv, Word hocr) {
         boolean sameText = tsv.text().equals(hocr.text());
-        double combined = sameText
-                ? Math.min(100, (tsv.confidence() + hocr.confidence()) / 2.0 + 5)
-                : Math.max(tsv.confidence(), hocr.confidence());
+        double combined = tsv.confidence();
+        String text = tsv.text();
 
-        String text = sameText
-                ? tsv.text()
-                : (tsv.confidence() >= hocr.confidence() ? tsv.text() : hocr.text());
-
-        StyleHints hints = hintsOf(hocr);
+        StyleHints hints = sameText ? hintsOf(hocr) : hintsOf(tsv);
         if (hints == StyleHints.NONE) hints = hintsOf(tsv);
 
         return new FusedWord(

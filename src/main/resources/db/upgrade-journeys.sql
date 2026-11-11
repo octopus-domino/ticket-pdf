@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS public_journeys (
+  id VARCHAR(36) PRIMARY KEY, kind VARCHAR(32) NOT NULL, title VARCHAR(120) NOT NULL,
+  management_hash VARCHAR(64) NOT NULL, data_json TEXT NOT NULL, revoked BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL, updated_at TIMESTAMP WITH TIME ZONE NOT NULL, version BIGINT
+);
+CREATE TABLE IF NOT EXISTS journey_responses (
+  id VARCHAR(36) PRIMARY KEY, journey_id VARCHAR(36) NOT NULL, response_hash VARCHAR(64) NOT NULL,
+  name VARCHAR(100) NOT NULL, attending BOOLEAN NOT NULL, updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  UNIQUE(journey_id, response_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_journey_responses ON journey_responses(journey_id);
+CREATE TABLE IF NOT EXISTS journey_sites (
+  slug VARCHAR(48) PRIMARY KEY, definition TEXT NOT NULL, management_hash VARCHAR(64) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL, version BIGINT
+);
+ALTER TABLE public_journeys ADD COLUMN IF NOT EXISTS used_at TIMESTAMP WITH TIME ZONE;
+CREATE TABLE IF NOT EXISTS journey_batches (
+  id VARCHAR(36) PRIMARY KEY, title VARCHAR(120) NOT NULL, kind VARCHAR(32) NOT NULL,
+  management_hash VARCHAR(64) NOT NULL, document_ids VARCHAR(5000) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL, version BIGINT
+);
+ALTER TABLE journey_batches ADD COLUMN IF NOT EXISTS version BIGINT;

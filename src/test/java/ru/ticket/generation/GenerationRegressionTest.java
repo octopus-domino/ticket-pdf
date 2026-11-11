@@ -144,7 +144,7 @@ class GenerationRegressionTest {
                 List.of(new FieldDef("name", "string", true, null, null)),
                 List.of()));
     when(source.models(anyString(), any())).thenReturn(Map.of());
-    var service = new GenerationService(List.of(renderer), List.of(new ZipPackager()), source);
+    var service = new GenerationService(List.of(renderer), List.of(new ZipPackager()), source,new ru.ticket.common.HeavyOperationCapacity());
     var good = new GenerationRequest.Item();
     good.inlineValues = Map.of("name", "Alice");
     var bad = new GenerationRequest.Item();

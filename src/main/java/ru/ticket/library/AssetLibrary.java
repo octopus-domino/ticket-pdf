@@ -11,6 +11,6 @@ public class AssetLibrary {
   @Column(name="user_id",nullable=false) public String userId;
   @Column(nullable=false,length=200) public String name;
   @Column(nullable=false) public long revision;
-  @Lob @Column(nullable=false) public String payload="[]";
-  @Lob @Column(nullable=false) public String members="{}";
+  @Column(nullable=false, columnDefinition="TEXT") public String payload="[]";
+  @Column(nullable=false, columnDefinition="TEXT") public String members="{}";
 }

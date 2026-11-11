@@ -47,6 +47,12 @@ public class GlobalExceptionHandler {
     return ResponseEntity.badRequest().body(Map.of("error", msg));
   }
 
+  @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+  public ResponseEntity<Map<String,Object>> handleConflict(org.springframework.dao.DataIntegrityViolationException error) {
+    log.warn("Data conflict: {}", error.getClass().getSimpleName());
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error","This record is already in use or depends on another record.","status",409));
+  }
+
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<Map<String, Object>> handleInvalidInput(IllegalArgumentException error) {
     return ResponseEntity.badRequest()

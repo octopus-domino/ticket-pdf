@@ -44,8 +44,8 @@ public class CompositeRecognitionService {
 
         // Keep ONLY TSV words for layout. Unmatched hOCR words cause chaos.
         var words = fused.stream()
-                .filter(f -> f.line() == null || !f.line().startsWith("hocr:"))
-                .map(f -> f.toWord("fused"))
+                .filter(f -> dual.tsvWords().isEmpty() || f.line() == null || !f.line().startsWith("hocr:"))
+                .map(f -> f.toWord(null))
                 .toList();
 
         // Layout WITH artwork: complex graphics become image crops.
@@ -62,7 +62,7 @@ public class CompositeRecognitionService {
         if (fused.stream().anyMatch(FusedWord::disagreement)) {
             warnings.add("recognition.engine_disagreement");
         }
-        if (dual.tsvWords().isEmpty()) {
+        if (words.isEmpty()) {
             warnings.add("recognition.empty_result");
         }
 

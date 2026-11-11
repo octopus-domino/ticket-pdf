@@ -18,13 +18,16 @@ public class TextElementRenderer implements ElementRenderer<TextElement> {
     private final TextLayoutService textLayout;
     private final RichTextSvgRenderer richRenderer;
     private final ArcTextSvgWriter arcWriter;
+    private final ru.ticket.text.BrowserTextLayoutRenderer browserLayout;
 
     public TextElementRenderer(TextLayoutService textLayout,
                                RichTextSvgRenderer richRenderer,
-                               ArcTextSvgWriter arcWriter) {
+                               ArcTextSvgWriter arcWriter,
+                               ru.ticket.text.BrowserTextLayoutRenderer browserLayout) {
         this.textLayout = textLayout;
         this.richRenderer = richRenderer;
         this.arcWriter = arcWriter;
+        this.browserLayout = browserLayout;
     }
 
     @Override
@@ -48,6 +51,8 @@ public class TextElementRenderer implements ElementRenderer<TextElement> {
 
         if (isArc(t)) {
             renderArc(out, ctx, t);
+        } else if (browserLayout.render(out, t)) {
+            // The browser already determined line breaks for this exact content and style.
         } else if (isRich(t)) {
             richRenderer.render(out, t);
         } else {

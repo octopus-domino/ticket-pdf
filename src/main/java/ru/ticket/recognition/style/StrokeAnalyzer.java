@@ -16,6 +16,7 @@ final class StrokeAnalyzer {
 
     static double medianHorizontalRunLength(
             BufferedImage img, int x, int y, int w, int h) {
+        img = ForegroundMask.normalize(img, x, y, w, h); x = 0; y = 0;
 
         List<Integer> runs = new ArrayList<>();
         for (int row = 0; row < h; row++) {
@@ -36,6 +37,7 @@ final class StrokeAnalyzer {
     }
 
     static double xHeight(BufferedImage img, int x, int y, int w, int h) {
+        img = ForegroundMask.normalize(img, x, y, w, h); x = 0; y = 0;
         int[] rowDark = new int[h];
         for (int row = 0; row < h; row++) {
             for (int col = 0; col < w; col++) {
@@ -58,6 +60,7 @@ final class StrokeAnalyzer {
     }
 
     static boolean hasUnderline(BufferedImage img, int x, int y, int w, int h) {
+        img = ForegroundMask.normalize(img, x, y, w, h); x = 0; y = 0;
         // Расширяем зону поиска до 98%, так как подчеркивание часто рисуется
         // на самом краю bbox (или чуть ниже baseline).
         int top = y + (int) (h * 0.80);
@@ -66,6 +69,7 @@ final class StrokeAnalyzer {
     }
 
     static boolean hasStrikethrough(BufferedImage img, int x, int y, int w, int h) {
+        img = ForegroundMask.normalize(img, x, y, w, h); x = 0; y = 0;
         // Зачеркивание проходит примерно по центру x-height
         int top = y + (int) (h * 0.40);
         int bottom = y + (int) (h * 0.60);
@@ -91,6 +95,7 @@ final class StrokeAnalyzer {
     }
 
     static double italicSkew(BufferedImage img, int x, int y, int w, int h) {
+        img = ForegroundMask.normalize(img, x, y, w, h); x = 0; y = 0;
         int half = h / 2;
         double topSum = 0, bottomSum = 0;
         int topCount = 0, bottomCount = 0;

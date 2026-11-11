@@ -11,6 +11,13 @@ import java.util.UUID;
  */
 public final class GenerationJob {
 
+  // Fully configured once; request snapshots must not rediscover modules for every queued job.
+  private static final com.fasterxml.jackson.databind.ObjectMapper REQUEST_COPIER =
+      com.fasterxml.jackson.databind.json.JsonMapper.builder()
+          .addModule(new com.fasterxml.jackson.datatype.jdk8.Jdk8Module())
+          .addModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+          .build();
+
   public enum Status {
     QUEUED,
     RUNNING,
@@ -41,7 +48,7 @@ public final class GenerationJob {
   public GenerationJob(String userId, GenerationRequest request, GenerationSource source) {
     this.id = "gen-" + UUID.randomUUID();
     this.userId = userId;
-    this.request = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules().convertValue(request, GenerationRequest.class);
+    this.request = REQUEST_COPIER.convertValue(request, GenerationRequest.class);
     this.source = source;
     this.createdAt = Instant.now();
     this.expiresAt = createdAt.plusSeconds(7L * 24 * 60 * 60);
@@ -95,7 +102,8 @@ public final class GenerationJob {
         completed,
         failed,
         List.copyOf(errors),
-        resultPath, source);
+        resultPath,
+        source);
   }
 
   public String id() {
@@ -110,7 +118,9 @@ public final class GenerationJob {
     return request;
   }
 
-  public GenerationSource source() { return source; }
+  public GenerationSource source() {
+    return source;
+  }
 
   public Instant createdAt() {
     return createdAt;

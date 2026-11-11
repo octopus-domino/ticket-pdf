@@ -14,7 +14,8 @@ import ru.ticket.generation.domain.*;
 /** Application use case; storage and rendering are replaceable ports. */
 @Service
 public class GenerationService {
-  private static final long MAX_RESULT_BYTES = 100L * 1024 * 1024;
+  private static final long MAX_RESULT_BYTES = 32L * 1024 * 1024;
+  private final ru.ticket.common.HeavyOperationCapacity capacity;
   private final Map<ExportFormat, DocumentRenderer> renderers;
   private final Map<String, DocumentPackager> packagers;
   private final GenerationCatalog catalog;
@@ -22,10 +23,12 @@ public class GenerationService {
   public GenerationService(
       List<DocumentRenderer> renderers,
       List<DocumentPackager> packagers,
-      GenerationCatalog catalog) {
+      GenerationCatalog catalog,
+      ru.ticket.common.HeavyOperationCapacity capacity) {
     this.renderers = renderers.stream().collect(Collectors.toMap(DocumentRenderer::format, r -> r));
     this.packagers = packagers.stream().collect(Collectors.toMap(DocumentPackager::packAs, p -> p));
     this.catalog = catalog;
+    this.capacity = capacity;
   }
 
   public record SyncResult(PackResult packed, int count, List<GenerationJob.ItemError> issues) {}
@@ -54,17 +57,39 @@ public class GenerationService {
   }
 
   public GenerationSource freezeSource(String userId, GenerationRequest request) {
-    var ids = request.items.stream().map(item -> item.dataModelId).filter(Objects::nonNull).collect(Collectors.toSet());
-    var source = new GenerationSource(catalog.template(userId, request), catalog.models(userId, ids));
+    var ids =
+        request.items.stream()
+            .map(item -> item.dataModelId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    var source =
+        new GenerationSource(catalog.template(userId, request), catalog.models(userId, ids));
     try {
       var mapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
       byte[] bytes = mapper.writeValueAsBytes(source);
-      if (bytes.length > 20 * 1024 * 1024) throw ApiException.badRequest("Generation snapshot exceeds 20 MB; split the batch");
+      if (bytes.length > 20 * 1024 * 1024)
+        throw ApiException.badRequest("Generation snapshot exceeds 20 MB; split the batch");
       return mapper.readValue(bytes, GenerationSource.class);
-    } catch (java.io.IOException error) { throw new IllegalArgumentException("Cannot snapshot generation source", error); }
+    } catch (java.io.IOException error) {
+      throw new IllegalArgumentException("Cannot snapshot generation source", error);
+    }
   }
 
-  public DocumentsResult generateDocuments(String userId, GenerationRequest req, ItemCallback progress, GenerationSource source) {
+  public DocumentsResult generateDocuments(
+      String userId, GenerationRequest req, ItemCallback progress, GenerationSource source) {
+    if (!capacity.tryAcquire())
+      throw new ApiException(
+          org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
+          "Generation is busy. Retry shortly.");
+    try {
+      return renderDocuments(userId, req, progress, source);
+    } finally {
+      capacity.release();
+    }
+  }
+
+  private DocumentsResult renderDocuments(
+      String userId, GenerationRequest req, ItemCallback progress, GenerationSource source) {
     if (req.items == null || req.items.isEmpty() || req.items.size() > 10000)
       throw ApiException.badRequest("Expected 1..10000 items");
     var template = source == null ? catalog.template(userId, req) : source.template();
@@ -126,13 +151,14 @@ public class GenerationService {
                 .replaceAll("(?i)\\.(svg|pdf|pdfa\\.pdf)$", "");
         var rendered = renderer.renderMulti(filled, name, req.options);
         long next = rendered.stream().mapToLong(d -> d.content().length).sum();
-        if (bytes + next > MAX_RESULT_BYTES)
-          throw ApiException.badRequest("Batch exceeds 100 MB; split the batch");
+        if (bytes + next > MAX_RESULT_BYTES) throw new ResultLimitExceeded();
         docs.addAll(rendered);
         bytes += next;
         completed++;
       } catch (CancellationException cancelled) {
         throw cancelled;
+      } catch (ResultLimitExceeded oversized) {
+        throw ApiException.badRequest("Batch exceeds 32 MB; split the batch");
       } catch (Exception error) {
         failed++;
         errors.add(
@@ -145,6 +171,18 @@ public class GenerationService {
   }
 
   public PackResult pack(String packAs, String format, List<NamedDocument> docs) {
+    if (!capacity.tryAcquire())
+      throw new ApiException(
+          org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
+          "Generation is busy. Retry shortly.");
+    try {
+      return packDocuments(packAs, format, docs);
+    } finally {
+      capacity.release();
+    }
+  }
+
+  private PackResult packDocuments(String packAs, String format, List<NamedDocument> docs) {
     if (docs == null || docs.isEmpty()) throw ApiException.badRequest("No documents to pack");
     String key = packAs == null ? "zip" : packAs;
     if ("single".equals(key)) {
@@ -167,4 +205,6 @@ public class GenerationService {
     if (renderer == null) throw ApiException.badRequest("Unsupported format");
     return renderer;
   }
+
+  private static final class ResultLimitExceeded extends RuntimeException {}
 }

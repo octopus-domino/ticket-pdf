@@ -5,32 +5,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Component;
+import ru.ticket.recognition.InkStyleSampler;
 import ru.ticket.recognition.OcrEngine.Word;
 
-/**
- * Splits an OCR line into styled runs using pixel analysis.
- *
- * <p><b>Font size is not a split criterion.</b> Size is computed once at the
- * line level by {@code TextElementBuilder} and never varies between spans of
- * the same visual line. Per-word pixel estimates differ from the line average
- * by 15–25 % even when the underlying font is uniform (x-height words vs
- * words with ascenders/descenders), so treating size as a split trigger
- * fragments the line into many runs with slightly different sizes — the
- * "jumping letters" artefact. Removing it here is intentional.
- *
- * <p>What <em>is</em> a split criterion — robust pixel signals that survive
- * across neighbouring words:
- * <ul>
- *   <li>foreground colour change</li>
- *   <li>bold ↔ regular</li>
- *   <li>italic ↔ upright</li>
- *   <li>underline / strike toggles</li>
- *   <li>font-family change</li>
- * </ul>
- * These either represent genuine inline markup (a bold word inside a
- * sentence, a link-coloured fragment) or are physically improbable as noise
- * across adjacent glyphs.
- */
+/** Groups adjacent words with compatible styles; tolerates small font-size fitting noise. */
 @Component
 public class InkBasedRunSplitter implements StyledRunSplitter {
 
@@ -56,7 +34,7 @@ public class InkBasedRunSplitter implements StyledRunSplitter {
             try {
                 style = styleAnalyzer.analyze(image, word);
             } catch (RuntimeException error) {
-                style = TextStyle.defaultFor("#202020", Math.max(8, word.height() * 0.9));
+                style = TextStyle.defaultFor(InkStyleSampler.textColor(image, List.of(word)), Math.max(8, word.height() * 0.9));
             }
 
             if (currentWord == null || differs(currentStyle, style)) {
@@ -75,15 +53,29 @@ public class InkBasedRunSplitter implements StyledRunSplitter {
         return result;
     }
 
-    /** Split criterion. Font size is deliberately absent — see class javadoc. */
+    /** Ignore small rasterization differences while retaining real emphasis changes. */
     private static boolean differs(TextStyle a, TextStyle b) {
         if (a == null || b == null) return true;
-        if (!a.color().equalsIgnoreCase(b.color())) return true;
+        if (!similarColor(a.color(), b.color())) return true;
+        if (Math.abs(a.fontSize() - b.fontSize()) > Math.max(2, Math.min(a.fontSize(), b.fontSize()) * .25)) return true;
         if (a.bold() != b.bold()) return true;
         if (a.italic() != b.italic()) return true;
         if (a.underline() != b.underline()) return true;
         if (a.strike() != b.strike()) return true;
         return !a.fontFamily().equals(b.fontFamily());
+    }
+
+    private static boolean similarColor(String a, String b) {
+        if (a.equalsIgnoreCase(b)) return true;
+        if (!a.matches("#[a-fA-F0-9]{6}") || !b.matches("#[a-fA-F0-9]{6}")) return false;
+        int first = Integer.parseInt(a.substring(1), 16);
+        int second = Integer.parseInt(b.substring(1), 16);
+        int distance = 0;
+        for (int shift : new int[]{0, 8, 16}) {
+            int delta = ((first >> shift) & 255) - ((second >> shift) & 255);
+            distance += delta * delta;
+        }
+        return distance <= 24 * 24;
     }
 
     private static Word mergeWords(Word a, Word b) {
