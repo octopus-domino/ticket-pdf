@@ -21,6 +21,7 @@ import ru.ticket.common.ApiException;
   JourneyService.class,
   JourneySiteService.class,
   JourneyContentPolicy.class,
+  PublicationAccess.class,
   ObjectMapper.class,
   ru.ticket.workflow.SiteAddressService.class
 })

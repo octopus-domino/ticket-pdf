@@ -28,8 +28,11 @@ public class JourneyController {
   }
 
   @PostMapping
-  public List<JourneyService.Created> create(@RequestBody JourneyService.Input input) {
-    return service.create(input);
+  public List<JourneyService.Created> create(
+      @RequestBody JourneyService.Input input,
+      @org.springframework.security.core.annotation.AuthenticationPrincipal
+          ru.ticket.auth.security.UserIdPrincipal user) {
+    return service.create(input, user == null ? null : user.userId());
   }
 
   @GetMapping("/{id}")

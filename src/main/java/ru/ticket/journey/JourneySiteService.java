@@ -35,14 +35,17 @@ public class JourneySiteService {
   private final JourneySiteRepository sites;
   private final ObjectMapper mapper;
   private final ru.ticket.workflow.SiteAddressService addresses;
+  private final PublicationAccess access;
 
   public JourneySiteService(
       JourneySiteRepository sites,
       ObjectMapper mapper,
-      ru.ticket.workflow.SiteAddressService addresses) {
+      ru.ticket.workflow.SiteAddressService addresses,
+      PublicationAccess access) {
     this.sites = sites;
     this.mapper = mapper;
     this.addresses = addresses;
+    this.access = access;
   }
 
   @Transactional(readOnly = true)
@@ -58,6 +61,11 @@ public class JourneySiteService {
 
   @Transactional
   public Created create(Definition definition) {
+    return create(definition, null);
+  }
+
+  @Transactional
+  public Created create(Definition definition, String ownerId) {
     validate(definition);
     addresses.reserve(definition.slug(), "site");
     if (sites.existsById(definition.slug()))
@@ -67,6 +75,7 @@ public class JourneySiteService {
     String key = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     var site = new JourneySite();
     site.slug = definition.slug();
+    site.ownerId = ownerId;
     site.definition = json(definition);
     site.managementHash = hash(key);
     site.updatedAt = Instant.now();
@@ -76,13 +85,23 @@ public class JourneySiteService {
 
   @Transactional
   public Definition update(String slug, String key, Definition definition) {
-    validate(definition);
     var site = sites.findById(slug).orElseThrow(() -> ApiException.notFound("Site"));
     if (key == null
         || !MessageDigest.isEqual(
             site.managementHash.getBytes(StandardCharsets.US_ASCII),
             hash(key).getBytes(StandardCharsets.US_ASCII)))
       throw ApiException.forbidden("Invalid site management key");
+    return updateDefinition(site, definition);
+  }
+
+  @Transactional
+  public Definition updateOwned(String slug, String owner, Definition definition) {
+    return updateDefinition(access.site(slug, owner), definition);
+  }
+
+  private Definition updateDefinition(JourneySite site, Definition definition) {
+    validate(definition);
+    String slug = site.slug;
     if (!slug.equals(definition.slug()))
       throw ApiException.badRequest("The published address cannot change");
     var old = get(slug);

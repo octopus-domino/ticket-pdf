@@ -20,3 +20,9 @@ CREATE TABLE IF NOT EXISTS journey_batches (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL, version BIGINT
 );
 ALTER TABLE journey_batches ADD COLUMN IF NOT EXISTS version BIGINT;
+ALTER TABLE public_journeys ADD COLUMN IF NOT EXISTS owner_id VARCHAR(36);
+ALTER TABLE public_journeys ADD COLUMN IF NOT EXISTS site_slug VARCHAR(48);
+ALTER TABLE journey_sites ADD COLUMN IF NOT EXISTS owner_id VARCHAR(36);
+CREATE INDEX IF NOT EXISTS idx_public_journeys_owner ON public_journeys(owner_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_public_journeys_site ON public_journeys(site_slug, updated_at);
+CREATE INDEX IF NOT EXISTS idx_journey_sites_owner ON journey_sites(owner_id, updated_at);

@@ -16,6 +16,12 @@ public class JourneyEntity {
   @Column(nullable = false, length = 120)
   public String title;
 
+  @Column(length = 36)
+  public String ownerId;
+
+  @Column(length = 48)
+  public String siteSlug;
+
   @Column(nullable = false, length = 64)
   public String managementHash;
 

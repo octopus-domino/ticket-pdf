@@ -10,6 +10,9 @@ public class JourneySite {
   @Column(length = 48)
   public String slug;
 
+  @Column(length = 36)
+  public String ownerId;
+
   @Column(nullable = false, columnDefinition = "TEXT")
   public String definition;
 

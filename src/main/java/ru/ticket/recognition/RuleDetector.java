@@ -7,18 +7,16 @@ import java.util.List;
 /**
  * Детектор прямых правил (линий) на растровом изображении.
  *
- * <p><b>Зачем отдельный класс.</b> Линии — самостоятельный геометрический
- * примитив: они нужны и для таблиц ({@code layout.RuledTableDetector}),
- * и для отдельного рисования вне таблиц. Логика «найти горизонтальные
- * отрезки» и «сгруппировать таблицу» — разные задачи с разными порогами.
+ * <p><b>Зачем отдельный класс.</b> Линии — самостоятельный геометрический примитив: они нужны и для
+ * таблиц ({@code layout.RuledTableDetector}), и для отдельного рисования вне таблиц. Логика «найти
+ * горизонтальные отрезки» и «сгруппировать таблицу» — разные задачи с разными порогами.
  *
- * <p><b>Алгоритм.</b> Растровый scan по строкам (или столбцам). «Правило»
- * = серия тёмных пикселей с контрастом с обеих сторон. Соседние строки
- * с похожей длиной и координатами сливаются, чтобы одна линия толщиной
- * 3 px не превратилась в три отдельных элемента.
+ * <p><b>Алгоритм.</b> Растровый scan по строкам (или столбцам). «Правило» = серия тёмных пикселей с
+ * контрастом с обеих сторон. Соседние строки с похожей длиной и координатами сливаются, чтобы одна
+ * линия толщиной 3 px не превратилась в три отдельных элемента.
  *
- * <p><b>Видимость.</b> Класс публичный: используется из двух пакетов
- * ({@code recognition} и {@code recognition.layout}).
+ * <p><b>Видимость.</b> Класс публичный: используется из двух пакетов ({@code recognition} и {@code
+ * recognition.layout}).
  */
 public final class RuleDetector {
 
@@ -28,8 +26,7 @@ public final class RuleDetector {
   /** Value-объект: правило в координатах изображения. */
   public record Rule(int x, int y, int width, int height) {}
 
-  private RuleDetector() {
-  }
+  private RuleDetector() {}
 
   public static List<Rule> detect(BufferedImage image, boolean vertical) {
     int across = vertical ? image.getHeight() : image.getWidth();
@@ -42,17 +39,15 @@ public final class RuleDetector {
       int gap = 0;
 
       for (int pos = 0; pos <= across; pos++) {
-        boolean dark = pos < across && dark(image.getRGB(
-                vertical ? row : pos,
-                vertical ? pos : row));
+        boolean dark =
+            pos < across && dark(image.getRGB(vertical ? row : pos, vertical ? pos : row));
 
         if (dark) {
           if (start < 0) start = pos;
           gap = 0;
         } else if (start >= 0 && (++gap > 1 || pos == across)) {
           int length = pos - start - gap + 1;
-          if (length >= Math.max(50, across / 12)
-                  && thin(image, vertical, row, start, length)) {
+          if (length >= Math.max(50, across / 12) && thin(image, vertical, row, start, length)) {
 
             Rule next = fullThickness(image, vertical, row, start, length);
             boolean merged = false;
@@ -62,12 +57,13 @@ public final class RuleDetector {
 
               int x = Math.min(previous.x(), next.x());
               int y = Math.min(previous.y(), next.y());
-              result.set(index, new Rule(
-                      x, y,
-                      Math.max(previous.x() + previous.width(),
-                              next.x() + next.width()) - x,
-                      Math.max(previous.y() + previous.height(),
-                              next.y() + next.height()) - y));
+              result.set(
+                  index,
+                  new Rule(
+                      x,
+                      y,
+                      Math.max(previous.x() + previous.width(), next.x() + next.width()) - x,
+                      Math.max(previous.y() + previous.height(), next.y() + next.height()) - y));
               merged = true;
               break;
             }
@@ -82,26 +78,28 @@ public final class RuleDetector {
   }
 
   private static Rule fullThickness(
-          BufferedImage image, boolean vertical, int row, int start, int length) {
+      BufferedImage image, boolean vertical, int row, int start, int length) {
 
     int limit = vertical ? image.getWidth() : image.getHeight();
     int first = row, last = row;
 
-    while (first > 0 && row - first < 5
-            && inkSamples(image, vertical, first - 1, start, length) >= 2) {
+    while (first > 0
+        && row - first < 5
+        && inkSamples(image, vertical, first - 1, start, length) >= 2) {
       first--;
     }
-    while (last + 1 < limit && last - first < 5
-            && inkSamples(image, vertical, last + 1, start, length) >= 2) {
+    while (last + 1 < limit
+        && last - first < 5
+        && inkSamples(image, vertical, last + 1, start, length) >= 2) {
       last++;
     }
     return vertical
-            ? new Rule(first, start, last - first + 1, length)
-            : new Rule(start, first, length, last - first + 1);
+        ? new Rule(first, start, last - first + 1, length)
+        : new Rule(start, first, length, last - first + 1);
   }
 
   private static int inkSamples(
-          BufferedImage image, boolean vertical, int row, int start, int length) {
+      BufferedImage image, boolean vertical, int row, int start, int length) {
 
     int count = 0;
     for (int quarter = 1; quarter <= 3; quarter++) {
@@ -114,11 +112,12 @@ public final class RuleDetector {
   }
 
   private static boolean thin(
-          BufferedImage image, boolean vertical, int row, int start, int length) {
+      BufferedImage image, boolean vertical, int row, int start, int length) {
 
     int contrastingSamples = 0;
     int samples = 31;
     int minRed = 255, minGreen = 255, minBlue = 255, maxRed = 0, maxGreen = 0, maxBlue = 0;
+    int minBackground = 765, maxBackground = 0;
     for (int sample = 1; sample <= samples; sample++) {
       int pos = start + length * sample / (samples + 1);
       int x = vertical ? row : pos;
@@ -129,32 +128,44 @@ public final class RuleDetector {
       int afterX = vertical ? x + RULE_NEIGHBOR_DISTANCE : x;
       int afterY = vertical ? y : y + RULE_NEIGHBOR_DISTANCE;
 
-      if (beforeX < 0 || beforeY < 0
-              || afterX >= image.getWidth() || afterY >= image.getHeight()) {
+      if (beforeX < 0 || beforeY < 0 || afterX >= image.getWidth() || afterY >= image.getHeight()) {
         continue;
       }
 
       int rgb = image.getRGB(x, y);
       int red = rgb >> 16 & 255, green = rgb >> 8 & 255, blue = rgb & 255;
-      minRed = Math.min(minRed, red); minGreen = Math.min(minGreen, green); minBlue = Math.min(minBlue, blue);
-      maxRed = Math.max(maxRed, red); maxGreen = Math.max(maxGreen, green); maxBlue = Math.max(maxBlue, blue);
+      minRed = Math.min(minRed, red);
+      minGreen = Math.min(minGreen, green);
+      minBlue = Math.min(minBlue, blue);
+      maxRed = Math.max(maxRed, red);
+      maxGreen = Math.max(maxGreen, green);
+      maxBlue = Math.max(maxBlue, blue);
       int center = brightness(rgb);
-      if (brightness(image.getRGB(beforeX, beforeY)) > center + MIN_RULE_CONTRAST
-              && brightness(image.getRGB(afterX, afterY)) > center + MIN_RULE_CONTRAST) {
+      int before = brightness(image.getRGB(beforeX, beforeY));
+      int after = brightness(image.getRGB(afterX, afterY));
+      minBackground = Math.min(minBackground, Math.min(before, after));
+      maxBackground = Math.max(maxBackground, Math.max(before, after));
+      if (before > center + MIN_RULE_CONTRAST && after > center + MIN_RULE_CONTRAST) {
         contrastingSamples++;
       }
     }
     // Photographic edges can contrast at a few isolated points, but a printed rule
     // has a consistent stroke and clear background on both sides along its length.
-    return contrastingSamples >= 27 && maxRed - minRed <= 48 && maxGreen - minGreen <= 48 && maxBlue - minBlue <= 48;
+    return contrastingSamples >= 27
+        && maxRed - minRed <= 48
+        && maxGreen - minGreen <= 48
+        && maxBlue - minBlue <= 48
+        && maxBackground - minBackground <= 150;
   }
 
   private static boolean adjacent(Rule a, Rule b, boolean vertical) {
     return vertical
-            ? a.x() < b.x() + b.width() && b.x() < a.x() + a.width()
+        ? a.x() < b.x() + b.width()
+            && b.x() < a.x() + a.width()
             && Math.abs(a.y() - b.y()) <= 2
             && Math.abs(a.height() - b.height()) <= 3
-            : a.y() < b.y() + b.height() && b.y() < a.y() + a.height()
+        : a.y() < b.y() + b.height()
+            && b.y() < a.y() + a.height()
             && Math.abs(a.x() - b.x()) <= 2
             && Math.abs(a.width() - b.width()) <= 3;
   }

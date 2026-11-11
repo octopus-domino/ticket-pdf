@@ -8,39 +8,61 @@ import java.util.Map;
 
 public final class InkStyleSampler {
 
-  private InkStyleSampler() {
-  }
+  private InkStyleSampler() {}
 
   public static String textColor(BufferedImage image, List<OcrEngine.Word> words) {
-    var colors = new HashMap<Integer, Integer>();
+    var colors = new ColorHistogram();
     for (var word : words) {
       int left = Math.max(0, word.x());
       int top = Math.max(0, word.y());
       int right = Math.min(image.getWidth(), word.x() + word.width());
       int bottom = Math.min(image.getHeight(), word.y() + word.height());
-
-      // Sample the border for background
-      var borderColors = new HashMap<Integer, Integer>();
-      for (int y = Math.max(0, top - 5); y < Math.min(image.getHeight(), bottom + 5); y++) {
-        for (int x = Math.max(0, left - 5); x < Math.min(image.getWidth(), right + 5); x++) {
-          if (x < left || x >= right || y < top || y >= bottom) {
-            borderColors.merge(image.getRGB(x, y) & 0xffffff, 1, Integer::sum);
-          }
+      var border = new ColorHistogram();
+      for (int y = Math.max(0, top - 3); y < Math.min(image.getHeight(), bottom + 3); y++) {
+        for (int x = Math.max(0, left - 3); x < Math.min(image.getWidth(), right + 3); x++) {
+          if (x < left || x >= right || y < top || y >= bottom) border.add(image.getRGB(x, y));
         }
       }
-      int background = dominant(borderColors, 0xffffff);
-
-      // Sample the inside for ink
-      for (int y = top; y < bottom; y++) {
+      int background = border.dominant(0xffffff);
+      int maximumContrast = 0;
+      for (int y = top; y < bottom; y++)
+        for (int x = left; x < right; x++)
+          maximumContrast = Math.max(maximumContrast, distance(image.getRGB(x, y), background));
+      // Edge antialiasing and JPEG ringing are mixtures with the background, not ink color.
+      double threshold = Math.max(3600, maximumContrast * 0.72);
+      for (int y = top; y < bottom; y++)
         for (int x = left; x < right; x++) {
-          int rgb = image.getRGB(x, y) & 0xffffff;
-          if (distance(rgb, background) > 3600) {
-            colors.merge(rgb, 1, Integer::sum);
-          }
+          int rgb = image.getRGB(x, y);
+          if (distance(rgb, background) >= threshold) colors.add(rgb);
         }
-      }
     }
-    return hex(dominant(colors, 0x202020));
+    return hex(colors.dominant(0x202020));
+  }
+
+  /** Fixed storage and quantized bins keep compression noise from splitting one ink color. */
+  private static final class ColorHistogram {
+    private final int[] counts = new int[4096];
+    private final long[] red = new long[4096], green = new long[4096], blue = new long[4096];
+
+    void add(int rgb) {
+      int r = rgb >> 16 & 255, g = rgb >> 8 & 255, b = rgb & 255;
+      int bin = (r >> 4) * 256 + (g >> 4) * 16 + (b >> 4);
+      counts[bin]++;
+      red[bin] += r;
+      green[bin] += g;
+      blue[bin] += b;
+    }
+
+    int dominant(int fallback) {
+      int best = 0;
+      for (int i = 1; i < counts.length; i++) if (counts[i] > counts[best]) best = i;
+      int count = counts[best];
+      return count == 0
+          ? fallback
+          : (int) (red[best] / count) << 16
+              | (int) (green[best] / count) << 8
+              | (int) (blue[best] / count);
+    }
   }
 
   static String ruleColor(BufferedImage image, int x, int y, int width, int height) {
@@ -56,8 +78,7 @@ public final class InkStyleSampler {
     return hex(dominant(colors, 0x555555));
   }
 
-  private static int background(
-          BufferedImage image, int left, int top, int right, int bottom) {
+  private static int background(BufferedImage image, int left, int top, int right, int bottom) {
     var colors = new HashMap<Integer, Integer>();
     for (int y = Math.max(0, top - 2); y < Math.min(image.getHeight(), bottom + 2); y++) {
       for (int x = Math.max(0, left - 2); x < Math.min(image.getWidth(), right + 2); x++) {
@@ -71,10 +92,9 @@ public final class InkStyleSampler {
 
   private static int dominant(Map<Integer, Integer> colors, int fallback) {
     return colors.entrySet().stream()
-            .max(Map.Entry.<Integer, Integer>comparingByValue()
-                    .thenComparingInt(Map.Entry::getKey))
-            .map(Map.Entry::getKey)
-            .orElse(fallback);
+        .max(Map.Entry.<Integer, Integer>comparingByValue().thenComparingInt(Map.Entry::getKey))
+        .map(Map.Entry::getKey)
+        .orElse(fallback);
   }
 
   private static int distance(int a, int b) {

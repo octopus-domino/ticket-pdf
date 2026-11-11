@@ -81,6 +81,7 @@ public class JourneyService {
   private final ShortCodeGenerator codes;
   private final JourneyBatchRepository batches;
   private final JourneyContentPolicy policy;
+  private final PublicationAccess access;
   private final org.springframework.transaction.support.TransactionTemplate transactions;
 
   public JourneyService(
@@ -91,7 +92,8 @@ public class JourneyService {
       ShortCodeGenerator codes,
       JourneyBatchRepository batches,
       JourneyContentPolicy policy,
-      org.springframework.transaction.PlatformTransactionManager transactionManager) {
+      org.springframework.transaction.PlatformTransactionManager transactionManager,
+      PublicationAccess access) {
     this.journeys = journeys;
     this.responses = responses;
     this.mapper = mapper;
@@ -101,12 +103,17 @@ public class JourneyService {
         new org.springframework.transaction.support.TransactionTemplate(transactionManager);
     this.batches = batches;
     this.policy = policy;
+    this.access = access;
   }
 
   public List<Created> create(Input input) {
+    return create(input, null);
+  }
+
+  public List<Created> create(Input input, String ownerId) {
     for (int attempt = 0; attempt < 8; attempt++) {
       try {
-        return transactions.execute(status -> createBatch(input));
+        return transactions.execute(status -> createBatch(input, ownerId));
       } catch (org.springframework.dao.DataIntegrityViolationException collision) {
         if (attempt == 7) throw collision;
       }
@@ -114,7 +121,7 @@ public class JourneyService {
     throw new IllegalStateException("Could not allocate a short code");
   }
 
-  private List<Created> createBatch(Input input) {
+  private List<Created> createBatch(Input input, String ownerId) {
     validate(input);
     if (input.rows() == null || input.rows().isEmpty()) {
       policy.validate(input.kind(), input.data());
@@ -150,6 +157,8 @@ public class JourneyService {
       entity.id = codes.next();
       entity.kind = input.kind().name();
       entity.title = input.title().strip();
+      entity.ownerId = ownerId;
+      entity.siteSlug = input.data().get("site");
       entity.managementHash = hash(key);
       entity.createdAt = Instant.now();
       entity.updatedAt = entity.createdAt;
@@ -186,10 +195,25 @@ public class JourneyService {
     return view(authorize(id, key));
   }
 
+  @Transactional(readOnly = true)
+  public View manageOwned(String id, String owner) {
+    return view(access.document(id, owner));
+  }
+
   @Transactional
   public View update(String id, String key, Input input) {
+    return updateData(authorize(id, key), input);
+  }
+
+  @Transactional
+  public View updateOwned(String id, String owner, Input input) {
+    return updateData(access.document(id, owner), input);
+  }
+
+  private View updateData(JourneyEntity entity, Input input) {
     validate(input);
-    var entity = authorize(id, key);
+    if (!Objects.equals(view(entity).data().get("site"), input.data().get("site")))
+      throw ApiException.badRequest("The published site cannot change");
     policy.validate(input.kind(), input.data());
     if (input.data().containsKey("site"))
       sites.validateData(input.data().get("site"), input.kind(), input.data());
@@ -203,11 +227,19 @@ public class JourneyService {
 
   @Transactional
   public void revoke(String id, String key) {
-    var entity = authorize(id, key);
+    revokeEntity(authorize(id, key));
+  }
+
+  @Transactional
+  public void revokeOwned(String id, String owner) {
+    revokeEntity(access.document(id, owner));
+  }
+
+  private void revokeEntity(JourneyEntity entity) {
     entity.revoked = true;
     entity.updatedAt = Instant.now();
     journeys.save(entity);
-    responses.deleteAllByJourneyId(id);
+    responses.deleteAllByJourneyId(entity.id);
   }
 
   @Transactional
@@ -241,6 +273,16 @@ public class JourneyService {
   @Transactional(readOnly = true)
   public List<Guest> guests(String id, String key) {
     authorize(id, key);
+    return guestList(id);
+  }
+
+  @Transactional(readOnly = true)
+  public List<Guest> guestsOwned(String id, String owner) {
+    access.document(id, owner);
+    return guestList(id);
+  }
+
+  private List<Guest> guestList(String id) {
     return responses.findAllByJourneyIdOrderByUpdatedAtDesc(id).stream()
         .map(reply -> new Guest(reply.name, reply.attending, reply.updatedAt))
         .toList();
@@ -287,6 +329,17 @@ public class JourneyService {
   public JourneyContentPolicy.Status consume(String id, String key) {
     var entity = journeys.lockById(id).orElseThrow(() -> ApiException.notFound("Document"));
     checkKey(entity.managementHash, key);
+    return consumeEntity(entity);
+  }
+
+  @Transactional
+  public JourneyContentPolicy.Status consumeOwned(String id, String owner) {
+    access.document(id, owner);
+    var entity = journeys.lockById(id).orElseThrow(() -> ApiException.notFound("Document"));
+    return consumeEntity(entity);
+  }
+
+  private JourneyContentPolicy.Status consumeEntity(JourneyEntity entity) {
     var status = policy.status(entity, view(entity).data(), Instant.now());
     if (!status.consumable()) throw ApiException.badRequest("This document cannot be redeemed");
     if (!status.state().equals("ACTIVE"))
@@ -325,6 +378,11 @@ public class JourneyService {
     } catch (java.io.IOException error) {
       throw new IllegalStateException("Stored journey is invalid", error);
     }
+  }
+
+  Issued describe(JourneyEntity entity) {
+    var document = view(entity);
+    return new Issued(document, policy.status(entity, document.data(), Instant.now()));
   }
 
   private String json(Map<String, String> data) {

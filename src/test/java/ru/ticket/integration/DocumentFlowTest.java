@@ -27,6 +27,9 @@ import org.springframework.test.context.DynamicPropertySource;
       "EMAIL_FROM=test@example.invalid",
     })
 class DocumentFlowTest {
+  private static final java.nio.file.Path ARTIFACT_ROOT =
+      java.nio.file.Path.of("target", "test-artifacts", "run-" + java.util.UUID.randomUUID());
+
   @Test
   void newWorkflowsExposeProtectedIssuanceAndPrintableTables() throws Exception {
     var input =
@@ -109,15 +112,27 @@ class DocumentFlowTest {
         http.getForEntity("/api/journeys/" + proposal.document().id() + "/pdf", byte[].class);
     assertEquals(200, proposalPdf.getStatusCode().value());
     try (var parsed = org.apache.pdfbox.Loader.loadPDF(proposalPdf.getBody())) {
-      var artifactRoot = java.nio.file.Path.of("target", "test-artifacts");
+      var artifactRoot = ARTIFACT_ROOT;
       Files.createDirectories(artifactRoot);
       Files.write(artifactRoot.resolve("proposal.pdf"), proposalPdf.getBody());
-      var jsonMapper=new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
-      Files.write(artifactRoot.resolve("proposal-document.json"),jsonMapper.writeValueAsBytes(proposal.document()));
-      var proposalArtwork=http.postForEntity("/api/journeys/artwork",new ru.ticket.journey.JourneyArtworkController.Input(proposal.document().id(),proposal.document().kind(),proposal.document().title(),proposal.document().data()),ru.ticket.journey.JourneyArtworkController.Artwork.class);
-      assertEquals(200,proposalArtwork.getStatusCode().value());
-      assertEquals(parsed.getNumberOfPages(),proposalArtwork.getBody().pages().size());
-      Files.write(artifactRoot.resolve("proposal-artwork.json"),jsonMapper.writeValueAsBytes(proposalArtwork.getBody()));
+      var jsonMapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
+      Files.write(
+          artifactRoot.resolve("proposal-document.json"),
+          jsonMapper.writeValueAsBytes(proposal.document()));
+      var proposalArtwork =
+          http.postForEntity(
+              "/api/journeys/artwork",
+              new ru.ticket.journey.JourneyArtworkController.Input(
+                  proposal.document().id(),
+                  proposal.document().kind(),
+                  proposal.document().title(),
+                  proposal.document().data()),
+              ru.ticket.journey.JourneyArtworkController.Artwork.class);
+      assertEquals(200, proposalArtwork.getStatusCode().value());
+      assertEquals(parsed.getNumberOfPages(), proposalArtwork.getBody().pages().size());
+      Files.write(
+          artifactRoot.resolve("proposal-artwork.json"),
+          jsonMapper.writeValueAsBytes(proposalArtwork.getBody()));
       javax.imageio.ImageIO.write(
           new org.apache.pdfbox.rendering.PDFRenderer(parsed).renderImageWithDPI(0, 96),
           "png",
@@ -162,7 +177,7 @@ class DocumentFlowTest {
   @Test
   void eventArtworkUsesExactlyThePdfCompositionAndExportsReviewArtifacts() throws Exception {
     var mapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
-    var dir = java.nio.file.Path.of("target", "test-artifacts", "events");
+    var dir = ARTIFACT_ROOT.resolve("events");
     Files.createDirectories(dir);
     for (String theme : List.of("rose", "sage", "ink")) {
       var data =

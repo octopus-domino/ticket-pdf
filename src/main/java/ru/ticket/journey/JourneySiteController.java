@@ -22,8 +22,11 @@ public class JourneySiteController {
   }
 
   @PostMapping
-  public JourneySiteService.Created create(@RequestBody JourneySiteService.Definition definition) {
-    return service.create(definition);
+  public JourneySiteService.Created create(
+      @RequestBody JourneySiteService.Definition definition,
+      @org.springframework.security.core.annotation.AuthenticationPrincipal
+          ru.ticket.auth.security.UserIdPrincipal user) {
+    return service.create(definition, user == null ? null : user.userId());
   }
 
   @PutMapping("/{slug}")
