@@ -24,7 +24,12 @@ public class JourneyService {
     RESUME("resume", false, false),
     SCHEDULE("schedule", false, false),
     GREETING("greetings", true, false),
-    PROPOSAL("proposals", false, false);
+    PROPOSAL("proposals", false, false),
+    VCARD("cards", true, false),
+    LABEL("labels", true, false),
+    PRICETAG("price-tags", true, false),
+    PROPERTY("properties", false, false),
+    TOUR("tours", true, false);
 
     private final String slug;
     private final boolean batch;
@@ -402,6 +407,12 @@ public class JourneyService {
         || input.data() == null
         || input.data().size() > 20)
       throw ApiException.badRequest("Please complete the document title");
+    JourneyBranding.parse(input.data().get("branding"));
+    JourneyFieldLabels.read(input.data().get("field_labels"));
+    JourneyFieldLabels.read(input.data().get("route_labels"));
+    String route = input.data().get("route");
+    if (route != null && !route.isBlank() && !route.matches("[a-f0-9]{64}"))
+      throw ApiException.badRequest("journey.route.invalid-route");
     for (var field : input.data().entrySet()) {
       int limit =
           (input.kind() == Kind.PROPOSAL && field.getKey().equals("positions"))

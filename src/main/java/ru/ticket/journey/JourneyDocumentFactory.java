@@ -21,15 +21,33 @@ public class JourneyDocumentFactory {
   private final String domain;
   private final JourneySiteService sites;
   private final String frontendUrl;
+  private final JourneyBrandingLayout brandingLayout;
+  private final JourneyRouteLayout routeLayout;
 
   @org.springframework.beans.factory.annotation.Autowired
   public JourneyDocumentFactory(
       @Value("${app.journeys.domain:codoc.site}") String domain,
       JourneySiteService sites,
-      @Value("${app.frontend-url:https://www.codoc.site}") String frontendUrl) {
+      @Value("${app.frontend-url:https://www.codoc.site}") String frontendUrl,
+      JourneyBrandingLayout brandingLayout,
+      JourneyRouteLayout routeLayout) {
     this.domain = domain;
     this.sites = sites;
     this.frontendUrl = frontendUrl;
+    this.brandingLayout = brandingLayout;
+    this.routeLayout = routeLayout;
+  }
+
+  public JourneyDocumentFactory(
+      String domain,
+      JourneySiteService sites,
+      String frontendUrl,
+      JourneyBrandingLayout brandingLayout) {
+    this(domain, sites, frontendUrl, brandingLayout, null);
+  }
+
+  public JourneyDocumentFactory(String domain, JourneySiteService sites, String frontendUrl) {
+    this(domain, sites, frontendUrl, null);
   }
 
   public JourneyDocumentFactory(String domain, JourneySiteService sites) {
@@ -48,10 +66,35 @@ public class JourneyDocumentFactory {
   }
 
   public ExportRequest document(JourneyService.View view) {
-    if (view.kind() == JourneyService.Kind.PROPOSAL)
-      return new ProposalDocumentLayout().compose(view);
     JourneySiteService.Definition definition =
         view.data().containsKey("site") ? sites.get(view.data().get("site")) : null;
+    return document(view, definition);
+  }
+
+  public ExportRequest document(
+      JourneyService.View view, JourneySiteService.Definition definition) {
+    var result = compose(view, definition);
+    if (view.data().containsKey("route") && !view.data().get("route").isBlank()) {
+      if (routeLayout == null) throw new IllegalStateException("Route layout is not configured");
+      routeLayout.append(result, view);
+    }
+    var branding =
+        view.data().containsKey("branding")
+            ? JourneyBranding.parse(view.data().get("branding"))
+            : definition == null ? null : definition.branding();
+    if (branding != null && (branding.logo() != null || branding.picture() != null)) {
+      if (brandingLayout == null) throw new IllegalStateException("Media layout is not configured");
+      brandingLayout.apply(result, branding);
+    }
+    return result;
+  }
+
+  private ExportRequest compose(
+      JourneyService.View view, JourneySiteService.Definition definition) {
+    if (JourneyGridLayout.supports(view.kind()))
+      return new JourneyGridLayout().single(view, publicUrl(view));
+    if (view.kind() == JourneyService.Kind.PROPOSAL)
+      return new ProposalDocumentLayout().compose(view);
     if (view.kind() == JourneyService.Kind.INVITATION || view.kind() == JourneyService.Kind.TICKET)
       return new EventDocumentLayout().compose(view, publicUrl(view), definition);
     String theme =
@@ -69,7 +112,28 @@ public class JourneyDocumentFactory {
           default -> "#284d3b";
         };
     List<String> lines = new ArrayList<>();
-    if (definition == null) {
+    var captions = JourneyFieldLabels.read(view.data().get("field_labels"));
+    if (!captions.isEmpty()) {
+      captions.forEach(
+          (key, label) -> {
+            if (!Set.of("recipient", "issuer", "events", "branding", "route").contains(key)
+                && !view.data().getOrDefault(key, "").isBlank())
+              addLines(lines, label + ": " + view.data().get(key));
+          });
+      if (view.kind() == JourneyService.Kind.SCHEDULE) {
+        var policy = new JourneyContentPolicy(new com.fasterxml.jackson.databind.ObjectMapper());
+        for (var lesson : policy.lessons(view.data()))
+          addLines(
+              lines,
+              lesson.date()
+                  + " "
+                  + lesson.time()
+                  + " — "
+                  + lesson.title()
+                  + " / "
+                  + lesson.location());
+      }
+    } else if (definition == null) {
       for (String key :
           List.of(
               "description",
@@ -177,17 +241,7 @@ public class JourneyDocumentFactory {
       qr.height = 110;
       qr.text = publicUrl(view);
       page.elements.add(qr);
-      page.elements.add(
-          text(
-              view.kind() == JourneyService.Kind.CERTIFICATE
-                  ? "Проверка сертификата по QR"
-                  : "Актуальная страница по QR",
-              195,
-              970,
-              14,
-              foreground,
-              false,
-              25));
+      page.elements.add(text(JourneyPrintCopy.qr(view), 195, 970, 14, foreground, false, 25));
       page.elements.add(
           text(
               "CoDoc / " + view.id() + " / " + (pages.size() + 1),
@@ -205,6 +259,8 @@ public class JourneyDocumentFactory {
 
   public ExportRequest batch(List<JourneyService.View> values) {
     if (values.isEmpty()) throw ru.ticket.common.ApiException.badRequest("No active documents");
+    if (values.stream().allMatch(value -> JourneyGridLayout.supports(value.kind())))
+      return new JourneyGridLayout().batch(values, this::document);
     var result = new ExportRequest();
     var pages = new ArrayList<Slide>();
     if (values.stream().allMatch(v -> v.kind() == JourneyService.Kind.BADGE)) {

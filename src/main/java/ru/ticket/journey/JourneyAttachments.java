@@ -35,7 +35,7 @@ public class JourneyAttachments {
       line(out, "UID", view.id() + "-" + lesson.id() + "@codoc.site");
       line(out, "DTSTAMP", utc.format(view.updatedAt()));
       line(out, "DTSTART", utc.format(start));
-      line(out, "DTEND", utc.format(start.plusSeconds(lesson.duration()*60L)));
+      line(out, "DTEND", utc.format(start.plusSeconds(lesson.duration() * 60L)));
       line(out, "SUMMARY", escape(lesson.title()));
       line(out, "LOCATION", escape(lesson.location()));
       out.append("END:VEVENT\r\n");
@@ -44,12 +44,18 @@ public class JourneyAttachments {
   }
 
   public String contact(JourneyService.View view) {
-    if (view.kind() != JourneyService.Kind.BADGE) throw ApiException.badRequest("Not a badge");
+    if (!java.util.Set.of(JourneyService.Kind.BADGE, JourneyService.Kind.VCARD)
+        .contains(view.kind())) throw ApiException.badRequest("Not a contact card");
     var out = new StringBuilder("BEGIN:VCARD\r\nVERSION:3.0\r\n");
     line(out, "FN", escape(view.data().getOrDefault("recipient", view.title())));
     for (var pair :
-        new String[][] {{"ORG", "issuer"}, {"TITLE", "role"}, {"TEL", "phone"}, {"EMAIL", "email"}})
-      line(out, pair[0], escape(view.data().getOrDefault(pair[1], "")));
+        new String[][] {
+          {"ORG", "issuer"},
+          {"TITLE", "role"},
+          {"TEL", "phone"},
+          {"EMAIL", "email"},
+          {"URL", "website"}
+        }) line(out, pair[0], escape(view.data().getOrDefault(pair[1], "")));
     return out.append("END:VCARD\r\n").toString();
   }
 

@@ -55,7 +55,10 @@ final class EventDocumentLayout {
             "description",
             "contact",
             "valid_until",
-            "timezone");
+            "timezone",
+            "branding",
+            "field_labels",
+            "locale");
     if (definition != null)
       for (var field : definition.fields()) {
         if (!standard.contains(field.name()) && !data.getOrDefault(field.name(), "").isBlank())

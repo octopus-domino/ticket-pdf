@@ -26,3 +26,18 @@ ALTER TABLE journey_sites ADD COLUMN IF NOT EXISTS owner_id VARCHAR(36);
 CREATE INDEX IF NOT EXISTS idx_public_journeys_owner ON public_journeys(owner_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_public_journeys_site ON public_journeys(site_slug, updated_at);
 CREATE INDEX IF NOT EXISTS idx_journey_sites_owner ON journey_sites(owner_id, updated_at);
+CREATE TABLE IF NOT EXISTS journey_media (
+  id VARCHAR(64) PRIMARY KEY, content BYTEA NOT NULL, content_type VARCHAR(32) NOT NULL,
+  width INTEGER NOT NULL, height INTEGER NOT NULL, created_at TIMESTAMP WITH TIME ZONE
+);
+CREATE TABLE IF NOT EXISTS journey_reviews (
+  id VARCHAR(36) PRIMARY KEY, journey_id VARCHAR(36) NOT NULL, visitor_hash VARCHAR(64) NOT NULL,
+  rating INTEGER NOT NULL, message VARCHAR(2000) NOT NULL, created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  UNIQUE(journey_id,visitor_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_journey_reviews_date ON journey_reviews(journey_id,created_at);
+CREATE TABLE IF NOT EXISTS journey_routes (
+    id VARCHAR(64) PRIMARY KEY,
+    payload VARCHAR(750000) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE
+);

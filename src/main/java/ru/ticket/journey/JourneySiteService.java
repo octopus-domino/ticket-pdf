@@ -21,7 +21,18 @@ public class JourneySiteService {
       String title,
       String description,
       String theme,
-      List<Field> fields) {}
+      List<Field> fields,
+      JourneyBranding branding) {
+    public Definition(
+        String slug,
+        JourneyService.Kind kind,
+        String title,
+        String description,
+        String theme,
+        List<Field> fields) {
+      this(slug, kind, title, description, theme, fields, null);
+    }
+  }
 
   public record Created(Definition site, String managementKey) {}
 
@@ -123,6 +134,7 @@ public class JourneySiteService {
   }
 
   private static void validate(Definition site) {
+    if (site != null) JourneyBranding.validate(site.branding());
     if (site == null
         || site.slug() == null
         || !site.slug().matches("[a-z][a-z0-9-]{1,46}[a-z0-9]")
@@ -149,13 +161,38 @@ public class JourneySiteService {
       if (field == null
           || field.name() == null
           || !field.name().matches("[a-z][a-z0-9_]{0,31}")
-          || Set.of("site", "theme", "__proto__", "constructor", "prototype").contains(field.name())
+          || Set.of(
+                  "site",
+                  "theme",
+                  "branding",
+                  "route",
+                  "route_labels",
+                  "locale",
+                  "field_labels",
+                  "print_width",
+                  "print_height",
+                  "__proto__",
+                  "constructor",
+                  "prototype")
+              .contains(field.name())
           || !names.add(field.name())
           || field.label() == null
           || field.label().isBlank()
           || field.label().length() > 80
           || !Set.of("text", "textarea", "date", "time").contains(field.type()))
         throw ApiException.badRequest("Invalid form field");
+  }
+
+  static void validatePreview(Definition site) {
+    validate(
+        new Definition(
+            "preview-site",
+            site.kind(),
+            site.title(),
+            site.description(),
+            site.theme(),
+            site.fields(),
+            site.branding()));
   }
 
   private String json(Definition definition) {

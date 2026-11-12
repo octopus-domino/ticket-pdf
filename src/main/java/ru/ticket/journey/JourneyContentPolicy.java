@@ -29,6 +29,8 @@ public class JourneyContentPolicy {
   }
 
   public void validate(JourneyService.Kind kind, Map<String, String> data) {
+    if (Set.of(JourneyService.Kind.PRICETAG, JourneyService.Kind.PROPERTY).contains(kind))
+      JourneyMoney.formatted(data);
     String until = data.getOrDefault("valid_until", "").strip();
     try {
       ZoneId.of(data.getOrDefault("timezone", "Europe/Moscow"));

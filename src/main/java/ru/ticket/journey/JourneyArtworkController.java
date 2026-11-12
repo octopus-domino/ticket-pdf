@@ -3,7 +3,6 @@ package ru.ticket.journey;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
@@ -17,7 +16,15 @@ import ru.ticket.svg.SvgDocumentBuilder;
 @RequestMapping("/api/journeys")
 public class JourneyArtworkController {
   public record Input(
-      String id, JourneyService.Kind kind, String title, Map<String, String> data) {}
+      String id,
+      JourneyService.Kind kind,
+      String title,
+      Map<String, String> data,
+      JourneySiteService.Definition definition) {
+    public Input(String id, JourneyService.Kind kind, String title, Map<String, String> data) {
+      this(id, kind, title, data, null);
+    }
+  }
 
   public record Page(double width, double height, String svg) {}
 
@@ -39,11 +46,11 @@ public class JourneyArtworkController {
     if (input == null) throw ApiException.badRequest("Заполните приглашение");
     JourneyService.validate(
         new JourneyService.Input(input.kind(), input.title(), input.data(), List.of()));
-    if (!Set.of(
-            JourneyService.Kind.INVITATION,
-            JourneyService.Kind.TICKET,
-            JourneyService.Kind.PROPOSAL)
-        .contains(input.kind())) throw ApiException.badRequest("Unsupported artwork kind");
+    if (input.definition() != null) {
+      JourneySiteService.validatePreview(input.definition());
+      if (input.definition().kind() != input.kind())
+        throw ApiException.badRequest("Invalid preview workflow");
+    }
     if (!capacity.tryAcquire())
       throw new ApiException(
           HttpStatus.TOO_MANY_REQUESTS, "Предпросмотр занят. Повторите чуть позже.");
@@ -53,9 +60,12 @@ public class JourneyArtworkController {
       var view =
           new JourneyService.View(id, input.kind(), input.title(), input.data(), Instant.EPOCH);
       var pages =
-          documents.document(view).slides.stream()
-              .map(page -> new Page(page.width, page.height, svg.generate(page)))
-              .toList();
+          (input.definition() == null
+                  ? documents.document(view)
+                  : documents.document(view, input.definition()))
+              .slides.stream()
+                  .map(page -> new Page(page.width, page.height, svg.generate(page)))
+                  .toList();
       return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new Artwork(pages));
     } finally {
       capacity.release();

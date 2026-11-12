@@ -19,11 +19,20 @@ public class JsonBodyLimitFilter extends OncePerRequestFilter {
       chain.doFilter(request, response);
       return;
     }
-    byte[] body = request.getInputStream().readNBytes(LIMIT + 1);
-    if (body.length > LIMIT) {
+    int limit =
+        request.getRequestURI().equals("/api/journeys/media")
+            ? 1250000
+            : request.getRequestURI().startsWith("/api/journeys/routes") ? 800000 : LIMIT;
+    byte[] body = request.getInputStream().readNBytes(limit + 1);
+    if (body.length > limit) {
       response.setStatus(413);
       response.setContentType("application/json");
-      response.getWriter().write("{\"error\":\"JSON body exceeds 20 MB\",\"status\":413}");
+      response
+          .getWriter()
+          .write(
+              "{\"error\":\""
+                  + (limit == LIMIT ? "JSON body exceeds 20 MB" : "journey.media.too-large")
+                  + "\",\"status\":413}");
       return;
     }
     chain.doFilter(
