@@ -20,7 +20,7 @@ class RouteProviderLimitsTest {
     var controller = new PlaceRecommendationsController(new ObjectMapper(), "", osm);
     var result = controller.search(37.6, 55.7, "attractions", "ru");
     assertThat(result.available()).isTrue();
-    assertThat(result.source()).isEqualTo("OpenStreetMap");
+    assertThat(result.source()).isEqualTo("OpenStreetMap / Wikimedia");
     assertThat(result.places()).isEmpty();
     assertThatThrownBy(() -> controller.search(Double.NaN, 55, "hotels", "ru"))
         .hasMessageContaining("journey.route.invalid-route");

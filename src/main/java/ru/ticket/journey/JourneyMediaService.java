@@ -29,15 +29,21 @@ public class JourneyMediaService {
 
   @Transactional
   public Asset save(String data) {
+    return saveImage(data, false);
+  }
+  @Transactional
+  public Asset saveBackground(String data) { return saveImage(data, true); }
+  private Asset saveImage(String data, boolean background) {
+    int maxBytes = background ? 6_000_000 : 900_000;
     if (data == null
-        || data.length() > 1200000
+        || data.length() > (background ? 8_000_100 : 1200000)
         || !(data.startsWith("data:image/png;base64,")
             || data.startsWith("data:image/jpeg;base64,")))
       throw ApiException.badRequest("journey.media.invalid");
     BufferedImage decoded = null, clean = null;
     try {
       byte[] input = Base64.getDecoder().decode(data.substring(data.indexOf(',') + 1));
-      if (input.length > 900000) throw ApiException.badRequest("journey.media.invalid");
+      if (input.length > maxBytes) throw ApiException.badRequest("journey.media.invalid");
       try (var stream = new MemoryCacheImageInputStream(new ByteArrayInputStream(input))) {
         var readers = ImageIO.getImageReaders(stream);
         if (!readers.hasNext()) throw ApiException.badRequest("journey.media.invalid");
@@ -58,7 +64,7 @@ public class JourneyMediaService {
           reader.dispose();
         }
       }
-      boolean alpha = decoded.getColorModel().hasAlpha();
+      boolean alpha = background || decoded.getColorModel().hasAlpha();
       clean =
           new BufferedImage(
               decoded.getWidth(),
@@ -73,7 +79,7 @@ public class JourneyMediaService {
       var output = new ByteArrayOutputStream();
       ImageIO.write(clean, alpha ? "png" : "jpeg", output);
       byte[] bytes = output.toByteArray();
-      if (bytes.length > 900000) throw ApiException.badRequest("journey.media.invalid");
+      if (bytes.length > maxBytes) throw ApiException.badRequest("journey.media.invalid");
       String id = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
       if (!repository.existsById(id)) {
         if (repository.count() >= maxItems) throw ApiException.conflict("journey.media.full");

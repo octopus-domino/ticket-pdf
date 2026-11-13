@@ -37,6 +37,17 @@ class JourneyConstructorCopyTest {
   @Autowired JourneyRouteService routes;
   @Autowired JourneyMediaService media;
   @Autowired JourneyPrintSourceRepository printSources;
+  @Test void selectedBackgroundIsLosslessAndPartOfEveryReadyNativeTemplate() throws Exception {
+    var background = media.saveBackground(JourneyMediaTest.image(400, 300, false));
+    assertThat(media.get(background.id()).contentType).isEqualTo("image/png");
+    for (var kind : JourneyService.Kind.values()) {
+      var view = new JourneyService.View("Bg1234567890", kind, "Background fixture", Map.of("background_media", background.id(),
+          "events", "[{\"id\":\"lesson-1\",\"title\":\"Lesson\",\"date\":\"2100-01-01\",\"time\":\"12:00\",\"location\":\"Online\",\"durationMinutes\":60}]",
+          "positions", "[{\"name\":\"Service\",\"quantity\":\"2\",\"price\":\"1200\"}]"), java.time.Instant.now());
+      var packet = factory.constructorSource(view);
+      assertThat(packet.template().slides()).isNotEmpty().allSatisfy(page -> assertThat(page.backgroundImage).startsWith("data:image/png;base64,"));
+    }
+  }
 
   @Test void customSiteRebindsDeclaredRootFieldsWithoutReplacingStructuredModelValues() throws Exception {
     var slide = new ru.ticket.dto.Slide(); slide.id = "root-fields";

@@ -17,6 +17,9 @@ public class PlaceRecommendationsController {
   private final ObjectMapper mapper;
   private final OsmPlaceService osm;
   private long nextRequest;
+  private WikimapiaPlaces wikimapia;
+  @org.springframework.beans.factory.annotation.Autowired
+  void wikimapia(WikimapiaPlaces source) { this.wikimapia = source; }
   public PlaceRecommendationsController(ObjectMapper mapper, @Value("${app.journeys.twogis-key:${TWOGIS_API_KEY:}}") String key, OsmPlaceService osm) {
     this.mapper = mapper; this.key = key; this.osm = osm;
   }
@@ -32,6 +35,12 @@ public class PlaceRecommendationsController {
       @RequestParam(defaultValue = "attractions") String kind, @RequestParam(defaultValue = "en") String language) {
     BRouterRoadRouter.validate(new RoadRouter.Point(longitude, latitude));
     if (!Set.of("attractions", "hotels").contains(kind)) throw ApiException.badRequest("journey.route.invalid-route");
+    if (kind.equals("attractions") && wikimapia != null && wikimapia.enabled()) {
+      try {
+        var places = wikimapia.search(longitude, latitude, language);
+        if (!places.isEmpty()) return new Result(true, places, "Wikimapia");
+      } catch (java.io.IOException unavailable) { /* Retain the independent discovery fallback. */ }
+    }
     if (key.isBlank()) return new Result(true, osm.search(longitude, latitude, kind, language), "OpenStreetMap / Wikimedia");
     if (System.currentTimeMillis() < nextRequest)
       throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "journey.route.search-busy");

@@ -32,6 +32,15 @@ public class JourneyMediaController {
 
   @GetMapping("/{id}")
   public ResponseEntity<byte[]> image(@PathVariable String id) {
+    return imageResponse(id);
+  }
+  @PostMapping("/background")
+  public JourneyMediaService.Asset background(@RequestBody Input input) {
+    if (!capacity.tryAcquire()) throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "journey.media.busy");
+    try { return media.saveBackground(input == null ? null : input.image()); }
+    finally { capacity.release(); }
+  }
+  private ResponseEntity<byte[]> imageResponse(String id) {
     var asset = media.get(id);
     return ResponseEntity.ok()
         .contentType(MediaType.parseMediaType(asset.contentType))

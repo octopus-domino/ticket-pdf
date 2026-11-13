@@ -26,6 +26,9 @@ public class JourneyDocumentFactory {
   private JourneyPrintSourceRepository printSources;
   private com.fasterxml.jackson.databind.ObjectMapper sourceMapper;
   private JourneyAlbumService albums;
+  private JourneyMediaService media;
+  @org.springframework.beans.factory.annotation.Autowired
+  void media(JourneyMediaService media) { this.media = media; }
   private ru.ticket.journey.poetry.PoetryCardsService poetry;
   @org.springframework.beans.factory.annotation.Autowired
   void poetry(ru.ticket.journey.poetry.PoetryCardsService poetry) { this.poetry = poetry; }
@@ -95,6 +98,20 @@ public class JourneyDocumentFactory {
   }
 
   public JourneyConstructorSource.Packet constructorSource(JourneyService.View view, JourneySiteService.Definition definition) {
+    var packet = buildConstructorSource(view, definition);
+    String background = view.data().get("background_media");
+    if (background == null || background.isBlank() || media == null) return packet;
+    var asset = media.get(background);
+    String image = "data:" + asset.contentType + ";base64," + java.util.Base64.getEncoder().encodeToString(asset.content);
+    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+    var pages = packet.template().slides().stream().map(page -> {
+      var copy = mapper.convertValue(page, Slide.class); copy.backgroundImage = image; return copy;
+    }).toList();
+    var template = packet.template();
+    return new JourneyConstructorSource.Packet(new ru.ticket.generation.application.port.GenerationCatalog.Template(
+        pages, template.schemaId(), template.fields(), template.bindings()), packet.model(), packet.options());
+  }
+  private JourneyConstructorSource.Packet buildConstructorSource(JourneyService.View view, JourneySiteService.Definition definition) {
     if (printSources != null) {
       var source = printSources.findById("document:" + view.id());
       boolean siteSource = false;
