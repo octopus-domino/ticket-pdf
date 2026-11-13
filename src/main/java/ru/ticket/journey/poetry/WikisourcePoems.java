@@ -22,6 +22,25 @@ public class WikisourcePoems {
   private final PoetDiscovery authors;
   private final Semaphore discovery = new Semaphore(1);
   public WikisourcePoems(PoetryRemoteJson remote, PoetDiscovery authors) { this.remote = remote; this.authors = authors; }
+  /** Resolve a curated provider hit to a complete licensed work, without reclassifying its mood/age. */
+  public Optional<PoetryWork> resolve(String title,String author,String language) throws java.io.IOException {
+    if(!Set.of("ru","en","es","de","fr","it","pl","nl","zh").contains(language)||title.length()>300||author.length()>300)return Optional.empty();
+    String query="\""+title.replace('"',' ')+"\" \""+author.replaceAll("[,()]+"," ").strip().replaceFirst("^.*\\s","")+"\"";
+    var search=api(language,"action=query&list=search&srlimit=4&srnamespace=0&srsearch="+PoetDiscovery.encode(query));
+    for(var match:search.path("query").path("search")){
+      String pageTitle=match.path("title").asText("");if(pageTitle.isBlank()||pageTitle.endsWith("/ДО")||pageTitle.contains("(ДО)"))continue;
+      var page=api(language,"action=parse&prop=text%7Ccategories%7Clinks&page="+PoetDiscovery.encode(pageTitle)).path("parse");
+      if(!publicDomain(page)||!poetryGenre(language,page))continue;
+      for(var link:page.path("links"))if(link.path("ns").asInt(-1)==102){
+        String sourceAuthor=link.path("title").asText("");
+        String normalized=PoetryDbProvider.normalize(sourceAuthor);
+        boolean same=Arrays.stream(author.split("[\\s.,]+" )).filter(word->word.length()>1).allMatch(word->normalized.contains(PoetryDbProvider.normalize(word)));
+        if(!same)continue;
+        var parsed=parse(language,new PoetDiscovery.Poet("",author,sourceAuthor,"",0),page,true);
+        if(parsed.isPresent())return Optional.of(PoetryWork.wiki(parsed.get(),language,"provider-curated"));
+      }
+    }return Optional.empty();
+  }
   public List<Poem> poems(String language, String mood, String audience) {
     PoetrySelection.validate(language, mood, audience);
     String hint = PoetrySelection.hint(language, mood, audience), key = language + ":" + mood + ":" + audience;
@@ -66,10 +85,11 @@ public class WikisourcePoems {
       String surname = poet.name().replaceAll("[,()]+", " ").strip().replaceFirst("^.*\\s", "");
       // Author-qualified work titles rank standalone poems ahead of prose mentioning the author.
       String licenseFilter = language.equals("ru") ? " incategory:PD-old-70" : "";
-      String themeQuery = hint.isBlank() ? "" : " (" + String.join(" OR ", Arrays.stream(hint.split(" ")).map(word -> word + "*").toList()) + ")";
+      boolean childCategory = audience.equals("child") && language.equals("ru");
+      String themeQuery = childCategory ? " deepcat:\"Детская литература\"" : hint.isBlank() ? "" : " (" + String.join(" OR ", Arrays.stream(hint.split(" ")).map(word -> word + "*").toList()) + ")";
       String query = "\"" + surname + "\" insource:poem" + licenseFilter + themeQuery;
       var search = api(language, "action=query&list=search&srlimit=40&srnamespace=0&srsearch=" + PoetDiscovery.encode(query)); requests++;
-      if (!hint.isBlank() && search.path("query").path("search").isEmpty()) {
+      if (!audience.equals("child") && !hint.isBlank() && search.path("query").path("search").isEmpty()) {
         search = api(language, "action=query&list=search&srlimit=40&srnamespace=0&srsearch=" + PoetDiscovery.encode("\"" + surname + "\" insource:poem" + licenseFilter)); requests++;
       }
       var candidates = new ArrayDeque<Candidate>();
@@ -93,6 +113,11 @@ public class WikisourcePoems {
           boolean poetry = poetryGenre(language, page) || candidate.inheritedGenre();
           var parsed = poetry ? parse(language, poet, page, licensed || candidate.inheritedLicense()) : Optional.<Poem>empty();
           if (parsed.isPresent()) {
+            if(childCategory) {
+              var original=parsed.get();
+              parsed=Optional.of(new Poem(original.title(),original.text(),original.author(),original.authorId(),original.authorUrl(),
+                  original.country(),original.popularity(),original.sourceUrl(),original.licenseUrl(),original.categories()+" Детская литература (category ancestry)"));
+            }
             if (!PoetrySelection.suitable(parsed.get(), language, mood, audience)) continue;
             String fingerprint = parsed.get().text().replaceAll("[^\\p{L}\\p{N}]", "").toLowerCase(Locale.ROOT);
             String work = poet.id() + ":" + (candidate.work().isBlank() ? title.split("[(/]", 2)[0].strip() : candidate.work());
@@ -153,7 +178,7 @@ public class WikisourcePoems {
   static boolean authorMatches(PoetDiscovery.Poet poet, JsonNode page) {
     var source = Jsoup.parse(page.path("text").asText(""));
     var links = source.select(".ws-author a[href],a.ws-author[href],#header_author_text a[href],#header_author a[href]");
-    if (!links.isEmpty()) return links.stream().anyMatch(link -> matchesPage(link.attr("href"), poet.sourcePage()));
+    if (!links.isEmpty()) return links.stream().allMatch(link -> matchesPage(link.attr("href"), poet.sourcePage()));
     var authors = new ArrayList<String>();
     for (var link : page.path("links")) if (link.path("ns").asInt() == 102) authors.add(link.path("title").asText(""));
     return authors.size() == 1 && normalize(authors.get(0)).equals(normalize(poet.sourcePage()));
@@ -163,7 +188,7 @@ public class WikisourcePoems {
     var html = Jsoup.parse(page.path("text").asText(""));
     var blocks = html.select(".poem").stream().filter(element -> element.parents().stream().noneMatch(parent -> parent.hasClass("poem"))).toList();
     if (blocks.size() != 1) return Optional.empty();
-    var body = blocks.get(0).clone(); body.select("sup,.reference,.mw-editsection,.pagenum,.ws-noexport").remove();
+    var body = blocks.get(0).clone(); body.select("sup,.reference,.mw-editsection,.pagenum,.ws-noexport,.linenum,.linenumber,.line-number,.poem-line-number").remove();
     // Formatting newlines in HTML collapse in the browser; counting them alongside <br>
     // doubled verse lines and incorrectly rejected complete 18–32-line poems.
     org.jsoup.select.NodeTraversor.traverse(new org.jsoup.select.NodeVisitor() {

@@ -25,12 +25,12 @@ public class PoetDiscovery {
         SELECT DISTINCT ?author ?authorLabel ?sourceName ?country ?pop WHERE {
           VALUES ?country { %s }
           ?author wdt:P106/wdt:P279* wd:Q49757; wdt:P570 ?death.
-          FILTER(?death < "1901-01-01T00:00:00Z"^^xsd:dateTime)
+          FILTER(?death < "1951-01-01T00:00:00Z"^^xsd:dateTime)
           { ?author wdt:P27 ?country } UNION { ?author wdt:P19/wdt:P17 ?country }
           ?article schema:about ?author; schema:isPartOf <https://%s.wikisource.org/>; schema:name ?sourceName.
           ?author wikibase:sitelinks ?pop.
           SERVICE wikibase:label { bd:serviceParam wikibase:language "%s,en". }
-        } ORDER BY DESC(?pop) LIMIT 12
+        } ORDER BY DESC(?pop) LIMIT 24
         """.formatted(countries, language, language);
     var payload = remote.get("https://query.wikidata.org/sparql?format=json&query=" + encode(query), 250000, 20000);
     var poets = new ArrayList<Poet>(); var seen = new HashSet<String>();

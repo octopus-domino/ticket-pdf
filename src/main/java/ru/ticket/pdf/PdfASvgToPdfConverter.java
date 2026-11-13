@@ -45,7 +45,7 @@ public class PdfASvgToPdfConverter implements SvgToPdfConverter {
 
     merger.mergeDocuments(null);
     // PDF/A метаданные применяем к склеенному документу целиком.
-    return applyPdfAMetadata(baos.toByteArray());
+    return applyPdfAMetadata(PdfImageDeduplicator.optimize(baos.toByteArray()));
   }
 
   /* ============================================================

@@ -49,6 +49,6 @@ public class BatikSvgToPdfConverter implements SvgToPdfConverter {
         }
 
         merger.mergeDocuments(null);
-        return baos.toByteArray();
+        return PdfImageDeduplicator.optimize(baos.toByteArray());
     }
 }

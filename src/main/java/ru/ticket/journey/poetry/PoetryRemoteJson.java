@@ -16,7 +16,7 @@ public class PoetryRemoteJson {
   public JsonNode get(String url, int maxBytes, int readTimeout) throws IOException {
     var connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
     try {
-      connection.setConnectTimeout(4000); connection.setReadTimeout(readTimeout); connection.setInstanceFollowRedirects(false);
+      connection.setConnectTimeout(PoetryFetchBudget.timeout(4000)); connection.setReadTimeout(PoetryFetchBudget.timeout(readTimeout)); connection.setInstanceFollowRedirects(false);
       connection.setRequestProperty("User-Agent", "CoDoc/1.0 (https://codoc.site; weather-aware poetry cards)");
       connection.setRequestProperty("Accept", "application/json");
       if (connection.getResponseCode() != 200) throw new IOException("Poetry provider " + connection.getURL().getHost() + " returned " + connection.getResponseCode());

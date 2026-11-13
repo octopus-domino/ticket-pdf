@@ -29,6 +29,11 @@ public class PlaceRecommendationsController {
     }
   }
   public record Result(boolean available, List<Place> places, String source) {}
+  @GetMapping("/wikimapia-{id}")
+  public WikimapiaPlaces.Details details(@PathVariable String id,@RequestParam(defaultValue="en") String language) {
+    if(wikimapia==null||!wikimapia.enabled())throw ApiException.notFound("Place source");
+    try{return wikimapia.details(id,language);}catch(java.io.IOException error){throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,"journey.route.places-unavailable");}
+  }
 
   @GetMapping
   public synchronized Result search(@RequestParam double longitude, @RequestParam double latitude,

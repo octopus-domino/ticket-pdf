@@ -9,27 +9,41 @@ import ru.ticket.common.ApiException;
 
 @Service
 public class PoetryCardsService {
-  public record Input(double latitude, double longitude, String zone, String language, String mood, String audience, String seed) {}
-  public record Card(String date, String title, String poem, String author, String authorId, String authorUrl, String country, String sourceUrl, String licenseUrl) {}
+  public record Input(double latitude, double longitude, String zone, String language, String mood, String audience, String seed,String moodText) {
+    public Input(double latitude,double longitude,String zone,String language,String mood,String audience,String seed){this(latitude,longitude,zone,language,mood,audience,seed,null);}
+  }
+  public record Card(String date, String title, String poem, String author, String authorId, String authorUrl, String country, String sourceUrl, String licenseUrl,Map<String,Object> sourceMetadata) {
+    public Card(String date,String title,String poem,String author,String authorId,String authorUrl,String country,String sourceUrl,String licenseUrl){this(date,title,poem,author,authorId,authorUrl,country,sourceUrl,licenseUrl,null);}
+  }
   public record Bundle(String language, String mood, String audience, List<Card> cards) {}
   public record Prepared(String id, Bundle bundle, String weatherSource, String weatherLicense) {}
   private final PoetryWeatherService weather;
   private final WikisourcePoems poems;
   private final PoetrySetRepository sets;
   private final ObjectMapper mapper;
+  private PoetrySourceChain sources;
+  @org.springframework.beans.factory.annotation.Autowired
+  void sources(PoetrySourceChain sources){this.sources=sources;}
   public PoetryCardsService(PoetryWeatherService weather, WikisourcePoems poems, PoetrySetRepository sets, ObjectMapper mapper) {
     this.weather = weather; this.poems = poems; this.sets = sets; this.mapper = mapper;
   }
   public Prepared prepare(Input input) {
-    if (input == null || input.seed() != null && input.seed().length() > 100) throw ApiException.badRequest("journey.poetry.preferences");
+    if (input == null || input.seed() != null && input.seed().length() > 100
+        || input.moodText()!=null&&(input.moodText().length()>200||!input.moodText().isBlank()&&input.moodText().strip().length()<2)) throw ApiException.badRequest("journey.poetry.preferences");
     PoetrySelection.validate(input.language(), input.mood(), input.audience());
     var forecast = weather.forecast(input.latitude(), input.longitude(), input.zone());
-    var selected = PoetrySelection.select(poems.poems(input.language(), input.mood(), input.audience()), forecast.days(),
-        input.language(), input.mood(), input.audience(), input.seed());
+    List<PoetryWork> selected;
+    if(sources!=null)selected=sources.select(new PoetryQuery(input.language(),input.mood(),input.audience(),input.moodText(),input.seed(),forecast.days()));
+    else selected=PoetrySelection.select(poems.poems(input.language(),input.mood(),input.audience()),forecast.days(),input.language(),input.mood(),input.audience(),input.seed()).stream()
+        .map(poem->PoetryWork.wiki(poem,input.language(),input.mood())).toList();
     var cards = new ArrayList<Card>();
     for (int index = 0; index < 7; index++) {
       var poem = selected.get(index);
-      cards.add(new Card(forecast.days().get(index).date(), poem.title(), poem.text(), poem.author(), poem.authorId(), poem.authorUrl(), poem.country(), poem.sourceUrl(), poem.licenseUrl()));
+      var metadata = new LinkedHashMap<String,Object>(poem.metadata());
+      metadata.putIfAbsent("tags",List.of());
+      metadata.putIfAbsent("need",new PoetryQuery(input.language(),input.mood(),input.audience(),input.moodText(),input.seed(),forecast.days()).need());
+      if(input.moodText()!=null&&!input.moodText().isBlank())metadata.put("requested_mood",input.moodText().strip());
+      cards.add(new Card(forecast.days().get(index).date(), poem.title(), poem.text(), poem.author(), poem.authorId(), poem.authorUrl(), poem.country(), poem.sourceUrl(), poem.licenseUrl(),Map.copyOf(metadata)));
     }
     var bundle = new Bundle(input.language(), input.mood(), input.audience(), List.copyOf(cards));
     try {

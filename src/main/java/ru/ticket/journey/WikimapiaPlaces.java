@@ -14,6 +14,27 @@ public class WikimapiaPlaces {
   private final ObjectMapper mapper;
   private final Map<String, List<PlaceRecommendationsController.Place>> cache = new LinkedHashMap<>();
   private long expires;
+  public record Details(String description, String sourceUrl, String wikipediaUrl) {}
+  private final Map<String,Details> details = new LinkedHashMap<>();
+  public synchronized Details details(String id, String language) throws java.io.IOException {
+    if (!id.matches("[0-9]{1,20}")) throw new java.io.IOException("Invalid place");
+    String locale=Set.of("ru","en","de","fr","it","es","pl","zh","nl").contains(language)?language:"en";
+    String cacheKey=id+":"+locale;
+    if(details.containsKey(cacheKey)) return details.get(cacheKey);
+    var connection=(HttpURLConnection)URI.create("https://api.wikimapia.org/?function=place.getbyid&format=json&data_blocks=main&id="+id+"&language="+locale+"&key="+encode(key)).toURL().openConnection();
+    try {
+      connection.setConnectTimeout(3000);connection.setReadTimeout(7000);connection.setInstanceFollowRedirects(false);
+      if(connection.getResponseCode()!=200)throw new java.io.IOException("Wikimapia unavailable");
+      byte[] bytes;try(var stream=connection.getInputStream()){bytes=stream.readNBytes(300001);}
+      if(bytes.length>300000)throw new java.io.IOException("Place details too large");
+      var payload=mapper.readTree(bytes);String text=org.jsoup.Jsoup.parse(payload.path("description").asText("")).text();
+      if(text.length()>1200)text=text.substring(0,1200)+"…";
+      String wiki=payload.path("wikipedia").asText("").replaceFirst("^http:","https:");
+      if(!wiki.startsWith("https://"+locale+".wikipedia.org/wiki/"))wiki="";
+      var value=new Details(text,"https://wikimapia.org/"+id,wiki);
+      if(details.size()>=64)details.remove(details.keySet().iterator().next());details.put(cacheKey,value);return value;
+    }finally{connection.disconnect();}
+  }
   public WikimapiaPlaces(ObjectMapper mapper, @Value("${app.journeys.wikimapia-key:}") String key) { this.mapper = mapper; this.key = key; }
   public boolean enabled() { return !key.isBlank(); }
   public synchronized List<PlaceRecommendationsController.Place> search(double lon, double lat, String language) throws java.io.IOException {

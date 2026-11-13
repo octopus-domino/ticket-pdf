@@ -32,6 +32,8 @@ class WikisourcePoemsTest {
     page.put("text", page.path("text").asText().replace("Author:Other", "Author:Writer"));
     assertTrue(WikisourcePoems.parse("en", poet, page, false).isEmpty());
     assertTrue(WikisourcePoems.parse("en", poet, page, true).isPresent());
+    page.put("text", page.path("text").asText().replace("</span>", "<a href='/wiki/Author:Original'>Original author</a></span>"));
+    assertTrue(WikisourcePoems.parse("en", poet, page, true).isEmpty(), "A translator credit must not replace the original author");
   }
 
   @Test void collectionCannotUseAnEpigraphToCompleteSevenCards() throws Exception {
@@ -88,6 +90,16 @@ class WikisourcePoemsTest {
     var parsed = WikisourcePoems.parse("en", new PoetDiscovery.Poet("Q1", "Writer", "Author:Writer", "Q2", 1), work, true);
     assertTrue(parsed.isPresent());
     assertEquals(24, parsed.get().text().lines().filter(line -> !line.isBlank()).count());
+  }
+
+  @Test void editorialLineNumbersAreRemovedWhileNumbersInVerseAreKept() {
+    var work=page("Poems","Number fixture");
+    work.put("text","<span class='ws-author'><a href='/wiki/Author:Writer'>Writer</a></span><div class='poem'>"
+        +"<span class='linenum'><span>5</span></span>Five birds visit the garden<br>"
+        +"There are 2 birds near the tree<br><span class='linenum'>10</span>A gentle fixture line follows<br>And here the complete fixture ends</div>");
+    var poem=WikisourcePoems.parse("en",new PoetDiscovery.Poet("Q1","Writer","Author:Writer","Q2",1),work,true).orElseThrow();
+    assertFalse(poem.text().contains("5Five"));assertFalse(poem.text().contains("10A gentle"));
+    assertTrue(poem.text().contains("2 birds"));
   }
 
   private ObjectNode page(String category, String title) {

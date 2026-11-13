@@ -24,7 +24,12 @@ public final class PoetrySelection {
   public static String hint(String language, String mood, String audience) {
     var words = WORDS.get(language);
     if (words == null) throw ApiException.badRequest("journey.poetry.language");
-    return mood.equals("funny") ? words.humor : audience.equals("child") ? words.nature : words.warm;
+    if(audience.equals("child")) return switch(language) {
+      case "ru"->"детск колыбельн"; case "en"->"children nursery lullaby"; case "zh"->"童 儿 兒";
+      case "pl"->"dzieci kołysank"; case "it"->"bambin ninna"; case "es"->"infantil niño nana";
+      case "nl"->"kinder wiegelied"; case "fr"->"enfant berceuse"; default->"kinder wiegenlied";
+    };
+    return mood.equals("funny") ? words.humor : words.warm;
   }
   public static List<WikisourcePoems.Poem> select(List<WikisourcePoems.Poem> poems, List<PoetryWeatherService.Day> days,
       String language, String mood, String audience, String seed) {
@@ -45,6 +50,17 @@ public final class PoetrySelection {
   static boolean suitable(WikisourcePoems.Poem poem, String language, String mood, String audience) {
     var words = WORDS.get(language); String text = (poem.title() + " " + poem.text() + " " + poem.categories()).toLowerCase(Locale.ROOT);
     if (hits(text, words.harsh) > 0) return false;
+    if(audience.equals("child")) {
+      // A short adult lyric or moral fable is not evidence of suitability for children.
+      String genre=(poem.categories()+" "+poem.title()).toLowerCase(Locale.ROOT);
+      String evidence=switch(language) {
+        case "ru"->"детск|для детей|колыбельн"; case "en"->"children|nursery|lullab";
+        case "zh"->"兒童|儿童|童謠|童谣|搖籃|摇篮"; case "pl"->"dzieci|kołysank";
+        case "it"->"bambin|infantil|ninna"; case "es"->"infantil|niños|niñas|canción de cuna";
+        case "nl"->"kinder|wiegelied"; case "fr"->"enfant|berceuse"; default->"kinder|wiegenlied";
+      };
+      if(!java.util.regex.Pattern.compile(evidence).matcher(genre).find()) return false;
+    }
     if (mood.equals("funny") && hits(text, words.humor) == 0) return false;
     int max = audience.equals("child") ? (language.equals("zh") ? 400 : 800) : audience.equals("teen") ? 1200 : 1600;
     return poem.text().length() <= max;

@@ -5,6 +5,11 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class PoetrySelectionTest {
+  @Test void shortAdultRomanceIsNotAChildrensPoem() {
+    assertThat(PoetrySelection.suitable(poem("Love lyric", "love heart gentle warm home", "Poems"),"en","heartfelt","child")).isFalse();
+    assertThat(PoetrySelection.suitable(poem("Nursery fixture", "A bird sings in a garden", "Children's poems"),"en","heartfelt","child")).isTrue();
+    assertThat(PoetrySelection.suitable(poem("Nursery fixture", "blood and murder", "Children's poems"),"en","heartfelt","child")).isFalse();
+  }
   @Test void forecastChangesRankingWithoutAddingWeatherTextToCards() {
     var poems = new ArrayList<WikisourcePoems.Poem>();
     for (int i = 0; i < 7; i++) {
