@@ -2,6 +2,8 @@
 # Активируется через -Dspring.profiles.active=local или SPRING_PROFILES_ACTIVE=local.
 
 app:
+  mystic:
+    csv-path: ${MYSTIC_CSV_PATH:classpath:mystic_places.csv}
   # OAuth2 redirect идёт на фронт (5173), а не на прод-домен.
   frontend-url: http://localhost:5173
   # Cookie без Secure — иначе браузер не передаст её по HTTP.

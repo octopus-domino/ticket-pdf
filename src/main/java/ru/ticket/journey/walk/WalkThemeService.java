@@ -28,7 +28,12 @@ public class WalkThemeService {
   }
   public record WalkCandidate(String source,String id,String label,double lon,double lat,String openingHours,
                               String visitStatus,Integer wikidataSitelinks,boolean inOsm,String description,List<WikimapiaPhoto> photos,
-                              double score,String wikidataId,String wikimapiaId) {}
+                              double score,String wikidataId,String wikimapiaId,String sourceUrl) {
+    public WalkCandidate(String source,String id,String label,double lon,double lat,String openingHours,String visitStatus,
+        Integer wikidataSitelinks,boolean inOsm,String description,List<WikimapiaPhoto> photos,double score,String wikidataId,String wikimapiaId){
+      this(source,id,label,lon,lat,openingHours,visitStatus,wikidataSitelinks,inOsm,description,photos,score,wikidataId,wikimapiaId,"");
+    }
+  }
 
   private final WalkThemeProperties themes;
   private final OsmPoiSource osm;
@@ -36,6 +41,8 @@ public class WalkThemeService {
   private final WikimapiaPoiSource wikimapia;
   private final OpeningHoursEvaluator hours;
   private final WikidataPopularity popularity;
+  private final MysticThemeSource mystic;
+  private final BuildingHistoryService buildings;
   private final Semaphore permit = new Semaphore(1);
   private final ExecutorService discovery = Executors.newFixedThreadPool(2,
           r -> { var t = new Thread(r, "walk-discovery"); t.setDaemon(true); return t; });
@@ -46,10 +53,22 @@ public class WalkThemeService {
   private int defaultSitelinks = 5;
 
   public WalkThemeService(WalkThemeProperties themes, OsmPoiSource osm, PhotonPoiSource photon,
+                          WikimapiaPoiSource wikimapia, OpeningHoursEvaluator hours, WikidataPopularity popularity,int detailsLimit,int minDescription){
+    this(themes,osm,photon,wikimapia,hours,popularity,null,detailsLimit,minDescription);
+  }
+  public WalkThemeService(WalkThemeProperties themes, OsmPoiSource osm, PhotonPoiSource photon,
+                          WikimapiaPoiSource wikimapia, OpeningHoursEvaluator hours, WikidataPopularity popularity,MysticThemeSource mystic,int detailsLimit,int minDescription){
+    this(themes,osm,photon,wikimapia,hours,popularity,mystic,null,detailsLimit,minDescription);
+  }
+  @org.springframework.beans.factory.annotation.Autowired
+  public WalkThemeService(WalkThemeProperties themes, OsmPoiSource osm, PhotonPoiSource photon,
                           WikimapiaPoiSource wikimapia, OpeningHoursEvaluator hours, WikidataPopularity popularity,
+                          MysticThemeSource mystic,BuildingHistoryService buildings,
                           @Value("${app.journeys.wikimapia.max-details-per-request:25}") int detailsLimit,
                           @Value("${app.journeys.wikimapia.min-description-length:20}") int minDescription){
     this.themes=themes; this.osm=osm; this.photon=photon; this.wikimapia=wikimapia; this.hours=hours; this.popularity=popularity;
+    this.mystic=mystic;
+    this.buildings=buildings;
     this.detailsLimit=Math.max(0,Math.min(25,detailsLimit)); this.minDescription=Math.max(0,minDescription);
   }
 
@@ -62,6 +81,10 @@ public class WalkThemeService {
             ||request.maxSitelinks()!=null&&(request.maxSitelinks()<0||request.maxSitelinks()>10000))
       throw ApiException.badRequest("journey.route.invalid-route");
 
+    if("mystic".equals(request.theme())){
+      var result=mystic==null?List.<WalkCandidate>of():mystic.findCandidates(request.startLon(),request.startLat(),request.maxStops(),request.radiusKm());
+      log.info("walk.search theme=mystic result={}",result.size());return result;
+    }
     String key=request.toString();
     var cached=cache.get(key); if(cached!=null)return cached;
     if(!permit.tryAcquire()) throw new ApiException(HttpStatus.TOO_MANY_REQUESTS,"journey.route.search-busy");
@@ -122,6 +145,8 @@ public class WalkThemeService {
 
       var candidates=new ArrayList<WalkCandidate>();
       for(var point:osmPoints){
+        log.info("DEBUG theme={} poi id={} name={} tags={}",
+                request.theme(),point.id(),point.label(),point.tags());
         if(!OsmPoiSource.matches(point.tags(),theme)||WikimapiaPoiSourceImpl.distance(request.startLon(),request.startLat(),point.lon(),point.lat())>request.radiusKm()*1000)continue;
         String wikidata=point.tags().getOrDefault("wikidata","");Integer count=counts.get(wikidata);
         if(count!=null&&count>(request.maxSitelinks()==null?defaultSitelinks:request.maxSitelinks()))continue;
@@ -146,6 +171,10 @@ public class WalkThemeService {
       var result=deduplicated.values().stream()
               .sorted(Comparator.comparingDouble(WalkCandidate::score).reversed().thenComparingDouble(p->WikimapiaPoiSourceImpl.distance(request.startLon(),request.startLat(),p.lon(),p.lat())))
               .limit(request.maxStops()).toList();
+      if(buildings!=null){
+        try {result=buildings.enrich(result,request.language());}
+        catch(org.springframework.dao.DataAccessException unavailable){log.warn("building.history enrichment_unavailable");}
+      }
       cache.put(key,result);
       log.info("walk.search theme={} lang={} osm_raw={} wiki_raw={} wiki_enriched={} result={} elapsed_ms={}",
               request.theme(),request.language(),osmPoints.size(),wikiPoints.size(),wikiCandidates.size(),result.size(),(System.nanoTime()-started)/1_000_000);

@@ -95,7 +95,7 @@ public class PlaceRecommendationsController {
               new WalkThemeService.WalkRequest(longitude, latitude, theme, visitTime, language, maxStops, walkRadius, maxSitelinks));
       var places = candidates.stream().map(c -> themedPlace(c, theme, mapper)).toList();
       log.info("walk.themed theme={} lang={} count={} elapsed_ms={}", theme, language, places.size(), (System.nanoTime() - started) / 1_000_000);
-      return new Result(true, places, "OpenStreetMap / Wikimapia");
+      return new Result(true, places, theme.equals("mystic")?"mystic":"OpenStreetMap / Wikimapia");
     }, 0L);
   }
 
@@ -125,8 +125,8 @@ public class PlaceRecommendationsController {
     if (point.wikidataSitelinks() != null) meta.put("wikidata_sitelinks", point.wikidataSitelinks().toString());
     if (!point.wikimapiaId().isBlank()) meta.put("wikimapia_id", point.wikimapiaId());
     if (!point.description().isBlank())
-      meta.put("wikimapia_description", point.description().substring(0, Math.min(500, point.description().length())));
-    String url = point.source().equals("wikimapia")
+      meta.put(point.source().equals("mystic")?"place_description":"wikimapia_description", point.description().substring(0, Math.min(500, point.description().length())));
+    String url = point.source().equals("mystic") ? point.sourceUrl() : point.source().equals("wikimapia")
             ? "https://wikimapia.org/" + point.wikimapiaId()
             : "https://www.openstreetmap.org/" + point.id().replaceFirst("-", "/");
     return new Place(point.id(), point.label(), point.lon(), point.lat(), url,

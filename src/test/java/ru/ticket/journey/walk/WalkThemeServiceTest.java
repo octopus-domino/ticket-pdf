@@ -23,7 +23,7 @@ class WalkThemeServiceTest {
   @Test void historicCategoryAloneDoesNotMakeAMysticStopButALegendDoes() throws Exception {
     var historic=new WikimapiaPoiSource.WikimapiaPoi(123,"Historic centre",37.621,55.75,List.of("historic"),true);
     var courtyard=new WikimapiaPoiSource.WikimapiaPoi(124,"Old courtyard",37.622,55.75,List.of("historic"),false);
-    themes.setWalkThemes(Map.of("mystic",new WalkThemeProperties.Theme(List.of("historic=ruins"),List.of("ghost","abandoned"),List.of("ghost","legend"),false)));
+    themes.setWalkThemes(Map.of("legends",new WalkThemeProperties.Theme(List.of("historic=ruins"),List.of("ghost","abandoned"),List.of("ghost","legend"),false)));
     when(wiki.enabled()).thenReturn(true);
     when(wiki.fetchInBox(anyDouble(),anyDouble(),anyDouble(),anyDouble(),any(),anyString())).thenReturn(List.of(historic,courtyard));
     when(wiki.enrich(123,"en")).thenReturn(new WikimapiaPoiSource.WikimapiaPoiDetails(historic,"The historic administrative centre of the city.",List.of("historic"),List.of()));
@@ -32,7 +32,7 @@ class WalkThemeServiceTest {
     when(wiki.crossCheckOsm(anyList())).thenReturn(Set.of());
     var service=new WalkThemeService(themes,osm,mock(PhotonPoiSource.class),wiki,new OpeningHoursEvaluator(new ObjectMapper()),popularity,25,20);
     try{
-      var result=service.findCandidates(new WalkThemeService.WalkRequest(37.62,55.75,"mystic",null,"en",7,1.5));
+      var result=service.findCandidates(new WalkThemeService.WalkRequest(37.62,55.75,"legends",null,"en",7,1.5));
       assertEquals(1,result.size());assertEquals("wikimapia-124",result.get(0).id());
     }finally{service.close();}
   }

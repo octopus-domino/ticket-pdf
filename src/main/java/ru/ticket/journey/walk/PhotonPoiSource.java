@@ -12,18 +12,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import ru.ticket.mcp.OsmMcpClient;
 
-/**
- * Photon (photon.komoot.io) fallback when the configured Overpass mirror returns empty.
- *
- * <p>Photon only accepts lang=default|de|en|fr; everything else is a 400. We map our ISO codes
- * to the accepted set and drop the param otherwise. Photon also requires either a text
- * {@code q} or include/exclude filters, so every call includes a {@code q} even when
- * {@code osm_tag} is used. bbox must use '.' as decimal separator.
- */
 @Component
 public class PhotonPoiSource {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PhotonPoiSource.class);
-
     private static final Set<String> PHOTON_LANGS = Set.of("de", "en", "fr");
 
     private final ObjectMapper mapper;
@@ -52,7 +43,8 @@ public class PhotonPoiSource {
         String bbox = String.format(Locale.ROOT, "%.6f,%.6f,%.6f,%.6f",
                 lon - dx, lat - dy, lon + dx, lat + dy);
 
-        String key = String.format(Locale.ROOT, "%.4f:%.4f:%d:%s:%s", lon, lat, radius, theme.tags(), language);
+        String key = String.format(Locale.ROOT, "%.4f:%.4f:%d:%s:%s",
+                lon, lat, radius, theme.tags(), language);
         var cached = cache.get(key);
         if (cached != null) return cached;
 
@@ -61,27 +53,25 @@ public class PhotonPoiSource {
             var result = new LinkedHashMap<String, OsmMcpClient.Poi>();
             String langParam = PHOTON_LANGS.contains(language) ? language : null;
 
+            // Photon: osm_tag устарел, используем include=osm.amenity.bar
             for (String tag : theme.tags()) {
                 if (tag.contains("=*")) continue;
-                String photonTag = tag.replace('=', ':');
-                String q = ""; // The OSM tag is already a complete query; do not require an English name.
+
+                // amenity=bar -> osm.amenity.bar
+                String category = toCategory(tag);
+                if (category == null) continue;
+
                 try {
-                    fetch(buildUrl(bbox, q, photonTag, langParam), result);
+                    // q не передаём — при наличии include он не обязателен
+                    fetch(buildUrl(bbox, null, category, langParam), result);
                 } catch (IOException unavailable) {
-                    log.debug("photon.osm_tag_failed tag={} q={} msg={}", photonTag, q, unavailable.getMessage());
+                    log.debug("photon.include_failed category={} msg={}", category, unavailable.getMessage());
                 }
                 if (result.size() >= 20) break;
             }
 
             if (result.isEmpty()) {
-                String query = queryFor(theme.tags());
-                if (query != null && !query.isBlank()) {
-                    try {
-                        fetch(buildUrl(bbox, query, null, langParam), result);
-                    } catch (IOException unavailable) {
-                        log.debug("photon.q_failed q={} msg={}", query, unavailable.getMessage());
-                    }
-                }
+                log.info("photon.empty tags={} lang={} — no include matches", theme.tags(), language);
             }
 
             var value = List.copyOf(result.values());
@@ -94,13 +84,30 @@ public class PhotonPoiSource {
         }
     }
 
-    private String buildUrl(String bbox, String q, String osmTag, String lang) {
+    /**
+     * amenity=bar -> osm.amenity.bar
+     * tourism=museum -> osm.tourism.museum
+     * historic=ruins -> osm.historic.ruins
+     */
+    private static String toCategory(String tag) {
+        int eq = tag.indexOf('=');
+        if (eq <= 0 || eq == tag.length() - 1) return null;
+        String key = tag.substring(0, eq).trim();
+        String value = tag.substring(eq + 1).trim();
+        if (!key.matches("[a-z_]{1,40}") || !value.matches("[a-z_0-9]{1,60}")) return null;
+        return "osm." + key + "." + value;
+    }
+
+    private String buildUrl(String bbox, String q, String includeCategory, String lang) {
         var url = new StringBuilder(endpoint);
         url.append("?limit=20");
         url.append("&bbox=").append(URLEncoder.encode(bbox, StandardCharsets.UTF_8));
-        url.append("&q=").append(URLEncoder.encode(q == null ? "" : q, StandardCharsets.UTF_8));
-        if (osmTag != null && !osmTag.isBlank()) {
-            url.append("&osm_tag=").append(URLEncoder.encode(osmTag, StandardCharsets.UTF_8));
+        if (q != null && !q.isBlank()) {
+            url.append("&q=").append(URLEncoder.encode(q, StandardCharsets.UTF_8));
+        }
+        if (includeCategory != null && !includeCategory.isBlank()) {
+            // include=osm.amenity.bar — без URL-encode, точка допустима в query string
+            url.append("&include=").append(includeCategory);
         }
         if (lang != null) {
             url.append("&lang=").append(URLEncoder.encode(lang, StandardCharsets.UTF_8));
@@ -142,34 +149,19 @@ public class PhotonPoiSource {
         double lon = coords.path(0).asDouble(Double.NaN);
         double lat = coords.path(1).asDouble(Double.NaN);
         if (name.isBlank() || name.length() > 250 || !Double.isFinite(lon) || !Double.isFinite(lat)) return null;
+
         var tags = new LinkedHashMap<String, String>();
         String k = props.path("osm_key").asText("");
         String v = props.path("osm_value").asText("");
         if (!k.isBlank() && !v.isBlank()) tags.put(k, v);
-        return new OsmMcpClient.Poi(id, name, lon, lat, Map.copyOf(tags));
-    }
 
-    private static String queryFor(List<String> tags) {
-        for (String tag : tags) {
-            if (tag.equals("amenity=place_of_worship")) return "church";
-            if (tag.equals("amenity=bar")) return "bar";
-            if (tag.equals("amenity=pub")) return "pub";
-            if (tag.equals("amenity=biergarten")) return "beer garden";
-            if (tag.equals("amenity=wine_bar")) return "wine bar";
-            if (tag.equals("tourism=museum")) return "museum";
-            if (tag.equals("tourism=gallery")) return "gallery";
-            if (tag.equals("amenity=arts_centre")) return "art centre";
-            if (tag.equals("amenity=theatre")) return "theatre";
-            if (tag.equals("historic=ruins")) return "ruins";
-            if (tag.equals("historic=monument")) return "monument";
-            if (tag.equals("historic=aircraft_wreck")) return "wreck";
-            if (tag.equals("amenity=monastery")) return "monastery";
-            if (tag.equals("building=church")) return "church";
-            if (tag.equals("building=cathedral")) return "cathedral";
-            if (tag.equals("building=mosque")) return "mosque";
-            if (tag.equals("military=bunker")) return "bunker";
-            if (tag.equals("man_made=adit")) return "adit";
+        for (String extra : new String[]{
+                "amenity", "shop", "tourism", "historic", "cuisine",
+                "office", "leisure", "building", "highway", "military", "man_made"}) {
+            String value = props.path(extra).asText("");
+            if (!value.isBlank() && value.length() <= 500) tags.putIfAbsent(extra, value);
         }
-        return null;
+
+        return new OsmMcpClient.Poi(id, name, lon, lat, Map.copyOf(tags));
     }
 }

@@ -37,4 +37,14 @@ class PoemShipTextResolverTest {
       assertTrue(resolver.resolve(candidate,query).isEmpty());
     }
   }
+  @Test void nurseryGenreIsRejectedForOlderReadersButNotForChildren() throws Exception {
+    var candidate=mapper.readTree("{\"title\":\"Fixture\",\"author\":\"Author\",\"lines\":2}");
+    String page=html("Author",2)+"<div class='SummaryCard-test__excerpt'>A nursery rhyme for children</div>";
+    var older=new PoetryQuery("en","heartfelt","older",null,"s",List.of());
+    assertThrows(PoetryAudienceEvidence.Mismatch.class,()->resolver.parse(page,candidate,older,"https://poemship.com/poems/id"));
+    var child=new PoetryQuery("en","heartfelt","child",null,"s",List.of());
+    assertTrue(resolver.parse(page,candidate,child,"https://poemship.com/poems/id").isPresent());
+    assertFalse(PoetryAudienceEvidence.childrenGenre("Memories of my children and childhood","en"));
+    assertTrue(PoetryAudienceEvidence.childrenGenre("Маршак писал для детей. В основе лежит народная прибаутка.","ru"));
+  }
 }

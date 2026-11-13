@@ -71,6 +71,15 @@ spring:
             required: ${SMTP_TLS:false}
 
 app:
+  hoith:
+    gpkg-path: ${HOITH_GPKG_PATH:./data/hoith.gpkg}
+    import-on-startup: ${HOITH_IMPORT_ON_STARTUP:false}
+    cities: ${HOITH_CITIES:}
+    refresh-on-start: ${HOITH_REFRESH_ON_START:false}
+    before-year: ${HOITH_BEFORE_YEAR:1945}
+  mystic:
+    csv-path: ${MYSTIC_CSV_PATH:classpath:mystic_places.csv}
+    refresh-on-start: ${MYSTIC_REFRESH_ON_START:false}
   mcp:
     osm:
       url: ${OSM_MCP_URL:http://localhost:8000/mcp}
@@ -79,6 +88,7 @@ app:
       url: ${COMMONS_MCP_URL:https://gateway.pipeworx.io/commons-wikimedia/mcp}
       enabled: ${COMMONS_MCP_ENABLED:true}
   journeys:
+    yandex-api-key: ${YANDEX_MAPS_API_KEY:}
     brouter-http:
       enabled: ${BROUTER_HTTP_ENABLED:true}
       url: ${BROUTER_HTTP_URL:https://brouter.de}
@@ -94,7 +104,7 @@ app:
       router-cache: ${BROUTER_CACHE:/app/data/routing}
     max-wikidata-sitelinks: 5
     photon-url: ${PHOTON_URL:https://photon.komoot.io/api/}
-    overpass-url: ${OVERPASS_URL:https://overpass.osm.ch/api/interpreter}
+    overpass-url: ${OVERPASS_URL:https://overpass-api.de/api/interpreter}
     wikimapia-key: ${WIKIMAPIA_API_KEY:${WIKIMAPIA_KEY:}}
     wikimapia:
       bbox-radius-km: 2.5
@@ -158,6 +168,9 @@ logging:
     ru.ticket: INFO
     org.apache.pdfbox: WARN
     org.apache.batik: WARN
+    ru.ticket.journey.WikimapiaKeyProvider: DEBUG
+    ru.ticket.journey.walk.WikimapiaPoiSourceImpl: DEBUG
+    ru.ticket.journey.WikimapiaPlaces: DEBUG
 
 
 management:

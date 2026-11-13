@@ -89,7 +89,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
       return;
     }
 
-    String route = req.getRequestURI().equals("/api/journeys/routes/places/themed") ? "places" : req.getRequestURI().startsWith("/api/journeys/") && req.getRequestURI().endsWith("/pdf") ? "export" : "POST".equals(req.getMethod()) || "PUT".equals(req.getMethod()) ? routePrefixFor(req.getRequestURI()) : null;
+    String route = req.getRequestURI().equals("/api/journeys/routes/places/themed") || req.getRequestURI().startsWith("/api/journeys/buildings") ? "places" : req.getRequestURI().startsWith("/api/journeys/") && req.getRequestURI().endsWith("/pdf") ? "export" : "POST".equals(req.getMethod()) || "PUT".equals(req.getMethod()) ? routePrefixFor(req.getRequestURI()) : null;
     if (route == null) {
       chain.doFilter(req, res);
       return;

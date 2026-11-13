@@ -41,6 +41,8 @@ public class PoemShipProvider implements PoetryProvider {
       // The provider documents advanced age/need filters only for these languages.
       if(!ageSupported&&Set.of("child","teen").contains(query.audience()))return List.of();
       if(ageSupported){args.put("need",query.need());args.put("audience",query.audience().equals("child")?"children":query.audience().equals("teen")?"teens":"anyone");}
+      // "anyone" includes nursery poetry; recipient ranking adds adult context without inventing an unsupported age enum.
+      if(ageSupported&&!Set.of("child","teen").contains(query.audience()))args.put("recipient","friend");
       args.put("max_lines",query.maxLines());args.put("limit",10);
       args.put("mood",query.mood().equals("funny")?"joyful":query.need().equals("comfort")?"contemplative":"inspiring");
       if(Set.of("child","teen").contains(query.audience()))args.put("easy_to_read",true);
@@ -68,9 +70,12 @@ public class PoemShipProvider implements PoetryProvider {
         if(!id.matches("[a-fA-F0-9]{24}")||title.isBlank()||title.length()>300||author.isBlank()||author.length()>300||!seen.add(id)||!trusted(url)
             ||!candidate.path("language").asText(query.language()).equals(query.language()))continue;
         String opening=text(candidate.path("firstLines"));Optional<PoetryWork> full=Optional.empty();
-        if(candidate.path("textIsComplete").asBoolean(false)&&!opening.isBlank())
+        if(!query.audience().equals("child")&&PoetryAudienceEvidence.childrenGenre(candidate.path("about").asText(""),query.language()))continue;
+        if(query.audience().equals("child")&&candidate.path("textIsComplete").asBoolean(false)&&!opening.isBlank())
           full=Optional.of(new PoetryWork(title,opening,author,"","","",url,"",Map.of()));
-        if(full.isEmpty())try{full=texts.resolve(candidate,query);}catch(IOException unavailable){/* Publisher unavailable: use exact full-text resolvers. */}
+        if(full.isEmpty())try{full=texts.resolve(candidate,query);}
+        catch(PoetryAudienceEvidence.Mismatch rejected){continue;}
+        catch(IOException unavailable){/* Publisher unavailable: use exact full-text resolvers. */}
         if(full.isEmpty())try{full=db.resolve(title,author,query);}catch(IOException unavailable){/* Next full-text source. */}
         if(full.isEmpty()&&System.nanoTime()<deadline)try{full=tree.resolve(title,author,query);}catch(IOException unavailable){/* Next full-text source. */}
         if(full.isEmpty()&&System.nanoTime()<deadline)try{full=wiki.resolve(title,author,query.language());}catch(IOException unavailable){/* A fragment is not a full poem. */}
@@ -81,6 +86,9 @@ public class PoemShipProvider implements PoetryProvider {
         var metadata=new LinkedHashMap<String,Object>();metadata.put("source",name());metadata.put("mood",args.getOrDefault("mood",query.mood()));
         metadata.put("tags",args.getOrDefault("tags",List.of()));metadata.put("need",query.need());metadata.put("language",query.language());metadata.put("poemship_id",id);
         metadata.put("text_source",work.metadata().getOrDefault("source",name()));metadata.put("text_complete",true);
+        metadata.put("audience",query.audience());metadata.put("audience_policy",2);
+        metadata.put("provider_audience",args.getOrDefault("audience","unsupported"));
+        metadata.put("audience_review",work.metadata().getOrDefault("audience_review","provider_filters"));
         result.add(new PoetryWork(work.title(),work.text(),work.author(),work.authorId(),work.authorUrl(),work.country(),work.sourceUrl(),work.licenseUrl(),Map.copyOf(metadata)));
       }
       }

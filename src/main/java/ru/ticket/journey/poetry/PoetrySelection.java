@@ -49,6 +49,7 @@ public final class PoetrySelection {
   }
   static boolean suitable(WikisourcePoems.Poem poem, String language, String mood, String audience) {
     var words = WORDS.get(language); String text = (poem.title() + " " + poem.text() + " " + poem.categories()).toLowerCase(Locale.ROOT);
+    if(!audience.equals("child")&&PoetryAudienceEvidence.childrenGenre(poem.title()+" "+poem.categories(),language))return false;
     if (hits(text, words.harsh) > 0) return false;
     if(audience.equals("child")) {
       // A short adult lyric or moral fable is not evidence of suitability for children.

@@ -27,6 +27,8 @@ import static org.mockito.Mockito.*;
     "spring.datasource.url=jdbc:h2:mem:themed-walk;DB_CLOSE_DELAY=-1","spring.jpa.hibernate.ddl-auto=create-drop",
     "jwt.secret=themed-walk-fixture-only-secret-01234567890123456789","app.rate-limit.enabled=false",
     "app.mcp.osm.enabled=false","app.mcp.commons.enabled=false",
+    "app.journeys.walk-themes.cultural.tags[0]=historic=ruins",
+    "app.journeys.walk-themes.cultural.description-keywords[0]=ghost",
     "spring.security.oauth2.client.registration.google.client-id=test","spring.security.oauth2.client.registration.google.client-secret=test",
     "SMTP_HOST=localhost","SMTP_USER=test@example.invalid","EMAIL_FROM=test@example.invalid"})
 class WalkThemeFlowTest {
@@ -60,7 +62,7 @@ class WalkThemeFlowTest {
     doReturn(image()).when(photos).download(anyString());
   }
   @Test void themedDiscoveryEnrichmentSnapshotAndPdfUseOneNativeFlow() throws Exception {
-    var found=http.getForEntity("/api/journeys/routes/places/themed?theme=mystic&longitude=37.62&latitude=55.75&language=en&visitTime=2026-11-13T20:00",PlaceRecommendationsController.Result.class);
+    var found=http.getForEntity("/api/journeys/routes/places/themed?theme=cultural&longitude=37.62&latitude=55.75&language=en&visitTime=2026-11-13T20:00",PlaceRecommendationsController.Result.class);
     assertEquals(200,found.getStatusCode().value());var places=found.getBody().places();assertEquals(2,places.size());
     assertTrue(places.stream().anyMatch(place->"wikimapia".equals(place.source())&&Boolean.FALSE.equals(place.inOsm())&&place.description().contains("ghost legend")));
     assertTrue(places.stream().anyMatch(place->"CLOSED".equals(place.visitStatus())));
@@ -85,7 +87,7 @@ class WalkThemeFlowTest {
   }
   @Test void wikimapiaHttpOutageDoesNotBreakOsmOnlyDiscovery(){
     UPSTREAM.stubFor(get(urlPathEqualTo("/")).atPriority(1).willReturn(aResponse().withStatus(503)));
-    var found=http.getForEntity("/api/journeys/routes/places/themed?theme=mystic&longitude=37.622&latitude=55.75&language=en&visitTime=2026-11-13T19:00",PlaceRecommendationsController.Result.class);
+    var found=http.getForEntity("/api/journeys/routes/places/themed?theme=cultural&longitude=37.622&latitude=55.75&language=en&visitTime=2026-11-13T19:00",PlaceRecommendationsController.Result.class);
     assertEquals(200,found.getStatusCode().value());assertEquals(1,found.getBody().places().size());assertEquals("osm",found.getBody().places().get(0).source());
   }
   private static String image() throws Exception {

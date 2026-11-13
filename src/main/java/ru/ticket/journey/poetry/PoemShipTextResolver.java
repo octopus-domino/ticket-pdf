@@ -32,6 +32,9 @@ public class PoemShipTextResolver {
   }
   Optional<PoetryWork> parse(String html,JsonNode candidate,PoetryQuery query,String url) throws IOException {
     var document=Jsoup.parse(html);
+    String editorial=document.select("[class*='SummaryCard-'][class*='__excerpt']").text();
+    if(!query.audience().equals("child")&&PoetryAudienceEvidence.childrenGenre(editorial,query.language()))
+      throw new PoetryAudienceEvidence.Mismatch();
     var poem=document.selectFirst("article .poem-text");
     if(poem==null)return Optional.empty();
     var verses=poem.select("span[class*='__line']").eachText();
@@ -52,7 +55,7 @@ public class PoemShipTextResolver {
           ||!work.path("inLanguage").asText().equals(query.language())||body.isBlank()||body.length()>query.maxCharacters()
           ||expected<=0||lines!=expected||lines>query.maxLines()||excerpt.isBlank()||!PoetryDbProvider.normalize(body).startsWith(excerpt))continue;
       String license=work.path("license").asText("");if(!license.startsWith("https://"))license="";
-      return Optional.of(new PoetryWork(title,body,author,"","","",url,license,Map.of("source","poemship","text_complete",true)));
+      return Optional.of(new PoetryWork(title,body,author,"","","",url,license,Map.of("source","poemship","text_complete",true,"audience_review","publisher_genre")));
     }
     return Optional.empty();
   }
