@@ -33,12 +33,14 @@ public class JourneyArtworkController {
   private final JourneyDocumentFactory documents;
   private final SvgDocumentBuilder svg;
   private final HeavyOperationCapacity capacity;
+  private final JourneyService publications;
 
   public JourneyArtworkController(
-      JourneyDocumentFactory documents, SvgDocumentBuilder svg, HeavyOperationCapacity capacity) {
+      JourneyDocumentFactory documents, SvgDocumentBuilder svg, HeavyOperationCapacity capacity, JourneyService publications) {
     this.documents = documents;
     this.svg = svg;
     this.capacity = capacity;
+    this.publications = publications;
   }
 
   @PostMapping("/artwork")
@@ -57,6 +59,8 @@ public class JourneyArtworkController {
     try {
       String id =
           input.id() != null && input.id().matches("[A-Za-z0-9]{12}") ? input.id() : "preview";
+      // Resolving an existing native source must obey the same revocation check as its PDF.
+      if (!id.equals("preview")) publications.get(id);
       var view =
           new JourneyService.View(id, input.kind(), input.title(), input.data(), Instant.EPOCH);
       var pages =
@@ -80,6 +84,8 @@ public class JourneyArtworkController {
           case "sans-bold" -> "DejaVuSans-Bold.ttf";
           case "serif" -> "DejaVuSerif.ttf";
           case "serif-italic" -> "DejaVuSerif-Italic.ttf";
+          case "handwriting" -> "MarckScript-Regular.ttf";
+          case "handwriting-zh" -> "ZhiMangXing-Regular.ttf";
           default -> throw ApiException.notFound("Font");
         };
     return ResponseEntity.ok()

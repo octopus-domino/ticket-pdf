@@ -22,7 +22,12 @@ public class JourneySiteService {
       String description,
       String theme,
       List<Field> fields,
-      JourneyBranding branding) {
+      JourneyBranding branding,
+      String backgroundPreset) {
+    public Definition(String slug, JourneyService.Kind kind, String title, String description, String theme,
+        List<Field> fields, JourneyBranding branding) {
+      this(slug, kind, title, description, theme, fields, branding, null);
+    }
     public Definition(
         String slug,
         JourneyService.Kind kind,
@@ -149,6 +154,7 @@ public class JourneySiteService {
         || site.fields().isEmpty()
         || site.fields().size() > 12)
       throw ApiException.badRequest("Check the site title, address and fields");
+    if (!JourneyBackgrounds.valid(site.backgroundPreset())) throw ApiException.badRequest("Invalid site background");
     var names = new HashSet<String>();
     if (Set.of(
                 "www", "api", "drawio", "go", "mail", "admin", "app", "auth", "static", "cdn",
@@ -192,7 +198,7 @@ public class JourneySiteService {
             site.description(),
             site.theme(),
             site.fields(),
-            site.branding()));
+            site.branding(), site.backgroundPreset()));
   }
 
   private String json(Definition definition) {

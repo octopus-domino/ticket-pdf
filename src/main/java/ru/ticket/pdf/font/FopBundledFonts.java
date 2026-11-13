@@ -51,6 +51,13 @@ public final class FopBundledFonts {
               .append("\"/></font>");
         }
       }
+      for (String[] handwritten : new String[][] { { "MarckScript-Regular.ttf", "Marck Script" }, { "ZhiMangXing-Regular.ttf", "Zhi Mang Xing" } }) {
+        var url = FopBundledFonts.class.getResource("/fonts/" + handwritten[0]);
+        if (url == null) throw new IllegalStateException("Bundled handwriting font is missing");
+        try (var input = url.openStream()) { GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(Font.createFont(Font.TRUETYPE_FONT, input)); }
+        xml.append("<font kerning=\"yes\" embedding-mode=\"subset\" embed-url=\"").append(url.toExternalForm().replace("&", "&amp;").replace("\"", "&quot;"))
+            .append("\"><font-triplet name=\"").append(handwritten[1]).append("\" style=\"normal\" weight=\"normal\"/></font>");
+      }
       xml.append("</fonts></cfg>");
       return new DefaultConfigurationBuilder()
           .build(new ByteArrayInputStream(xml.toString().getBytes(StandardCharsets.UTF_8)));

@@ -15,7 +15,7 @@ public class ImageElementRenderer implements ElementRenderer<ImageElement> {
 
     @Override
     public void render(ImageElement img, SvgContext ctx) {
-        if (img.src == null) return;
+        if (img.src == null || img.src.isBlank()) return;
 
         StringBuilder out = ctx.body();
         String tr = img.rotation != 0

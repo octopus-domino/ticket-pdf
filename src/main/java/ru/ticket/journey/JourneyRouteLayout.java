@@ -21,11 +21,21 @@ public class JourneyRouteLayout {
     String id = view.data().get("route");
     if (id == null || id.isBlank()) return;
     var snapshot = routes.get(id);
-    var asset = media.get(snapshot.mapId());
     List<Slide> pages = new ArrayList<>(document.slides);
+    appendSnapshot(pages, view, snapshot, view.title());
+    for (var stop : snapshot.stops()) if (stop.walkId() != null) {
+      var labels = routeLabels(view.data().get("route_labels"));
+      String fallback = "ru".equals(view.data().get("locale")) ? "Прогулка" : "City walk";
+      appendSnapshot(pages, view, routes.get(stop.walkId()), labels.getOrDefault("walk", fallback) + " · " + stop.label());
+    }
+    document.slides = pages;
+  }
+
+  private void appendSnapshot(List<Slide> pages, JourneyService.View view, JourneyRouteService.Snapshot snapshot, String title) {
+    var asset = media.get(snapshot.mapId());
     Slide page = page(view, pages.size());
     pages.add(page);
-    page.elements.add(JourneyTypography.fit(view.title(), 50, 40, 694, 65, 26, true, "#244e42"));
+    page.elements.add(JourneyTypography.fit(title, 50, 40, 694, 65, 26, true, "#244e42"));
     var image = new ImageElement();
     image.type = "image";
     image.id = "route-map";
@@ -44,8 +54,21 @@ public class JourneyRouteLayout {
     DateTimeFormatter date =
         DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withLocale(locale);
     var captions = routeLabels(view.data().get("route_labels"));
+    if (snapshot.photos() != null) for (var photo : snapshot.photos()) {
+      if (y + 150 > 1050) { page = page(view, pages.size()); pages.add(page); y = 50; }
+      int number = 0;
+      for (int index = 0; index < snapshot.stops().size(); index++)
+        if (snapshot.stops().get(index).id().equals(photo.stopId())) number = index + 1;
+      String credit = number + ". " + photo.author() + " · " + photo.license() + "\n"
+          + photo.sourceUrl() + "\n" + photo.licenseUrl();
+      page.elements.add(JourneyTypography.fit(credit, 50, y, 694, 138, 12, false, "#53665b"));
+      y += 150;
+    }
+    int stopNumber = 0;
     for (var row : snapshot.timeline()) {
-      if (y + 88 > 1050) {
+      boolean hasNotes = row.description() != null && !row.description().isBlank();
+      double rowHeight = hasNotes ? 200 : 88;
+      if (y + rowHeight > 1050) {
         page = page(view, pages.size());
         pages.add(page);
         y = 50;
@@ -55,7 +78,8 @@ public class JourneyRouteLayout {
       String end = date.format(Instant.parse(row.end()).atZone(ZoneId.of(row.zone())));
       page.elements.add(
           JourneyTypography.fit(
-              captions.getOrDefault(row.kind(), row.kind()) + " · " + row.label(),
+              ("stop".equals(row.kind()) ? ++stopNumber + ". " : "")
+                  + captions.getOrDefault("stop".equals(row.kind()) && stopNumber == 1 ? "departure" : row.kind(), row.kind()) + " · " + row.label(),
               50,
               y,
               694,
@@ -76,9 +100,9 @@ public class JourneyRouteLayout {
               12,
               false,
               "#53665b"));
-      y += 88;
+      if (hasNotes) page.elements.add(JourneyTypography.fit(row.description(), 50, y + 78, 694, 108, 13, false, "#53665b"));
+      y += rowHeight;
     }
-    document.slides = pages;
   }
 
   private static Map<String, String> routeLabels(String raw) {

@@ -26,6 +26,10 @@ public class WorkflowService {
   private final GenerationService generation;
   private final Set<String> administrators;
   private final SiteAddressService addresses;
+  private WorkflowVisitService visits;
+  @org.springframework.beans.factory.annotation.Autowired
+  void visits(WorkflowVisitService visits) { this.visits = visits; }
+  public record Execution(PackResult pdf, String visitUrl) {}
 
   public WorkflowService(
       WorkflowRepository repository,
@@ -168,17 +172,31 @@ public class WorkflowService {
   }
 
   public PackResult generate(String slug, long revision, Map<String, Object> input) {
+    return execute(slug, revision, input).pdf();
+  }
+  public Execution execute(String slug, long revision, Map<String, Object> input) {
     var entity = published(slug);
     if (revision != entity.publishedRevision)
       throw ApiException.conflict("Форма обновилась. Откройте сценарий заново");
     var definition = read(entity.published, WorkflowDefinition.class);
-    var request = request(definition.templateId(), definition.values(input));
+    var values = new LinkedHashMap<>(definition.values(input));
+    var source = read(entity.source, GenerationSource.class);
+    WorkflowVisit visit = null;
+    if (definition.attendance() != null) {
+      if (visits == null) throw new IllegalStateException("Attendance service is not configured");
+      visit = visits.draft(entity, definition.title());
+      values.put("visit_url", visits.url(visit));
+      source = WorkflowVisitTemplate.append(source, definition.attendance());
+    }
+    var request = request(definition.templateId(), values);
     var result =
         generation.generateDocuments(
-            entity.ownerId, request, (i, c, f) -> {}, read(entity.source, GenerationSource.class));
+            entity.ownerId, request, (i, c, f) -> {}, source);
     if (result.documents().isEmpty())
       throw ApiException.badRequest("Не удалось заполнить шаблон. Проверьте данные формы");
-    return generation.pack("multipage-pdf", "pdf", result.documents());
+    var pdf = generation.pack("multipage-pdf", "pdf", result.documents());
+    if (visit != null) visits.issued(visit, pdf.content());
+    return new Execution(pdf, visit == null ? null : visits.url(visit));
   }
 
   private WorkflowEntity published(String slug) {

@@ -23,6 +23,9 @@ public class Slide {
 
   public String background = "#ffffff";
   public String backgroundImage;
+  /** Constructor-native pagination: repeat this page for consecutive chunks of a model array. */
+  public Repeat repeat;
+  public record Repeat(String path, int pageSize) {}
   public Padding padding = new Padding();
 
   @NotNull

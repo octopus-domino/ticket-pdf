@@ -19,11 +19,22 @@ public class PublicationsService {
   public record Site(JourneySiteService.Definition site, Instant updatedAt) {}
 
   public record Claim(String type, String id, String key) {}
+  public record Release(String id, String title, String kind, int count, Instant createdAt) {}
 
   private final JourneyRepository documents;
   private final JourneySiteRepository sites;
   private final JourneyService journeys;
   private final ObjectMapper mapper;
+  private JourneyBatchRepository batches;
+  @org.springframework.beans.factory.annotation.Autowired
+  void batches(JourneyBatchRepository batches) { this.batches = batches; }
+  @Transactional(readOnly = true)
+  public Results<Release> batches(String owner, int number) {
+    if (number < 0 || number > 100000) throw ApiException.badRequest("Invalid page");
+    var result = batches.findOwned(owner, PageRequest.of(number, 20, Sort.by(Sort.Direction.DESC, "createdAt", "id")));
+    return new Results<>(result.getContent().stream().map(batch -> new Release(batch.id, batch.title, batch.kind,
+        batch.documentIds.split(",").length, batch.createdAt)).toList(), number, result.getTotalPages(), result.getTotalElements());
+  }
 
   public PublicationsService(
       JourneyRepository documents,

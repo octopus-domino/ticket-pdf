@@ -7,6 +7,8 @@ public class TextElement extends Element {
     public Boolean richText;
     public double fontSize = 14;
     public String fontFamily = "Arial";
+    public Boolean autoFit;
+    public Double minFontSize;
     public String fill = "#000000";
     public String fontStyle = "normal";
     public String textDecoration = "";

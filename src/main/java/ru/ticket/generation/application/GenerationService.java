@@ -139,9 +139,7 @@ public class GenerationService {
         Map<String, Object> values =
             item.inlineValues != null ? item.inlineValues : model == null ? null : model.values();
         values = ModelValues.validate(values, template.fields());
-        List<Slide> filled = new ArrayList<>();
-        for (Slide slide : template.slides())
-          filled.add(DataFiller.fill(slide, values, template.bindings()));
+        List<Slide> filled = TemplateMaterializer.fill(template, values);
         Map<String, Object> names = new LinkedHashMap<>(values);
         names.putIfAbsent("name", model == null ? "document-" + (i + 1) : model.name());
         String pattern =

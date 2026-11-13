@@ -23,6 +23,19 @@ public class JourneyDocumentFactory {
   private final String frontendUrl;
   private final JourneyBrandingLayout brandingLayout;
   private final JourneyRouteLayout routeLayout;
+  private JourneyPrintSourceRepository printSources;
+  private com.fasterxml.jackson.databind.ObjectMapper sourceMapper;
+  private JourneyAlbumService albums;
+  private ru.ticket.journey.poetry.PoetryCardsService poetry;
+  @org.springframework.beans.factory.annotation.Autowired
+  void poetry(ru.ticket.journey.poetry.PoetryCardsService poetry) { this.poetry = poetry; }
+  @org.springframework.beans.factory.annotation.Autowired
+  void albums(JourneyAlbumService albums) { this.albums = albums; }
+
+  @org.springframework.beans.factory.annotation.Autowired
+  void printSources(JourneyPrintSourceRepository sources, com.fasterxml.jackson.databind.ObjectMapper mapper) {
+    this.printSources = sources; this.sourceMapper = mapper;
+  }
 
   @org.springframework.beans.factory.annotation.Autowired
   public JourneyDocumentFactory(
@@ -71,8 +84,47 @@ public class JourneyDocumentFactory {
     return document(view, definition);
   }
 
+  public JourneyConstructorSource.Packet constructorSource(JourneyService.View view) {
+    var definition = view.data().containsKey("site") ? sites.get(view.data().get("site")) : null;
+    return constructorSource(view, definition);
+  }
+
   public ExportRequest document(
       JourneyService.View view, JourneySiteService.Definition definition) {
+    return constructorSource(view, definition).materialize();
+  }
+
+  public JourneyConstructorSource.Packet constructorSource(JourneyService.View view, JourneySiteService.Definition definition) {
+    if (printSources != null) {
+      var source = printSources.findById("document:" + view.id());
+      boolean siteSource = false;
+      if (source.isEmpty() && definition != null) {
+        source = printSources.findById("site:" + definition.slug()); siteSource = source.isPresent();
+      }
+      if (source.isPresent()) try {
+        var packet = sourceMapper.readValue(source.get().sourceJson, JourneyConstructorSource.Packet.class);
+        var model = new java.util.LinkedHashMap<String, Object>(packet.model());
+        if (view.kind() == JourneyService.Kind.ALBUM && albums != null) model.put("photos", albums.model(view.id()));
+        if (model.get("fields") instanceof java.util.Map<?, ?> fields) {
+          var values = new java.util.LinkedHashMap<String, Object>();
+          fields.forEach((key, value) -> values.put(String.valueOf(key), value));
+          if (siteSource) { values.putAll(view.data()); values.put("title", view.title()); }
+          values.put("publication_url", publicUrl(view)); values.put("publication_id", view.id()); model.put("fields", values);
+        }
+        return new JourneyConstructorSource.Packet(packet.template(), model, packet.options());
+      } catch (java.io.IOException ex) { throw new IllegalStateException("Invalid stored constructor source", ex); }
+    }
+    if (view.kind() == JourneyService.Kind.ALBUM)
+      return JourneyAlbumTemplate.source(view, albums == null ? List.of() : albums.model(view.id()), publicUrl(view));
+    if (view.kind() == JourneyService.Kind.POETRY)
+      return JourneyPoetryTemplate.source(view, poetry == null || !view.data().containsKey("poetry") ? null : poetry.get(view.data().get("poetry")), publicUrl(view));
+    var result = prepare(view, definition);
+    var values = new java.util.LinkedHashMap<String, String>(view.data());
+    values.put("title", view.title()); values.put("publication_url", publicUrl(view)); values.put("publication_id", view.id());
+    return JourneyConstructorSource.project(result, values);
+  }
+
+  ExportRequest prepare(JourneyService.View view, JourneySiteService.Definition definition) {
     var result = compose(view, definition);
     if (view.data().containsKey("route") && !view.data().get("route").isBlank()) {
       if (routeLayout == null) throw new IllegalStateException("Route layout is not configured");
@@ -260,10 +312,10 @@ public class JourneyDocumentFactory {
   public ExportRequest batch(List<JourneyService.View> values) {
     if (values.isEmpty()) throw ru.ticket.common.ApiException.badRequest("No active documents");
     if (values.stream().allMatch(value -> JourneyGridLayout.supports(value.kind())))
-      return new JourneyGridLayout().batch(values, this::document);
+      return JourneyConstructorSource.project(new JourneyGridLayout().batch(values, this::document), java.util.Map.of()).materialize();
     var result = new ExportRequest();
     var pages = new ArrayList<Slide>();
-    if (values.stream().allMatch(v -> v.kind() == JourneyService.Kind.BADGE)) {
+    if (values.stream().allMatch(v -> v.kind() == JourneyService.Kind.BADGE) && values.stream().noneMatch(this::hasPrintSource)) {
       for (int index = 0; index < values.size(); index++) {
         if (index % 6 == 0) {
           var page = new Slide();
@@ -300,7 +352,11 @@ public class JourneyDocumentFactory {
       }
     }
     result.slides = pages;
-    return result;
+    return JourneyConstructorSource.project(result, java.util.Map.of()).materialize();
+  }
+  private boolean hasPrintSource(JourneyService.View view) {
+    return printSources != null && (printSources.existsById("document:" + view.id())
+        || view.data().containsKey("site") && printSources.existsById("site:" + view.data().get("site")));
   }
 
   private static void addLines(List<String> lines, String value) {

@@ -30,6 +30,8 @@ public class DejaVuFontProvider implements FontProvider {
         FILES.put("Times New Roman", "/fonts/DejaVuSerif.ttf");
         FILES.put("Georgia",         "/fonts/DejaVuSerif.ttf");
         FILES.put("Courier New",     "/fonts/DejaVuSansMono.ttf");
+        FILES.put("Marck Script", "/fonts/MarckScript-Regular.ttf");
+        FILES.put("Zhi Mang Xing", "/fonts/ZhiMangXing-Regular.ttf");
     }
 
     /** Кэш байтов TTF — без PDDocument, живёт долго, безопасен. */

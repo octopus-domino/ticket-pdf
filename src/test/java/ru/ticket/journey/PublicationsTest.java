@@ -22,6 +22,7 @@ import ru.ticket.common.ApiException;
   ru.ticket.workflow.SiteAddressService.class
 })
 class PublicationsTest {
+  @org.springframework.boot.test.mock.mockito.MockBean ru.ticket.journey.poetry.PoetryCardsService poetry;
   @Autowired JourneyService documents;
   @Autowired JourneySiteService sites;
   @Autowired PublicationsService registry;

@@ -69,8 +69,11 @@ public class WorkflowController {
 
   @PostMapping("/api/public/workflows/{slug}/pdf")
   public ResponseEntity<byte[]> run(@PathVariable String slug, @RequestBody Run input) {
-    var result = service.generate(slug, input.revision(), input.values());
-    return ResponseEntity.ok()
+    var execution = service.execute(slug, input.revision(), input.values());
+    var result = execution.pdf();
+    var headers = new HttpHeaders();
+    if (execution.visitUrl() != null) headers.set("X-Workflow-Visit-URL", execution.visitUrl());
+    return ResponseEntity.ok().headers(headers)
         .contentType(MediaType.APPLICATION_PDF)
         .cacheControl(CacheControl.noStore())
         .header(

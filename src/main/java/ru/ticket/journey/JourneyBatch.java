@@ -19,6 +19,7 @@ public class JourneyBatch {
 
   @Column(nullable = false, length = 32)
   public String kind;
+  @Column(length = 36) public String ownerId;
 
   @Column(nullable = false, length = 64)
   public String managementHash;

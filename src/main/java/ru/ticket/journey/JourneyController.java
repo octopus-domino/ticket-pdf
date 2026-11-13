@@ -11,19 +11,12 @@ import ru.ticket.export.*;
 @RequestMapping("/api/journeys")
 public class JourneyController {
   private final JourneyService service;
-  private final JourneyDocumentFactory documents;
-  private final ExportFacade export;
   private final JourneyAttachments attachments;
-  private final Semaphore pdfCapacity = new Semaphore(1);
 
   public JourneyController(
       JourneyService service,
-      JourneyDocumentFactory documents,
-      ExportFacade export,
       JourneyAttachments attachments) {
     this.service = service;
-    this.documents = documents;
-    this.export = export;
     this.attachments = attachments;
   }
 
@@ -93,6 +86,11 @@ public class JourneyController {
       @RequestHeader(value = "X-Management-Key", required = false) String key) {
     return service.batch(id, key);
   }
+  @PostMapping("/{id}/status")
+  public JourneyContentPolicy.Status changeStatus(@PathVariable String id,
+      @RequestHeader(value = "X-Management-Key", required = false) String key, @RequestBody JourneyService.StatusChange change) {
+    return service.changeStatus(id, key, null, change);
+  }
 
   @GetMapping("/{id}/calendar")
   public ResponseEntity<String> calendar(@PathVariable String id) {
@@ -112,48 +110,4 @@ public class JourneyController {
         .body(attachments.contact(service.get(id)));
   }
 
-  @GetMapping("/batches/{id}/pdf")
-  public ResponseEntity<byte[]> batchPdf(
-      @PathVariable String id,
-      @RequestHeader(value = "X-Management-Key", required = false) String key) {
-    if (!pdfCapacity.tryAcquire())
-      throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "Another PDF is being prepared");
-    try {
-      var batch = service.batch(id, key);
-      var values =
-          batch.documents().stream()
-              .filter(v -> !v.status().state().equals("REVOKED"))
-              .map(JourneyService.Issued::document)
-              .toList();
-      var request = documents.batch(values);
-      var result = export.export(ExportFormat.PDF, request);
-      return ResponseEntity.ok()
-          .contentType(MediaType.APPLICATION_PDF)
-          .header(HttpHeaders.CACHE_CONTROL, "no-store")
-          .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"codoc-release.pdf\"")
-          .body(result.content());
-    } finally {
-      pdfCapacity.release();
-    }
-  }
-
-  @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-  public ResponseEntity<byte[]> pdf(
-      @PathVariable String id, @RequestParam(defaultValue = "false") boolean archive) {
-    if (!pdfCapacity.tryAcquire())
-      throw new ApiException(
-          HttpStatus.TOO_MANY_REQUESTS, "Another PDF is being prepared. Please retry shortly.");
-    try {
-      var result =
-          export.export(
-              archive ? ExportFormat.PDFA : ExportFormat.PDF, documents.document(service.get(id)));
-      return ResponseEntity.ok()
-          .contentType(MediaType.APPLICATION_PDF)
-          .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"codoc-" + id + ".pdf\"")
-          .header(HttpHeaders.CACHE_CONTROL, "no-store")
-          .body(result.content());
-    } finally {
-      pdfCapacity.release();
-    }
-  }
 }

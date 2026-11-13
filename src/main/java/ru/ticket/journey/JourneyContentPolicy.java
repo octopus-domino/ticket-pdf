@@ -29,6 +29,8 @@ public class JourneyContentPolicy {
   }
 
   public void validate(JourneyService.Kind kind, Map<String, String> data) {
+    if (kind == JourneyService.Kind.POETRY && !data.getOrDefault("poetry", "").matches("[a-f0-9]{64}"))
+      throw ApiException.badRequest("journey.poetry.preferences");
     if (Set.of(JourneyService.Kind.PRICETAG, JourneyService.Kind.PROPERTY).contains(kind))
       JourneyMoney.formatted(data);
     String until = data.getOrDefault("valid_until", "").strip();

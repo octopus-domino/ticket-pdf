@@ -17,7 +17,7 @@ import ru.ticket.common.ApiException;
 /** An ephemeral, single-thread router with a bounded on-disk graph cache, never a resident JVM. */
 @Service
 public class BRouterRoadRouter implements RoadRouter {
-  private static final long MAX_CACHE = 1024L * 1024 * 1024;
+  private static final long MAX_CACHE = 4L * 1024 * 1024 * 1024;
   private static final long MAX_TILE = 256L * 1024 * 1024;
   private final Path home, cache;
   private final ObjectMapper mapper;
@@ -39,7 +39,8 @@ public class BRouterRoadRouter implements RoadRouter {
     validate(end);
     if (mode == null || !Set.of("car", "foot").contains(mode))
       throw ApiException.badRequest("journey.route.invalid-route");
-    if (distance(start, end) > 400000) throw ApiException.badRequest("journey.route.too-long");
+    if (distance(start, end) > (mode.equals("car") ? 1500000 : 400000))
+      throw ApiException.badRequest(mode.equals("car") ? "journey.route.too-long" : "journey.route.walk-too-long");
     Process process = null;
     try {
       if (!Files.isRegularFile(home.resolve("brouter.jar")))
@@ -58,16 +59,16 @@ public class BRouterRoadRouter implements RoadRouter {
       var command = new ArrayList<String>();
       // A parent JVM crash must not leave an idle routing JVM behind in the container.
       if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux"))
-        Collections.addAll(command, "timeout", "45");
+        Collections.addAll(command, "timeout", "105");
       Collections.addAll(
           command,
           javaBinary,
           "-Xms16m",
-          "-Xmx128m",
+          "-Xmx256m",
           "-XX:MaxMetaspaceSize=64m",
           "-XX:MaxDirectMemorySize=32m",
           "-XX:ActiveProcessorCount=1",
-          "-DmaxRunningTime=30",
+          "-DmaxRunningTime=90",
           "-cp",
           home.resolve("brouter.jar").toString(),
           "btools.server.RouteServer",
@@ -107,7 +108,7 @@ public class BRouterRoadRouter implements RoadRouter {
                   + "&alternativeidx=0&format=geojson");
       var response =
           http.send(
-              HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(35)).GET().build(),
+              HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(95)).GET().build(),
               HttpResponse.BodyHandlers.ofInputStream());
       byte[] bytes;
       try (var stream = response.body()) {
@@ -178,7 +179,7 @@ public class BRouterRoadRouter implements RoadRouter {
                 + (lat < 0 ? "S" : "N")
                 + Math.abs(lat)
                 + ".rd5");
-    if (result.size() > 6) throw ApiException.badRequest("journey.route.too-long");
+    if (result.size() > 48) throw ApiException.badRequest("journey.route.too-long");
     return result;
   }
 

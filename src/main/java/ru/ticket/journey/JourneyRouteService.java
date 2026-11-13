@@ -13,7 +13,14 @@ import ru.ticket.common.ApiException;
 @Service
 public class JourneyRouteService {
   public record Stop(
-      String id, String label, double longitude, double latitude, String zone, int stayMinutes) {}
+      String id, String label, double longitude, double latitude, String zone, int stayMinutes, String description, String walkId) {
+    public Stop(String id, String label, double longitude, double latitude, String zone, int stayMinutes, String description) {
+      this(id, label, longitude, latitude, zone, stayMinutes, description, null);
+    }
+    public Stop(String id, String label, double longitude, double latitude, String zone, int stayMinutes) {
+      this(id, label, longitude, latitude, zone, stayMinutes, null);
+    }
+  }
 
   public record Leg(
       String mode,
@@ -26,14 +33,22 @@ public class JourneyRouteService {
       Double distanceMeters) {}
 
   public record Row(
-      String kind, String label, String start, String end, String zone, String startZone) {
+      String kind, String label, String start, String end, String zone, String startZone, String description) {
+    public Row(String kind, String label, String start, String end, String zone, String startZone) {
+      this(kind, label, start, end, zone, startZone, null);
+    }
     public Row(String kind, String label, String start, String end, String zone) {
       this(kind, label, start, end, zone, null);
     }
   }
 
+  public record Photo(String stopId, String imageId, String sourceUrl, String author, String license, String licenseUrl) {}
   public record Snapshot(
-      List<Stop> stops, List<Leg> legs, String startLocal, List<Row> timeline, String mapId) {}
+      List<Stop> stops, List<Leg> legs, String startLocal, List<Row> timeline, String mapId, List<Photo> photos) {
+    public Snapshot(List<Stop> stops, List<Leg> legs, String startLocal, List<Row> timeline, String mapId) {
+      this(stops, legs, startLocal, timeline, mapId, null);
+    }
+  }
 
   public record Saved(String id) {}
 
@@ -52,6 +67,12 @@ public class JourneyRouteService {
   public synchronized Saved save(Snapshot snapshot) {
     validate(snapshot);
     media.get(snapshot.mapId());
+    if (snapshot.photos() != null) for (var photo : snapshot.photos()) media.get(photo.imageId());
+    for (var stop : snapshot.stops()) if (stop.walkId() != null) {
+      var walk = get(stop.walkId());
+      if (walk.stops().stream().anyMatch(item -> item.walkId() != null)
+          || walk.legs().stream().anyMatch(leg -> !"foot".equals(leg.mode()))) invalid();
+    }
     try {
       String payload = mapper.writeValueAsString(snapshot);
       if (payload.length() > 750000) throw ApiException.badRequest("journey.route.invalid-route");
@@ -109,12 +130,26 @@ public class JourneyRouteService {
             || stop.label() == null
             || stop.label().isBlank()
             || stop.label().length() > 300
+            || (stop.description() != null && stop.description().length() > 500)
+            || (stop.walkId() != null && !stop.walkId().matches("[a-f0-9]{64}"))
             || stop.stayMinutes() < 0
             || stop.stayMinutes() > 10080) invalid();
         BRouterRoadRouter.validate(new RoadRouter.Point(stop.longitude(), stop.latitude()));
         ZoneId.of(stop.zone());
       }
       int count = 0;
+      if (value.photos() != null) {
+        if (value.photos().size() > 4) invalid();
+        Set<String> photographed = new HashSet<>();
+        for (var photo : value.photos()) {
+          if (photo == null || !ids.contains(photo.stopId()) || !photographed.add(photo.stopId())
+              || photo.imageId() == null || !photo.imageId().matches("[a-f0-9]{64}")
+              || photo.sourceUrl() == null || !photo.sourceUrl().matches("https://commons\\.wikimedia\\.org/wiki/File:[^\\p{Cntrl}<>\" ]{1,1500}")
+              || photo.author() == null || photo.author().isBlank() || photo.author().length() > 500
+              || photo.license() == null || photo.license().isBlank() || photo.license().length() > 80
+              || photo.licenseUrl() == null || !photo.licenseUrl().matches("https://creativecommons\\.org/(licenses|publicdomain)/[a-z0-9./-]{1,120}")) invalid();
+        }
+      }
       for (Leg leg : value.legs()) {
         if (leg == null
             || !Set.of("car", "foot", "flight").contains(leg.mode())
@@ -142,7 +177,8 @@ public class JourneyRouteService {
             || !Set.of("stop", "car", "foot", "flight", "waiting", "checkin", "baggage")
                 .contains(row.kind())
             || row.label() == null
-            || row.label().length() > 650) invalid();
+            || row.label().length() > 650
+            || (row.description() != null && row.description().length() > 500)) invalid();
         Instant start = Instant.parse(row.start()), end = Instant.parse(row.end());
         ZoneId.of(row.zone());
         if (row.startZone() != null) ZoneId.of(row.startZone());

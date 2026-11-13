@@ -13,6 +13,7 @@ import ru.ticket.common.ApiException;
 
 @Service
 public class JourneyService {
+  public static final int MAX_RECIPIENTS = 200;
   public enum Kind {
     INVITATION("invite", false, false),
     CERTIFICATE("certificates", true, false),
@@ -24,6 +25,8 @@ public class JourneyService {
     RESUME("resume", false, false),
     SCHEDULE("schedule", false, false),
     GREETING("greetings", true, false),
+    ALBUM("albums", false, false),
+    POETRY("poetry", false, false),
     PROPOSAL("proposals", false, false),
     VCARD("cards", true, false),
     LABEL("labels", true, false),
@@ -88,6 +91,12 @@ public class JourneyService {
   private final JourneyContentPolicy policy;
   private final PublicationAccess access;
   private final org.springframework.transaction.support.TransactionTemplate transactions;
+  private ru.ticket.journey.poetry.PoetryCardsService poetry;
+  @org.springframework.beans.factory.annotation.Autowired
+  void poetry(ru.ticket.journey.poetry.PoetryCardsService poetry) { this.poetry = poetry; }
+  private void validatePoetry(Kind kind, Map<String,String> data) {
+    if (kind == Kind.POETRY && poetry != null) poetry.get(data.get("poetry"));
+  }
 
   public JourneyService(
       JourneyRepository journeys,
@@ -130,6 +139,7 @@ public class JourneyService {
     validate(input);
     if (input.rows() == null || input.rows().isEmpty()) {
       policy.validate(input.kind(), input.data());
+      validatePoetry(input.kind(), input.data());
       if (input.data().containsKey("site"))
         sites.validateData(input.data().get("site"), input.kind(), input.data());
     }
@@ -138,14 +148,14 @@ public class JourneyService {
             ? List.of("")
             : input.recipients();
     if (input.rows() != null && !input.rows().isEmpty()) {
-      if (!input.kind().batch() || input.rows().size() > 100)
+      if (!input.kind().batch() || input.rows().size() > MAX_RECIPIENTS)
         throw ApiException.badRequest("Invalid batch rows");
       recipients =
           input.rows().stream()
               .map(row -> row == null ? "" : row.getOrDefault("recipient", ""))
               .toList();
     }
-    if (recipients.size() > 100 || recipients.size() > 1 && !input.kind().batch())
+    if (recipients.size() > MAX_RECIPIENTS || recipients.size() > 1 && !input.kind().batch())
       throw ApiException.badRequest("Invalid recipient list");
     var result = new ArrayList<Created>();
     String key = token();
@@ -153,6 +163,7 @@ public class JourneyService {
     batch.id = UUID.randomUUID().toString();
     batch.title = input.title().strip();
     batch.kind = input.kind().name();
+    batch.ownerId = ownerId;
     batch.managementHash = hash(key);
     batch.createdAt = Instant.now();
     for (String recipient : recipients) {
@@ -204,6 +215,9 @@ public class JourneyService {
   public View manageOwned(String id, String owner) {
     return view(access.document(id, owner));
   }
+  void lockForAlbum(String id) {
+    journeys.lockById(id).orElseThrow(() -> ApiException.notFound("Album"));
+  }
 
   @Transactional
   public View update(String id, String key, Input input) {
@@ -220,6 +234,7 @@ public class JourneyService {
     if (!Objects.equals(view(entity).data().get("site"), input.data().get("site")))
       throw ApiException.badRequest("The published site cannot change");
     policy.validate(input.kind(), input.data());
+    validatePoetry(input.kind(), input.data());
     if (input.data().containsKey("site"))
       sites.validateData(input.data().get("site"), input.kind(), input.data());
     if (!entity.kind.equals(input.kind().name()))
@@ -294,7 +309,8 @@ public class JourneyService {
   }
 
   private JourneyEntity authorize(String id, String key) {
-    var entity = find(id);
+    // Revocation hides the public document, while its owner must retain management access.
+    var entity = journeys.findById(id).orElseThrow(() -> ApiException.notFound("Document"));
     if (key == null
         || key.length() > 128
         || !MessageDigest.isEqual(
@@ -308,6 +324,19 @@ public class JourneyService {
   public Batch batch(String id, String key) {
     var batch = batches.findById(id).orElseThrow(() -> ApiException.notFound("Release"));
     checkKey(batch.managementHash, key);
+    return describeBatch(batch);
+  }
+
+  @Transactional(readOnly = true)
+  public Batch batchOwned(String id, String owner) {
+    var batch = batches.findById(id).orElseThrow(() -> ApiException.notFound("Release"));
+    if (owner == null) throw ApiException.notFound("Release");
+    // Legacy releases have no owner column. Check every member rather than granting an entire release from one claimed document.
+    if (!owner.equals(batch.ownerId)) for (String document : batch.documentIds.split(",")) access.document(document, owner);
+    return describeBatch(batch);
+  }
+
+  private Batch describeBatch(JourneyBatch batch) {
     var ids = List.of(batch.documentIds.split(","));
     var order = new HashMap<String, Integer>();
     for (int index = 0; index < ids.size(); index++) order.put(ids.get(index), index);
@@ -322,6 +351,25 @@ public class JourneyService {
                 })
             .toList();
     return new Batch(batch.id, batch.title, docs);
+  }
+
+  public record StatusChange(String action) {}
+  @Transactional
+  public JourneyContentPolicy.Status changeStatus(String id, String key, String owner, StatusChange change) {
+    var entity = journeys.lockById(id).orElseThrow(() -> ApiException.notFound("Document"));
+    if (key != null && !key.isBlank()) checkKey(entity.managementHash, key); else access.document(id, owner);
+    if (change == null || change.action() == null) throw ApiException.badRequest("Invalid status action");
+    switch (change.action()) {
+      case "REVOKE" -> { entity.revoked = true; responses.deleteAllByJourneyId(id); }
+      case "RESTORE" -> entity.revoked = false;
+      case "RESET_USAGE" -> {
+        if (!policy.status(entity, view(entity).data(), Instant.now()).consumable()) throw ApiException.badRequest("This document cannot be redeemed");
+        entity.usedAt = null;
+      }
+      default -> throw ApiException.badRequest("Invalid status action");
+    }
+    entity.updatedAt = Instant.now(); journeys.save(entity);
+    return policy.status(entity, view(entity).data(), Instant.now());
   }
 
   @Transactional(readOnly = true)

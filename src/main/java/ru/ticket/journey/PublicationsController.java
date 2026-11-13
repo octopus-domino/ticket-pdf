@@ -33,6 +33,16 @@ public class PublicationsController {
       @AuthenticationPrincipal UserIdPrincipal user, @RequestParam(defaultValue = "0") int page) {
     return registry.sites(user.userId(), page);
   }
+  @GetMapping("/batches")
+  public PublicationsService.Results<PublicationsService.Release> batches(@AuthenticationPrincipal UserIdPrincipal user,
+      @RequestParam(defaultValue = "0") int page) { return registry.batches(user.userId(), page); }
+  @GetMapping("/batches/{id}")
+  public JourneyService.Batch batch(@AuthenticationPrincipal UserIdPrincipal user, @PathVariable String id) {
+    return documents.batchOwned(id, user.userId());
+  }
+  @PostMapping("/{id}/status")
+  public JourneyContentPolicy.Status changeStatus(@AuthenticationPrincipal UserIdPrincipal user, @PathVariable String id,
+      @RequestBody JourneyService.StatusChange change) { return documents.changeStatus(id, null, user.userId(), change); }
 
   @PostMapping("/claim")
   public Map<String, Integer> claim(

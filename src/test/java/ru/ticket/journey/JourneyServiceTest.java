@@ -27,6 +27,7 @@ import ru.ticket.common.ApiException;
 })
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class JourneyServiceTest {
+  @MockBean ru.ticket.journey.poetry.PoetryCardsService poetry;
   @Test
   void ticketCanBeConsumedOnlyOnceAndCannotBeResetByEditing() throws Exception {
     var input =

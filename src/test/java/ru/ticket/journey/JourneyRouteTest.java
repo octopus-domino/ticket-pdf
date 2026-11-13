@@ -48,6 +48,9 @@ class JourneyRouteTest {
     assertThat(document.slides.get(1).elements)
         .filteredOn(element -> element instanceof TextElement)
         .anyMatch(element -> ((TextElement) element).text.contains("Airport"));
+    assertThat(service.get(id).stops().get(0).description()).isEqualTo("Meet at the main entrance");
+    assertThat(document.slides.stream().flatMap(slide -> slide.elements.stream()))
+        .anyMatch(element -> element instanceof TextElement text && text.text.contains("Meet at the main entrance"));
   }
 
   @Test
@@ -123,7 +126,7 @@ class JourneyRouteTest {
   private static JourneyRouteService.Snapshot snapshot(String mapId) {
     return new JourneyRouteService.Snapshot(
         List.of(
-            new JourneyRouteService.Stop("home", "Home", 13.388, 52.517, "Europe/Berlin", 0),
+            new JourneyRouteService.Stop("home", "Home", 13.388, 52.517, "Europe/Berlin", 0, "Meet at the main entrance"),
             new JourneyRouteService.Stop("airport", "Airport", 13.42, 52.51, "Europe/Berlin", 0)),
         List.of(
             new JourneyRouteService.Leg(
@@ -142,7 +145,7 @@ class JourneyRouteTest {
                 "Home → Airport",
                 "2026-11-12T07:00:00Z",
                 "2026-11-12T07:10:00Z",
-                "Europe/Berlin")),
+                "Europe/Berlin", null, "Meet at the main entrance")),
         mapId);
   }
 }

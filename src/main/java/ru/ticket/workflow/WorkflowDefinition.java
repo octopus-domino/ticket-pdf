@@ -12,13 +12,21 @@ public record WorkflowDefinition(
     String description,
     String templateId,
     List<Step> steps,
-    String completionMessage) {
+    String completionMessage,
+    Attendance attendance) {
+  public WorkflowDefinition(int version, String slug, String title, String description, String templateId, List<Step> steps, String completionMessage) {
+    this(version, slug, title, description, templateId, steps, completionMessage, null);
+  }
+  public record Attendance(String title, String instructions) {}
   public record Step(String title, List<Field> fields) {}
 
   public record Field(
       String path, String label, String type, boolean required, List<String> options) {}
 
   public void validate() {
+    if (attendance != null && (attendance.title() == null || attendance.title().isBlank() || attendance.title().length() > 120
+        || attendance.instructions() == null || attendance.instructions().isBlank() || attendance.instructions().length() > 300))
+      throw ApiException.badRequest("Invalid attendance step");
     if (version != 1
         || slug == null
         || !slug.matches("[a-z][a-z0-9-]{1,46}[a-z0-9]")
@@ -54,6 +62,7 @@ public record WorkflowDefinition(
             || field.type() == null
             || !Set.of("text", "textarea", "number", "date", "email", "select", "boolean")
                 .contains(field.type())
+            || field.path().equals("visit_url")
             || !paths.add(field.path())
             || paths.size() > 100)
           throw ApiException.badRequest("Проверьте поля сценария: пути не должны повторяться");

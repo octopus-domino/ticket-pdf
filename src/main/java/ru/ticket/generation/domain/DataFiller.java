@@ -31,8 +31,9 @@ public final class DataFiller {
       Map<String, Object> values,
       List<ru.ticket.template.domain.BindingDto> bindings) {
     Slide copy = deepCopy(template);
-    if (copy.elements == null) return copy;
     Map<String, String> strValues = flatten(values);
+    copy.backgroundImage = replacePlaceholders(copy.backgroundImage, strValues);
+    if (copy.elements == null) return copy;
     for (Element el : copy.elements) {
       Map<String, String> local = new HashMap<>(strValues);
       for (var binding : bindings) {
@@ -118,8 +119,11 @@ public final class DataFiller {
 
     if (el instanceof TextElement t) {
       t.text = replacePlaceholders(t.text, values);
+      t.fontFamily = replacePlaceholders(t.fontFamily, values);
+      if (t.fontFamily == null || t.fontFamily.isBlank()) t.fontFamily = "DejaVu Sans";
       t.html = replaceHtml(t.html, values);
       clearPlaceholder(t);
+      TextAutoFit.apply(t);
     } else if (el instanceof ShapeElement sh) {
       // ГЛАВНОЕ ИСПРАВЛЕНИЕ — раньше shape пропускался
       sh.text = replacePlaceholders(sh.text, values);
