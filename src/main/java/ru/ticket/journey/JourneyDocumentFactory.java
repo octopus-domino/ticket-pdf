@@ -135,6 +135,16 @@ public class JourneyDocumentFactory {
           }
         }
         if (view.kind() == JourneyService.Kind.ALBUM && albums != null) model.put("photos", albums.model(view.id()));
+        if (view.kind() == JourneyService.Kind.POETRY && model.get("cards") instanceof java.util.List<?> cards) {
+          var repaired=new java.util.ArrayList<Object>();
+          for(var card:cards) {
+            if(card instanceof java.util.Map<?,?> row && row.get("poem") instanceof String text && row.get("sourceUrl") instanceof String url) {
+              var copy=new java.util.LinkedHashMap<String,Object>();row.forEach((key,value)->copy.put(String.valueOf(key),value));
+              copy.put("poem",ru.ticket.journey.poetry.PoetryDisplayText.of(text,url));repaired.add(copy);
+            } else repaired.add(card);
+          }
+          model.put("cards",repaired);
+        }
         if (model.get("fields") instanceof java.util.Map<?, ?> fields) {
           var values = new java.util.LinkedHashMap<String, Object>();
           fields.forEach((key, value) -> values.put(String.valueOf(key), value));

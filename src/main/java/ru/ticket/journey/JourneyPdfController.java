@@ -61,7 +61,14 @@ public class JourneyPdfController {
   @GetMapping(value = "/api/journeys/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
   public ResponseEntity<byte[]> document(@PathVariable String id, @RequestParam(defaultValue = "false") boolean archive) {
     acquire();
-    try { return response(export.export(archive ? ExportFormat.PDFA : ExportFormat.PDF, documents.document(service.get(id))).content(), "codoc-" + id + ".pdf"); }
+    long started=System.nanoTime();
+    try {
+      var view=service.get(id);var document=documents.document(view);long prepared=System.nanoTime();
+      byte[] content=export.export(archive ? ExportFormat.PDFA : ExportFormat.PDF, document).content();
+      org.slf4j.LoggerFactory.getLogger(getClass()).info("journey.pdf id={} kind={} prepare_ms={} render_ms={} bytes={}",
+          id,view.kind(),(prepared-started)/1_000_000,(System.nanoTime()-prepared)/1_000_000,content.length);
+      return response(content, "codoc-" + id + ".pdf");
+    }
     finally { preparation.release(); }
   }
   private void acquire() {

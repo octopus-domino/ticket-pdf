@@ -188,7 +188,7 @@ public class WikisourcePoems {
     var html = Jsoup.parse(page.path("text").asText(""));
     var blocks = html.select(".poem").stream().filter(element -> element.parents().stream().noneMatch(parent -> parent.hasClass("poem"))).toList();
     if (blocks.size() != 1) return Optional.empty();
-    var body = blocks.get(0).clone(); body.select("sup,.reference,.mw-editsection,.pagenum,.ws-noexport,.linenum,.linenumber,.line-number,.poem-line-number").remove();
+    var body = blocks.get(0).clone(); body.select("sup,.reference,.mw-editsection,.pagenum,.ws-noexport,.linenum,.linenumright,.linenumleft,.linenumber,.line-number,.poem-line-number").remove();
     // Formatting newlines in HTML collapse in the browser; counting them alongside <br>
     // doubled verse lines and incorrectly rejected complete 18–32-line poems.
     org.jsoup.select.NodeTraversor.traverse(new org.jsoup.select.NodeVisitor() {

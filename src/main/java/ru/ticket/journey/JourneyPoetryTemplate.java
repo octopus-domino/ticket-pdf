@@ -26,7 +26,7 @@ final class JourneyPoetryTemplate {
     var cards = new ArrayList<Map<String,Object>>();
     if (bundle != null) for (var card : bundle.cards()) {
       String date = DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(Locale.forLanguageTag(bundle.language())).format(LocalDate.parse(card.date()));
-      var row = new LinkedHashMap<String,Object>(); row.put("date", date); row.put("title", card.title()); row.put("poem", card.poem());
+      var row = new LinkedHashMap<String,Object>(); row.put("date", date); row.put("title", card.title()); row.put("poem", ru.ticket.journey.poetry.PoetryDisplayText.of(card));
       row.put("author", card.author()); row.put("sourceUrl", card.sourceUrl()); row.put("font", JourneyAlbumTemplate.handwriting(card.poem() + card.author())); cards.add(row);
     }
     var fields = new ArrayList<FieldDef>(); fields.add(new FieldDef("cards", "array", false, "Cards", null));

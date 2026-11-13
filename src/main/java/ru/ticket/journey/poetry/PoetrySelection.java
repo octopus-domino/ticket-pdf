@@ -75,6 +75,7 @@ public final class PoetrySelection {
       case "middle" -> hits(text, words.warm) * 2 + hits(text, words.memory);
       default -> hits(text, words.memory) * 2 + hits(text, words.hope) + hits(text, words.warm);
     };
+    if(day.symbol().isBlank()||!Double.isFinite(day.temperature()))return result;
     boolean cosy = day.symbol().contains("rain") || day.symbol().contains("snow") || day.temperature() < 5;
     return result + (cosy ? hits(text, words.warm) * 2 + hits(text, words.hope) : hits(text, words.joy) * 2 + hits(text, words.nature));
   }

@@ -11,6 +11,17 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class PoetryCardsSnapshotTest {
+  @Test void noLocationSkipsWeatherEntirelyAndKeepsSevenDates(){
+    var weather=mock(PoetryWeatherService.class);var wiki=mock(WikisourcePoems.class);var sources=mock(PoetrySourceChain.class);
+    var repository=mock(PoetrySetRepository.class);var service=new PoetryCardsService(weather,wiki,repository,new ObjectMapper());service.sources(sources);
+    var works=IntStream.range(0,7).mapToObj(i->new PoetryWork("Fixture "+i,"Body "+i,"Author","","","","https://example.test/"+i,"",Map.<String,Object>of("source","fixture","language","en"))).toList();
+    when(sources.select(any())).thenReturn(works);
+    var result=service.prepare(new PoetryCardsService.Input(null,null,null,"en","heartfelt","middle","seed",null));
+    assertEquals(7,result.bundle().cards().size());assertEquals("",result.weatherSource());assertEquals(false,result.bundle().cards().get(0).sourceMetadata().get("weather_used"));
+    verifyNoInteractions(weather,wiki);
+    var query=ArgumentCaptor.forClass(PoetryQuery.class);verify(sources).select(query.capture());
+    assertTrue(query.getValue().days().stream().allMatch(day->day.symbol().isBlank()&&!Double.isFinite(day.temperature())));
+  }
   @Test void freezesSourceMetadataWithoutChangingWeatherOrOldInputContract() throws Exception {
     var weather=mock(PoetryWeatherService.class);var wiki=mock(WikisourcePoems.class);
     var sources=mock(PoetrySourceChain.class);var repository=mock(PoetrySetRepository.class);var mapper=new ObjectMapper();
