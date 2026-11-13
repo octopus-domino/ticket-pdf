@@ -99,13 +99,20 @@ public class JourneyDocumentFactory {
 
   public JourneyConstructorSource.Packet constructorSource(JourneyService.View view, JourneySiteService.Definition definition) {
     var packet = buildConstructorSource(view, definition);
+    String preset = view.data().get("background_preset");
+    boolean hasPreset = preset != null && preset.matches("[a-z][a-z0-9-]{0,79}");
     String background = view.data().get("background_media");
-    if (background == null || background.isBlank() || media == null) return packet;
-    var asset = media.get(background);
-    String image = "data:" + asset.contentType + ";base64," + java.util.Base64.getEncoder().encodeToString(asset.content);
+    if (!hasPreset && (background == null || background.isBlank() || media == null)) return packet;
+    String image;
+    if (hasPreset) image = null;
+    else {
+      var asset = media.get(background);
+      image = "data:" + asset.contentType + ";base64," + java.util.Base64.getEncoder().encodeToString(asset.content);
+    }
     var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
     var pages = packet.template().slides().stream().map(page -> {
-      var copy = mapper.convertValue(page, Slide.class); copy.backgroundImage = image; return copy;
+      var copy = mapper.convertValue(page, Slide.class); copy.backgroundImage = image;
+      copy.backgroundPreset = hasPreset ? preset : null; return copy;
     }).toList();
     var template = packet.template();
     return new JourneyConstructorSource.Packet(new ru.ticket.generation.application.port.GenerationCatalog.Template(

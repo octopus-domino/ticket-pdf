@@ -46,6 +46,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
   private final boolean enabled;
   private final int exportPerMinute;
   private final int generatePerMinute;
+  @Value("${app.rate-limit.route-per-minute:30}")
+  private int routePerMinute=30;
 
   private final Map<String, TokenBucket> buckets = new ConcurrentHashMap<>();
   private ScheduledExecutorService cleaner;
@@ -87,13 +89,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
       return;
     }
 
-    String route = req.getRequestURI().startsWith("/api/journeys/") && req.getRequestURI().endsWith("/pdf") ? "export" : "POST".equals(req.getMethod()) || "PUT".equals(req.getMethod()) ? routePrefixFor(req.getRequestURI()) : null;
+    String route = req.getRequestURI().equals("/api/journeys/routes/places/themed") ? "places" : req.getRequestURI().startsWith("/api/journeys/") && req.getRequestURI().endsWith("/pdf") ? "export" : "POST".equals(req.getMethod()) || "PUT".equals(req.getMethod()) ? routePrefixFor(req.getRequestURI()) : null;
     if (route == null) {
       chain.doFilter(req, res);
       return;
     }
 
-    int limit = "artwork".equals(route)?120:"export".equals(route) ? exportPerMinute : generatePerMinute;
+    int limit = "road".equals(route)?Math.max(1,routePerMinute):"artwork".equals(route)?120:"export".equals(route) ? exportPerMinute : generatePerMinute;
     String bucketKey = route + "|" + clientKey(req);
 
     TokenBucket bucket = buckets.computeIfAbsent(bucketKey, k -> new TokenBucket(limit));
@@ -111,6 +113,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
   }
 
   private String routePrefixFor(String path) {
+    // A single walk needs several road legs; those calls must not consume document issuance tokens.
+    if(path.equals("/api/journeys/routes/road"))return "road";
+    if(path.startsWith("/api/journeys/routes/places/"))return "places";
     if(path.equals("/api/journeys/artwork"))return "artwork";
     if (path.startsWith("/api/journeys") || path.startsWith("/api/journey-sites")) return "generate";
     if (path.startsWith("/api/connectors/") && (path.endsWith("/preview") || path.endsWith("/import"))) return "generate";

@@ -19,9 +19,23 @@ public class OsmPlaceService {
   private final ObjectMapper mapper;
   private final String endpoint;
   private long nextRequest;
+  private org.springframework.beans.factory.ObjectProvider<ru.ticket.journey.walk.WalkThemeService> themed;
+  @org.springframework.beans.factory.annotation.Autowired
+  void themed(org.springframework.beans.factory.ObjectProvider<ru.ticket.journey.walk.WalkThemeService> source){this.themed=source;}
   public OsmPlaceService(ObjectMapper mapper,
       @Value("${app.journeys.overpass-url:https://overpass-api.de/api/interpreter}") String endpoint) {
     this.mapper = mapper; this.endpoint = endpoint;
+  }
+  /** Bounded batched query for thematic discovery and one OSM cross-check per Wikimapia set. */
+  public JsonNode walkQuery(String query) throws java.io.IOException {
+    if(query.length()>12000||!permit.tryAcquire())throw new java.io.IOException("OSM busy");
+    try{return new ru.ticket.journey.walk.WalkRemote(mapper).post(endpoint,"data="+URLEncoder.encode(query,StandardCharsets.UTF_8));}
+    finally{permit.release();}
+  }
+  public List<PlaceRecommendationsController.Place> search(double longitude,double latitude,String kind,String language,String theme,java.time.LocalDateTime visitTime,Integer maxSitelinks){
+    if(theme==null)return search(longitude,latitude,kind,language);
+    return themed.getObject().findCandidates(new ru.ticket.journey.walk.WalkThemeService.WalkRequest(longitude,latitude,theme,visitTime,language,7,1.5,maxSitelinks)).stream()
+        .map(point->PlaceRecommendationsController.themedPlace(point,theme,mapper)).toList();
   }
   public List<PlaceRecommendationsController.Place> search(double longitude, double latitude, String kind, String language) {
     BRouterRoadRouter.validate(new RoadRouter.Point(longitude, latitude));

@@ -30,6 +30,22 @@ class JourneyMediaTest {
   }
 
   @Test
+  void oversizedBackgroundIsRejectedBeforeTheDatabaseAndLosslessSmallBackgroundFits() throws Exception {
+    var service = new JourneyMediaService(repository, 2);
+    var image = new BufferedImage(800,800,BufferedImage.TYPE_INT_RGB);
+    var random = new Random(123);
+    for(int y=0;y<800;y++)for(int x=0;x<800;x++)image.setRGB(x,y,random.nextInt(0x1000000));
+    var bytes = new ByteArrayOutputStream(); ImageIO.write(image,"png",bytes);
+    assertThatThrownBy(()->service.saveBackground("data:image/png;base64,"+Base64.getEncoder().encodeToString(bytes.toByteArray())))
+        .hasMessage("journey.media.invalid");
+    assertThat(repository.count()).isZero();
+    var asset = service.saveBackground(image(40,20,false));
+    var restored = ImageIO.read(new ByteArrayInputStream(service.get(asset.id()).content));
+    assertThat(restored.getRGB(10,10)).isEqualTo(new Color(20,180,70).getRGB());
+    assertThat(service.get(asset.id()).contentType).isEqualTo("image/png");
+  }
+
+  @Test
   void dimensionsContentAndPlacementAreValidatedBeforeRendering() throws Exception {
     var service = new JourneyMediaService(repository, 2);
     assertThatThrownBy(() -> service.save(image(2401, 1, false)))

@@ -71,6 +71,57 @@ spring:
             required: ${SMTP_TLS:false}
 
 app:
+  mcp:
+    osm:
+      url: ${OSM_MCP_URL:http://localhost:8000/mcp}
+      enabled: ${OSM_MCP_ENABLED:true}
+    commons:
+      url: ${COMMONS_MCP_URL:https://gateway.pipeworx.io/commons-wikimedia/mcp}
+      enabled: ${COMMONS_MCP_ENABLED:true}
+  journeys:
+    brouter-http:
+      enabled: ${BROUTER_HTTP_ENABLED:true}
+      url: ${BROUTER_HTTP_URL:https://brouter.de}
+    valhalla:
+        enabled: ${VALHALLA_ENABLED:true}
+        url: ${VALHALLA_URL:https://valhalla1.openstreetmap.de}
+    osrm:
+      enabled: ${OSRM_ENABLED:false}
+      url: ${OSRM_URL:https://routing.openstreetmap.de}
+    brouter:
+      enabled: ${BROUTER_ENABLED:true}
+      router-home: ${BROUTER_HOME:/opt/brouter}
+      router-cache: ${BROUTER_CACHE:/app/data/routing}
+    max-wikidata-sitelinks: 5
+    photon-url: ${PHOTON_URL:https://photon.komoot.io/api/}
+    overpass-url: ${OVERPASS_URL:https://overpass.osm.ch/api/interpreter}
+    wikimapia-key: ${WIKIMAPIA_API_KEY:${WIKIMAPIA_KEY:}}
+    wikimapia:
+      bbox-radius-km: 2.5
+      box-page-size: 100
+      max-details-per-request: 25
+      min-description-length: 20
+      quota:
+        minute-limit: 20
+        daily-limit: 5000
+    walk-themes:
+      bars:
+        tags: ["amenity=bar", "amenity=pub", "amenity=biergarten", "amenity=wine_bar"]
+        wikimapia-categories: ["bar", "pub", "бар", "паб"]
+        require-hours: true
+      mystic:
+        tags: ["historic=ruins", "abandoned:place=*", "man_made=adit", "military=bunker", "historic=aircraft_wreck"]
+        wikimapia-categories: ["abandoned", "ghost", "haunted", "заброш", "призрак", "мистик"]
+        description-keywords: ["призрак", "легенда", "заброшен", "тайна", "мистик", "ghost", "haunted", "legend", "abandoned", "mystic"]
+        require-hours: false
+      religious:
+        tags: ["amenity=place_of_worship", "building=church", "building=cathedral", "building=mosque", "amenity=monastery"]
+        wikimapia-categories: ["church", "monastery", "chapel", "temple", "церковь", "монастыр", "часовн", "храм", "мечеть"]
+        require-hours: true
+      cultural:
+        tags: ["tourism=museum", "tourism=gallery", "amenity=arts_centre", "amenity=theatre", "historic=monument"]
+        wikimapia-categories: ["museum", "theatre", "art", "музей", "театр", "искусств", "памятник"]
+        require-hours: true
   frontend-url: ${APP_FRONTEND_URL:https://www.codoc.site}
   cookie-secure: ${APP_COOKIE_SECURE:true}
 
@@ -85,6 +136,7 @@ app:
     enabled: ${APP_RATE_LIMIT_ENABLED:true}
     export-per-minute: ${APP_RATE_LIMIT_EXPORT:20}
     generate-per-minute: ${APP_RATE_LIMIT_GENERATE:10}
+    route-per-minute: ${APP_RATE_LIMIT_ROUTE:30}
 
   # B8: лимит байтов кэша изображений в HttpImageEmbedder.
   # При превышении старые записи вытесняются.
@@ -102,6 +154,7 @@ jwt:
 
 logging:
   level:
+    io.modelcontextprotocol: "OFF"
     ru.ticket: INFO
     org.apache.pdfbox: WARN
     org.apache.batik: WARN

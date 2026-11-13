@@ -66,8 +66,17 @@ public class JourneyRouteLayout {
     }
     int stopNumber = 0;
     for (var row : snapshot.timeline()) {
+      var stop="stop".equals(row.kind())&&stopNumber<snapshot.stops().size()?snapshot.stops().get(stopNumber):null;
+      var badges=new ArrayList<String>();
+      if(stop!=null&&stop.meta()!=null&&stop.meta().containsKey("theme")){
+        var meta=stop.meta();
+        if("wikimapia".equals(meta.get("source"))&&"false".equals(meta.get("in_osm")))badges.add(ru.ticket.journey.walk.WalkLabels.text(locale.getLanguage(),0));
+        if("CLOSED".equals(meta.get("visit_status")))badges.add(ru.ticket.journey.walk.WalkLabels.text(locale.getLanguage(),1));
+        if("UNKNOWN".equals(meta.get("visit_status")))badges.add(ru.ticket.journey.walk.WalkLabels.text(locale.getLanguage(),2));
+      }
+      double badgeHeight=badges.isEmpty()?0:28;
       boolean hasNotes = row.description() != null && !row.description().isBlank();
-      double rowHeight = hasNotes ? 200 : 88;
+      double rowHeight = (hasNotes ? 200 : 88)+badgeHeight;
       if (y + rowHeight > 1050) {
         page = page(view, pages.size());
         pages.add(page);
@@ -100,7 +109,15 @@ public class JourneyRouteLayout {
               12,
               false,
               "#53665b"));
-      if (hasNotes) page.elements.add(JourneyTypography.fit(row.description(), 50, y + 78, 694, 108, 13, false, "#53665b"));
+      if(!badges.isEmpty())page.elements.add(JourneyTypography.fit(String.join(" · ",badges),50,y+76,694,24,11,false,"#9CA3AF"));
+      if(stop!=null&&stop.meta()!=null&&stop.meta().containsKey("theme")&&snapshot.photos()!=null){
+        final String stopId=stop.id();
+        if(snapshot.photos().stream().anyMatch(photo->photo.stopId().equals(stopId))){
+          var camera=new ShapeElement();camera.id="camera-"+stop.id();camera.type="shape";camera.shape="rect";camera.x=724;camera.y=y+4;camera.width=16;camera.height=12;camera.fill="#53665b";page.elements.add(camera);
+          var lens=new ShapeElement();lens.id="camera-lens-"+stop.id();lens.type="shape";lens.shape="ellipse";lens.x=729;lens.y=y+7;lens.width=6;lens.height=6;lens.fill="#ffffff";page.elements.add(lens);
+        }
+      }
+      if (hasNotes) page.elements.add(JourneyTypography.fit(row.description(), 50, y + 78+badgeHeight, 694, 108, 13, false, "#53665b"));
       y += rowHeight;
     }
   }

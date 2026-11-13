@@ -12,6 +12,9 @@ import org.springframework.stereotype.Service;
 public class WikimapiaPlaces {
   private final String key;
   private final ObjectMapper mapper;
+  private WikimapiaRateLimiter limiter;
+  @org.springframework.beans.factory.annotation.Autowired
+  void limiter(WikimapiaRateLimiter limiter){this.limiter=limiter;}
   private final Map<String, List<PlaceRecommendationsController.Place>> cache = new LinkedHashMap<>();
   private long expires;
   public record Details(String description, String sourceUrl, String wikipediaUrl) {}
@@ -22,7 +25,7 @@ public class WikimapiaPlaces {
     String cacheKey=id+":"+locale;
     if(details.containsKey(cacheKey)) return details.get(cacheKey);
     var connection=(HttpURLConnection)URI.create("https://api.wikimapia.org/?function=place.getbyid&format=json&data_blocks=main&id="+id+"&language="+locale+"&key="+encode(key)).toURL().openConnection();
-    try {
+    try (var lease=limiter==null?null:limiter.acquire(true)) {
       connection.setConnectTimeout(3000);connection.setReadTimeout(7000);connection.setInstanceFollowRedirects(false);
       if(connection.getResponseCode()!=200)throw new java.io.IOException("Wikimapia unavailable");
       byte[] bytes;try(var stream=connection.getInputStream()){bytes=stream.readNBytes(300001);}
@@ -46,7 +49,7 @@ public class WikimapiaPlaces {
         + "&bbox=" + (lon-.04) + "," + (lat-.025) + "," + (lon+.04) + "," + (lat+.025)
         + "&category=53756&key=" + encode(key);
     var connection = (HttpURLConnection) URI.create(query).toURL().openConnection();
-    try {
+    try (var lease=limiter==null?null:limiter.acquire(false)) {
       connection.setConnectTimeout(3000); connection.setReadTimeout(7000); connection.setInstanceFollowRedirects(false);
       connection.setRequestProperty("User-Agent", "CoDoc/1.0 (https://codoc.site)");
       if (connection.getResponseCode() != 200) throw new java.io.IOException("Wikimapia unavailable");

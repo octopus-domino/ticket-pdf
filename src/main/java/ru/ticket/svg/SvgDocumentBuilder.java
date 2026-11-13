@@ -14,6 +14,9 @@ import ru.ticket.svg.renderer.ElementRendererRegistry;
 public class SvgDocumentBuilder {
 
   private final ElementRendererRegistry registry;
+  private ru.ticket.image.BackgroundCatalog backgrounds;
+  @org.springframework.beans.factory.annotation.Autowired
+  void backgrounds(ru.ticket.image.BackgroundCatalog backgrounds) { this.backgrounds = backgrounds; }
 
   public SvgDocumentBuilder(ElementRendererRegistry registry) {
     this.registry = registry;
@@ -119,10 +122,12 @@ public class SvgDocumentBuilder {
     Slide slide = ctx.slide();
     StringBuilder out = ctx.body();
 
-    if (slide.backgroundImage != null && !slide.backgroundImage.isBlank()) {
+    String backgroundImage = slide.backgroundPreset != null && backgrounds != null
+        ? backgrounds.image(slide.backgroundPreset) : slide.backgroundImage;
+    if (backgroundImage != null && !backgroundImage.isBlank()) {
       out.append(
           SvgSerializationUtil.imageTag(
-              slide.backgroundImage,
+              backgroundImage,
               0,
               0,
               slide.width,

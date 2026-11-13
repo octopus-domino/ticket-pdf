@@ -23,6 +23,8 @@ public class Slide {
 
   public String background = "#ffffff";
   public String backgroundImage;
+  @jakarta.validation.constraints.Pattern(regexp = "[a-z][a-z0-9-]{0,79}")
+  public String backgroundPreset;
   /** Constructor-native pagination: repeat this page for consecutive chunks of a model array. */
   public Repeat repeat;
   public record Repeat(String path, int pageSize) {}

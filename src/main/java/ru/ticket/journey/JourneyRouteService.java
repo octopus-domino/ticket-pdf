@@ -13,7 +13,10 @@ import ru.ticket.common.ApiException;
 @Service
 public class JourneyRouteService {
   public record Stop(
-      String id, String label, double longitude, double latitude, String zone, int stayMinutes, String description, String walkId) {
+      String id, String label, double longitude, double latitude, String zone, int stayMinutes, String description, String walkId, Map<String,String> meta) {
+    public Stop(String id,String label,double longitude,double latitude,String zone,int stayMinutes,String description,String walkId){
+      this(id,label,longitude,latitude,zone,stayMinutes,description,walkId,null);
+    }
     public Stop(String id, String label, double longitude, double latitude, String zone, int stayMinutes, String description) {
       this(id, label, longitude, latitude, zone, stayMinutes, description, null);
     }
@@ -136,15 +139,18 @@ public class JourneyRouteService {
             || stop.stayMinutes() > 10080) invalid();
         BRouterRoadRouter.validate(new RoadRouter.Point(stop.longitude(), stop.latitude()));
         ZoneId.of(stop.zone());
+        validateMeta(stop.meta());
       }
       int count = 0;
       if (value.photos() != null) {
-        if (value.photos().size() > 4) invalid();
+        boolean themed=value.stops().stream().anyMatch(stop->stop.meta()!=null&&stop.meta().containsKey("theme"));
+        if (value.photos().size() > (themed?12:4)) invalid();
         Set<String> photographed = new HashSet<>();
         for (var photo : value.photos()) {
           if (photo == null || !ids.contains(photo.stopId()) || !photographed.add(photo.stopId())
               || photo.imageId() == null || !photo.imageId().matches("[a-f0-9]{64}")
-              || photo.sourceUrl() == null || !photo.sourceUrl().matches("https://commons\\.wikimedia\\.org/wiki/File:[^\\p{Cntrl}<>\" ]{1,1500}")
+              || photo.sourceUrl() == null || !(photo.sourceUrl().matches("https://commons\\.wikimedia\\.org/wiki/File:[^\\p{Cntrl}<>\" ]{1,1500}")
+                  ||themed&&photo.sourceUrl().matches("https://wikimapia\\.org/[0-9]{1,20}"))
               || photo.author() == null || photo.author().isBlank() || photo.author().length() > 500
               || photo.license() == null || photo.license().isBlank() || photo.license().length() > 80
               || photo.licenseUrl() == null || !photo.licenseUrl().matches("https://creativecommons\\.org/(licenses|publicdomain)/[a-z0-9./-]{1,120}")) invalid();
@@ -190,6 +196,11 @@ public class JourneyRouteService {
     } catch (DateTimeException | NullPointerException ex) {
       invalid();
     }
+  }
+  public static void validateMeta(Map<String,String> meta){
+    if(meta==null)return;
+    if(meta.size()>10)invalid();
+    for(var entry:meta.entrySet())if(entry.getKey()==null||!entry.getKey().matches("[a-z_]{1,32}")||entry.getValue()==null||entry.getValue().length()>500)invalid();
   }
 
   private static void invalid() {

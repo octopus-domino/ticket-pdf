@@ -13,4 +13,8 @@ class PoetryDisplayTextTest {
     String text="First\nSecond\nThird\nFourth\n5 years later\n\n2 May 1916";
     assertEquals(text,PoetryDisplayText.of(text,"https://en.wikisource.org/wiki/Fixture"));
   }
+  @Test void legacyWrappedVerseDoesNotLeaveTheTwentiethMarginBehind(){
+    String text=java.util.stream.IntStream.rangeClosed(1,20).mapToObj(i->"Synthetic line "+i).collect(java.util.stream.Collectors.joining("\n"))+"\n20Wrapped verse continuation";
+    assertFalse(PoetryDisplayText.of(text,"https://ru.wikisource.org/wiki/Fixture").contains("20Wrapped"));
+  }
 }

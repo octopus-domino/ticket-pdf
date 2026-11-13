@@ -12,9 +12,13 @@ public final class PoetryDisplayText {
     for(int i=0;i<lines.length;i++){
       if(lines[i].isBlank())continue;
       verse++;
-      if(verse%5!=0)continue;
       // Removed margins were glued directly to a letter. "10 years" and dates remain intact.
-      lines[i]=lines[i].replaceFirst("^([\\h]*)"+verse+"(?=\\p{L})","$1");
+      var marker=java.util.regex.Pattern.compile("^([\\h]*)([1-9][0-9]{0,2})(?=\\p{L})").matcher(lines[i]);
+      if(marker.find()){
+        int number=Integer.parseInt(marker.group(2));
+        // Long printed verses can wrap into an extra physical line in legacy source HTML.
+        if(number%5==0&&Math.abs(number-verse)<=2)lines[i]=marker.replaceFirst("$1");
+      }
     }
     return String.join("\n",lines);
   }

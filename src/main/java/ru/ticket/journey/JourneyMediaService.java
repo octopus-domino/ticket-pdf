@@ -64,7 +64,7 @@ public class JourneyMediaService {
           reader.dispose();
         }
       }
-      boolean alpha = background || decoded.getColorModel().hasAlpha();
+      boolean alpha = ru.ticket.image.LosslessPng.transparent(decoded);
       clean =
           new BufferedImage(
               decoded.getWidth(),
@@ -77,16 +77,18 @@ public class JourneyMediaService {
         graphics.dispose();
       }
       var output = new ByteArrayOutputStream();
-      ImageIO.write(clean, alpha ? "png" : "jpeg", output);
-      byte[] bytes = output.toByteArray();
-      if (bytes.length > maxBytes) throw ApiException.badRequest("journey.media.invalid");
+      boolean png = background || alpha;
+      if (!png) ImageIO.write(clean, "jpeg", output);
+      byte[] bytes = png ? ru.ticket.image.LosslessPng.encode(decoded) : output.toByteArray();
+      // Input decoding and persisted size are separate budgets; the DB limit is deliberately unchanged.
+      if (bytes.length > 900_000) throw ApiException.badRequest("journey.media.invalid");
       String id = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
       if (!repository.existsById(id)) {
         if (repository.count() >= maxItems) throw ApiException.conflict("journey.media.full");
         var entity = new JourneyMedia();
         entity.id = id;
         entity.content = bytes;
-        entity.contentType = alpha ? "image/png" : "image/jpeg";
+        entity.contentType = png ? "image/png" : "image/jpeg";
         entity.width = clean.getWidth();
         entity.height = clean.getHeight();
         entity.createdAt = Instant.now();
