@@ -35,9 +35,12 @@ public final class CommonsImages {
   }
   private static String thumbnail(String url){
     var uri=URI.create(url);String path=uri.getRawPath();
-    if(path.contains("/thumb/")||!path.matches("/wikipedia/commons/[0-9a-f]/[0-9a-f]{2}/.+"))return url;
+    // Wikimedia rejects non-standard manually constructed widths (for example 640px).
+    // 500px is an official tier and sufficient for the bounded print collage.
+    if(path.contains("/thumb/"))return url.replaceFirst("/[0-9]+px-([^/]+)$", "/500px-$1");
+    if(!path.matches("/wikipedia/commons/[0-9a-f]/[0-9a-f]{2}/.+"))return url;
     String name=path.substring(path.lastIndexOf('/')+1);
-    return "https://"+uri.getHost()+path.replace("/commons/","/commons/thumb/")+"/640px-"+name;
+    return "https://"+uri.getHost()+path.replace("/commons/","/commons/thumb/")+"/500px-"+name;
   }
   private static String plain(String text){return Jsoup.parse(text).text();}
 }

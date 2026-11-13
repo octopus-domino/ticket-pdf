@@ -50,7 +50,7 @@ public class PhotoEnricher {
     }catch(IOException unavailable){/* Direct Commons is independent of the gateway. */}
     try{
       var found=remote.get("https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&generator=geosearch&ggsnamespace=6&ggscoord="
-          +WalkRemote.encode(stop.latitude()+"|"+stop.longitude())+"&ggsradius=500&ggslimit=3&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=640");
+          +WalkRemote.encode(stop.latitude()+"|"+stop.longitude())+"&ggsradius=500&ggslimit=3&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=500");
       var images=CommonsImages.parse(found);if(!images.isEmpty()){cache.put(key,Optional.of(images.get(0)));return images.get(0);}
     }catch(IOException unavailable){/* Last source: only explicitly licensed Wikimapia photos. */}
     String id=stop.meta()==null?"":stop.meta().getOrDefault("wikimapia_id","");

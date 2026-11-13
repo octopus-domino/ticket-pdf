@@ -33,5 +33,10 @@ class PhotoEnricherTest {
   @Test void commonsLicenseMetadataWithoutCopyrightCanProvePublicDomain() throws Exception {
     var json=new ObjectMapper().readTree("{\"query\":{\"pages\":[{\"imageinfo\":[{\"url\":\"https://upload.wikimedia.org/wikipedia/commons/a/ab/Fixture.jpg\",\"descriptionurl\":\"https://commons.wikimedia.org/wiki/File:Fixture.jpg\",\"extmetadata\":{\"Copyrighted\":{\"value\":\"False\"},\"Artist\":{\"value\":\"<b>Photographer</b>\"}}}]}]}}");
     var images=CommonsImages.parse(json);assertEquals(1,images.size());assertEquals("Photographer",images.get(0).author());assertEquals("https://creativecommons.org/publicdomain/mark/1.0/",images.get(0).licenseUrl());
+    assertTrue(images.get(0).imageUrl().endsWith("/500px-Fixture.jpg"));
+    var withOldThumb=json.deepCopy();
+    ((com.fasterxml.jackson.databind.node.ObjectNode)withOldThumb.path("query").path("pages").get(0).path("imageinfo").get(0))
+        .put("thumburl","https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Fixture.jpg/640px-Fixture.jpg");
+    assertTrue(CommonsImages.parse(withOldThumb).get(0).imageUrl().endsWith("/500px-Fixture.jpg"));
   }
 }
