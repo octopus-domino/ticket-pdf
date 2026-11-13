@@ -40,7 +40,7 @@ public class OsmPlaceService {
       HttpURLConnection connection = null;
       try {
         connection = (HttpURLConnection) URI.create(endpoint).toURL().openConnection();
-        connection.setConnectTimeout(4000); connection.setReadTimeout(20000); connection.setInstanceFollowRedirects(false);
+        connection.setConnectTimeout(3000); connection.setReadTimeout(8000); connection.setInstanceFollowRedirects(false);
         connection.setRequestMethod("POST"); connection.setDoOutput(true);
         connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
         connection.setRequestProperty("User-Agent", "CoDoc/1.0 (https://codoc.site; nearby trip planning)");
@@ -58,9 +58,46 @@ public class OsmPlaceService {
         while (cache.size() > 64) cache.remove(cache.keySet().iterator().next());
         return places;
       } catch (java.io.IOException ex) {
+        if (kind.equals("attractions")) {
+          var fallback = nearbyEncyclopedia(longitude, latitude, locale);
+          cache.put(key, new Cached(System.currentTimeMillis() + 600000, fallback));
+          while (cache.size() > 64) cache.remove(cache.keySet().iterator().next());
+          return fallback;
+        }
         throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "journey.route.places-unavailable");
       } finally { if (connection != null) connection.disconnect(); }
     } finally { permit.release(); }
+  }
+  /** Independent public discovery path when an Overpass instance is unavailable. Hours remain unknown. */
+  private List<PlaceRecommendationsController.Place> nearbyEncyclopedia(double longitude, double latitude, String language) {
+    HttpURLConnection connection = null;
+    try {
+      String origin = "https://" + language + ".wikipedia.org";
+      String query = "?action=query&format=json&formatversion=2&generator=geosearch&ggscoord="
+          + URLEncoder.encode(latitude + "|" + longitude, StandardCharsets.UTF_8)
+          + "&ggsradius=6000&ggslimit=10&prop=coordinates%7Cpageimages&piprop=name&colimit=max";
+      connection = (HttpURLConnection) URI.create(origin + "/w/api.php" + query).toURL().openConnection();
+      connection.setConnectTimeout(4000); connection.setReadTimeout(10000); connection.setInstanceFollowRedirects(false);
+      connection.setRequestProperty("User-Agent", "CoDoc/1.0 (https://codoc.site; nearby trip planning)");
+      if (connection.getResponseCode() != 200) throw new java.io.IOException();
+      byte[] bytes;
+      try (var stream = connection.getInputStream()) { bytes = stream.readNBytes(500001); }
+      if (bytes.length > 500000) throw new java.io.IOException();
+      var places = new ArrayList<PlaceRecommendationsController.Place>();
+      for (var item : mapper.readTree(bytes).path("query").path("pages")) {
+        var point = item.path("coordinates").path(0);
+        String title = item.path("title").asText("");
+        double lon = point.path("lon").asDouble(Double.NaN), lat = point.path("lat").asDouble(Double.NaN);
+        if (title.isBlank() || title.length() > 250 || !Double.isFinite(lon) || !Double.isFinite(lat)) continue;
+        String photo = item.path("pageimage").asText("");
+        places.add(new PlaceRecommendationsController.Place("wiki-" + item.path("pageid").asLong(), title, lon, lat,
+            origin + "/wiki/" + URLEncoder.encode(title, StandardCharsets.UTF_8), mapper.createObjectNode(), "",
+            photo.isBlank() || photo.length() > 230 ? null : "File:" + photo));
+      }
+      return List.copyOf(places);
+    } catch (java.io.IOException error) {
+      throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "journey.route.places-unavailable");
+    } finally { if (connection != null) connection.disconnect(); }
   }
   static List<PlaceRecommendationsController.Place> readPlaces(JsonNode payload, double longitude, double latitude, String language, ObjectMapper mapper) {
     var places = new ArrayList<PlaceRecommendationsController.Place>();

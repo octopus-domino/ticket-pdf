@@ -80,6 +80,16 @@ class WikisourcePoemsTest {
     assertTrue(poems.stream().allMatch(poem -> poem.authorId().equals("Q3")));
   }
 
+  @Test void htmlFormattingWhitespaceDoesNotDoubleVerseLines() {
+    var work = page("Poems", "Layout fixture");
+    var html = new StringBuilder("<span class='ws-author'><a href='/wiki/Author:Writer'>Writer</a></span><div class='poem'><p>");
+    for (int i = 0; i < 24; i++) html.append("Synthetic verse line ").append(i).append("<br>\n");
+    work.put("text", html.append("</p></div>").toString());
+    var parsed = WikisourcePoems.parse("en", new PoetDiscovery.Poet("Q1", "Writer", "Author:Writer", "Q2", 1), work, true);
+    assertTrue(parsed.isPresent());
+    assertEquals(24, parsed.get().text().lines().filter(line -> !line.isBlank()).count());
+  }
+
   private ObjectNode page(String category, String title) {
     var page = mapper.createObjectNode().put("title", title);
     page.putArray("categories").addObject().put("category", category);

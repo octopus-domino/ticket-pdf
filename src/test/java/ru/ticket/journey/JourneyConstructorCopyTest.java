@@ -36,6 +36,26 @@ class JourneyConstructorCopyTest {
   @Autowired ru.ticket.export.ExportFacade exporter;
   @Autowired JourneyRouteService routes;
   @Autowired JourneyMediaService media;
+  @Autowired JourneyPrintSourceRepository printSources;
+
+  @Test void customSiteRebindsDeclaredRootFieldsWithoutReplacingStructuredModelValues() throws Exception {
+    var slide = new ru.ticket.dto.Slide(); slide.id = "root-fields";
+    var text = new ru.ticket.dto.TextElement(); text.type = "text"; text.id = "guest";
+    text.text = "{{guest}}"; text.width = 300; text.height = 60; slide.elements.add(text);
+    var fields = List.of(new ru.ticket.schema.domain.FieldDef("guest", "string", false, "Guest", null),
+        new ru.ticket.schema.domain.FieldDef("items", "array", false, "Items", null));
+    var template = new ru.ticket.generation.application.port.GenerationCatalog.Template(List.of(slide), null, fields, List.of());
+    var packet = new JourneyConstructorSource.Packet(template, Map.of("guest", "Old guest", "items", List.of(Map.of("name", "Keep me"))), new ru.ticket.dto.ExportOptions());
+    var row = new JourneyPrintSource(); row.id = "site:root-fixture"; row.updatedAt = java.time.Instant.now();
+    row.sourceJson = mapper.writeValueAsString(packet); printSources.saveAndFlush(row);
+    var definition = new JourneySiteService.Definition("root-fixture", JourneyService.Kind.MENU, "Site", "", "ink", List.of());
+    var view = new JourneyService.View("Root12345678", JourneyService.Kind.MENU, "New title",
+        Map.of("guest", "Новый гость", "items", "must not replace an array"), java.time.Instant.now());
+    var source = factory.constructorSource(view, definition);
+    assertThat(source.model().get("guest")).isEqualTo("Новый гость");
+    assertThat(source.model().get("items")).isEqualTo(packet.model().get("items"));
+    assertThat(((ru.ticket.dto.TextElement) source.materialize().slides.get(0).elements.get(0)).text).isEqualTo("Новый гость");
+  }
 
   @Test void separateWalkMapAndNumberedPhotoCreditsSurviveNativePdf() throws Exception {
     var image = media.save(JourneyMediaTest.image(400, 300, false));

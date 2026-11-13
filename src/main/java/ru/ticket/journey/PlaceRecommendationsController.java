@@ -32,7 +32,7 @@ public class PlaceRecommendationsController {
       @RequestParam(defaultValue = "attractions") String kind, @RequestParam(defaultValue = "en") String language) {
     BRouterRoadRouter.validate(new RoadRouter.Point(longitude, latitude));
     if (!Set.of("attractions", "hotels").contains(kind)) throw ApiException.badRequest("journey.route.invalid-route");
-    if (key.isBlank()) return new Result(true, osm.search(longitude, latitude, kind, language), "OpenStreetMap");
+    if (key.isBlank()) return new Result(true, osm.search(longitude, latitude, kind, language), "OpenStreetMap / Wikimedia");
     if (System.currentTimeMillis() < nextRequest)
       throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "journey.route.search-busy");
     nextRequest = System.currentTimeMillis() + 1100;

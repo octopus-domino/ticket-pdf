@@ -44,7 +44,7 @@ public class JourneyReviewService {
         || !input.responseKey().matches("[A-Za-z0-9_-]{32,128}"))
       throw ApiException.badRequest("journey.review.invalid");
     var document = journeys.lockById(id).orElseThrow(() -> ApiException.notFound("Document"));
-    if (!document.kind.equals("PRICETAG")
+    if (!java.util.Set.of("PRICETAG", "CERTIFICATE").contains(document.kind)
         || document.revoked
         || !documents.status(id).state().equals("ACTIVE"))
       throw ApiException.badRequest("journey.review.closed");

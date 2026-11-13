@@ -9,6 +9,17 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
 @DataJpaTest
 class JourneyReviewTest {
+  @Test void certificateCollectsCourseFeedbackAndRevocationClosesIt() {
+    var document = new JourneyEntity(); document.id = "certificate"; document.kind = "CERTIFICATE";
+    when(journeys.lockById(document.id)).thenReturn(java.util.Optional.of(document));
+    when(documents.status(document.id)).thenReturn(new JourneyContentPolicy.Status("ACTIVE", null, "", false));
+    var service = new JourneyReviewService(reviews, journeys, documents, access);
+    service.submit(document.id, new JourneyReviewService.Input(5, "Полезный курс", "b".repeat(64)));
+    assertThat(service.list(document.id, null, "owner", 0).items().get(0).message()).isEqualTo("Полезный курс");
+    document.revoked = true;
+    assertThatThrownBy(() -> service.submit(document.id, new JourneyReviewService.Input(4, "Again", "b".repeat(64))))
+        .hasMessage("journey.review.closed");
+  }
   @Autowired JourneyReviewRepository reviews;
   private final JourneyRepository journeys = mock(JourneyRepository.class);
   private final JourneyService documents = mock(JourneyService.class);

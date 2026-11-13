@@ -164,6 +164,16 @@ public class WikisourcePoems {
     var blocks = html.select(".poem").stream().filter(element -> element.parents().stream().noneMatch(parent -> parent.hasClass("poem"))).toList();
     if (blocks.size() != 1) return Optional.empty();
     var body = blocks.get(0).clone(); body.select("sup,.reference,.mw-editsection,.pagenum,.ws-noexport").remove();
+    // Formatting newlines in HTML collapse in the browser; counting them alongside <br>
+    // doubled verse lines and incorrectly rejected complete 18–32-line poems.
+    org.jsoup.select.NodeTraversor.traverse(new org.jsoup.select.NodeVisitor() {
+      @Override public void head(Node node, int depth) {
+        if (node instanceof TextNode textNode
+            && textNode.parent() != null && textNode.parent().closest("pre") == null)
+          textNode.text(textNode.getWholeText().replaceAll("[\\r\\n]+[\\t ]*", " "));
+      }
+      @Override public void tail(Node node, int depth) {}
+    }, body);
     for (var br : body.select("br")) br.before(new TextNode("\n")); body.select("br").remove();
     for (var paragraph : body.select("p")) paragraph.appendChild(new TextNode("\n\n"));
     String text = body.wholeText().replace('\u00a0', ' ').replaceAll("[\\t ]+\\n", "\n").replaceAll("\\n{4,}", "\n\n").strip();
