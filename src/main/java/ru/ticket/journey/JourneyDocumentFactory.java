@@ -104,6 +104,19 @@ public class JourneyDocumentFactory {
       if (source.isPresent()) try {
         var packet = sourceMapper.readValue(source.get().sourceJson, JourneyConstructorSource.Packet.class);
         var model = new java.util.LinkedHashMap<String, Object>(packet.model());
+        if (siteSource) {
+          // Generic constructor templates may bind root fields rather than the ready-solution
+          // `fields` namespace. Only declared scalar paths may receive submitted site values.
+          for (var field : packet.template().fields()) {
+            String path = field.path();
+            if (!path.contains(".") && !path.contains("[") && !Set.of("array", "object").contains(field.type())) {
+              if (view.data().containsKey(path)) model.put(path, view.data().get(path));
+              if (path.equals("title")) model.put(path, view.title());
+              if (path.equals("publication_url")) model.put(path, publicUrl(view));
+              if (path.equals("publication_id")) model.put(path, view.id());
+            }
+          }
+        }
         if (view.kind() == JourneyService.Kind.ALBUM && albums != null) model.put("photos", albums.model(view.id()));
         if (model.get("fields") instanceof java.util.Map<?, ?> fields) {
           var values = new java.util.LinkedHashMap<String, Object>();
