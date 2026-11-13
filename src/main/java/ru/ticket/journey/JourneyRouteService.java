@@ -47,7 +47,10 @@ public class JourneyRouteService {
 
   public record Photo(String stopId, String imageId, String sourceUrl, String author, String license, String licenseUrl) {}
   public record Snapshot(
-      List<Stop> stops, List<Leg> legs, String startLocal, List<Row> timeline, String mapId, List<Photo> photos) {
+      List<Stop> stops, List<Leg> legs, String startLocal, List<Row> timeline, String mapId, List<Photo> photos, String pointNumbering) {
+    public Snapshot(List<Stop> stops,List<Leg> legs,String startLocal,List<Row> timeline,String mapId,List<Photo> photos) {
+      this(stops,legs,startLocal,timeline,mapId,photos,null);
+    }
     public Snapshot(List<Stop> stops, List<Leg> legs, String startLocal, List<Row> timeline, String mapId) {
       this(stops, legs, startLocal, timeline, mapId, null);
     }
@@ -121,6 +124,7 @@ public class JourneyRouteService {
         || value.timeline().isEmpty()
         || value.timeline().size() > 80
         || value.mapId() == null
+        || value.pointNumbering() != null && !value.pointNumbering().equals("interior")
         || !value.mapId().matches("[a-f0-9]{64}")) invalid();
     try {
       LocalDateTime.parse(value.startLocal());

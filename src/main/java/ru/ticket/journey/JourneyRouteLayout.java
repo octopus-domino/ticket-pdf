@@ -56,9 +56,10 @@ public class JourneyRouteLayout {
     var captions = routeLabels(view.data().get("route_labels"));
     if (snapshot.photos() != null) for (var photo : snapshot.photos()) {
       if (y + 150 > 1050) { page = page(view, pages.size()); pages.add(page); y = 50; }
-      int number = 0;
+      String number = "";
       for (int index = 0; index < snapshot.stops().size(); index++)
-        if (snapshot.stops().get(index).id().equals(photo.stopId())) number = index + 1;
+        if (snapshot.stops().get(index).id().equals(photo.stopId())) number = "interior".equals(snapshot.pointNumbering())
+            ? RoutePointLabels.marker(index,snapshot.stops().size()) : Integer.toString(index+1);
       String credit = number + ". " + photo.author() + " · " + photo.license() + "\n"
           + photo.sourceUrl() + "\n" + photo.licenseUrl();
       page.elements.add(JourneyTypography.fit(credit, 50, y, 694, 138, 12, false, "#53665b"));
@@ -85,10 +86,12 @@ public class JourneyRouteLayout {
       String startZone = row.startZone() == null ? row.zone() : row.startZone();
       String start = date.format(Instant.parse(row.start()).atZone(ZoneId.of(startZone)));
       String end = date.format(Instant.parse(row.end()).atZone(ZoneId.of(row.zone())));
+      String caption="stop".equals(row.kind())
+          ? RoutePointLabels.caption(stopNumber++,snapshot.stops().size(),locale.getLanguage(),captions)
+          : captions.getOrDefault(row.kind(),row.kind());
       page.elements.add(
           JourneyTypography.fit(
-              ("stop".equals(row.kind()) ? ++stopNumber + ". " : "")
-                  + captions.getOrDefault("stop".equals(row.kind()) && stopNumber == 1 ? "departure" : row.kind(), row.kind()) + " · " + row.label(),
+              caption + " · " + row.label(),
               50,
               y,
               694,

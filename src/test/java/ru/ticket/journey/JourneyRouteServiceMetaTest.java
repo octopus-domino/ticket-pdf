@@ -16,6 +16,8 @@ class JourneyRouteServiceMetaTest {
     JourneyRouteService.validate(current);assertEquals(current,mapper.readValue(mapper.writeValueAsBytes(current),JourneyRouteService.Snapshot.class));
     var old=mapper.valueToTree(snapshot(null));for(var stop:old.path("stops"))((com.fasterxml.jackson.databind.node.ObjectNode)stop).remove("meta");
     var restored=mapper.treeToValue(old,JourneyRouteService.Snapshot.class);JourneyRouteService.validate(restored);assertNull(restored.stops().get(0).meta());
+    ((com.fasterxml.jackson.databind.node.ObjectNode)old).put("pointNumbering","interior");
+    var numbered=mapper.treeToValue(old,JourneyRouteService.Snapshot.class);JourneyRouteService.validate(numbered);assertEquals("interior",numbered.pointNumbering());
   }
   @Test void metadataCannotBypassSizeAndKeyLimits(){
     assertThrows(ru.ticket.common.ApiException.class,()->JourneyRouteService.validate(snapshot(Map.of("invalid-key","value"))));
