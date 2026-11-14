@@ -20,7 +20,12 @@ public class HoithImporter {
   private static final Logger log=LoggerFactory.getLogger(HoithImporter.class);
   private static final Pattern YEAR=Pattern.compile("(?<!\\d)(1\\d{3}|20\\d{2})(?!\\d)");
   private final BuildingHistoryService buildings;
-  public HoithImporter(BuildingHistoryService buildings){this.buildings=buildings;}
+  private final long minFreeSpaceBytes;
+  public HoithImporter(BuildingHistoryService buildings){this(buildings,0);}
+  @org.springframework.beans.factory.annotation.Autowired
+  public HoithImporter(BuildingHistoryService buildings,@org.springframework.beans.factory.annotation.Value("${app.hoith.min-free-space-mb:0}") long minFreeSpaceMb){
+    this.buildings=buildings;this.minFreeSpaceBytes=Math.max(0,minFreeSpaceMb)*1024*1024;
+  }
 
   public long importFile(Path path,Set<String> cities) throws Exception {
     return importFile(path,cities,0);
@@ -52,6 +57,15 @@ public class HoithImporter {
           if(source.getSchema().getDescriptor("r_year_int")==null)throw new IOException("HOITH layer has no construction year field");
           restrictions.add(factory.and(factory.greaterOrEqual(factory.property("r_year_int"),factory.literal(1000)),
               factory.lessOrEqual(factory.property("r_year_int"),factory.literal(beforeYear))));
+        } else {
+          var information=new ArrayList<org.geotools.api.filter.Filter>();
+          if(source.getSchema().getDescriptor("r_year_int")!=null)information.add(factory.and(
+              factory.greaterOrEqual(factory.property("r_year_int"),factory.literal(1000)),
+              factory.lessOrEqual(factory.property("r_year_int"),factory.literal(java.time.Year.now().getValue()))));
+          for(String field:List.of("r_name","r_architect","r_style","r_mkrf","r_years_str","r_wikipedia","r_cw_url","r_url","r_wikidata"))
+            if(source.getSchema().getDescriptor(field)!=null)information.add(factory.and(factory.not(factory.isNull(factory.property(field))),factory.notEqual(factory.property(field),factory.literal(""))));
+          if(information.isEmpty())throw new IOException("HOITH layer has no descriptive fields");
+          restrictions.add(information.size()==1?information.get(0):factory.or(information));
         }
         if(!restrictions.isEmpty())query.setFilter(restrictions.size()==1?restrictions.get(0):factory.and(restrictions));
         // Push city filtering into SQLite; avoid decoding millions of discarded geometries in Java.
@@ -59,6 +73,7 @@ public class HoithImporter {
           while(iterator.hasNext()){
             if(Thread.currentThread().isInterrupted())throw new InterruptedIOException("HOITH import interrupted");
             var feature=iterator.next();
+            if(!hasInformation(feature)){skipped++;continue;}
             if(!wanted.isEmpty()&&!wanted.contains(value(feature,"city_russian").toLowerCase(Locale.ROOT))
                 &&!wanted.contains(value(feature,"city_english").toLowerCase(Locale.ROOT))&&!wanted.contains(value(feature,"city").toLowerCase(Locale.ROOT)))continue;
             BuildingHistory row;
@@ -67,6 +82,8 @@ public class HoithImporter {
             batch.add(row);
             pendingBytes+=(long)row.getGeometry().getNumPoints()*64+4096;
             if(batch.size()==250||pendingBytes>=8*1024*1024){
+              if(minFreeSpaceBytes>0&&java.nio.file.Files.getFileStore(path).getUsableSpace()<minFreeSpaceBytes)
+                throw new IOException("HOITH import paused: insufficient free disk space; committed batches are retained");
               imported+=buildings.upsertHoith(batch);batch.clear();pendingBytes=0;
               if(imported%10000==0)log.info("hoith.import progress={}",imported);
             }
@@ -89,10 +106,12 @@ public class HoithImporter {
     if(id.isBlank())id="hoith:"+layer+":"+valueOr(feature.getID(),value(feature,"fid","id"));
     if(id.length()>50)id="hoith:"+java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(id.getBytes(java.nio.charset.StandardCharsets.UTF_8))).substring(0,40);
     row.setOsmId(id);row.setAddress(cut(value(feature,"r_adress","r_address","address"),2000));
+    row.setName(cut(value(feature,"r_name","name"),2000));row.setConstructionPeriod(cut(value(feature,"r_years_str"),200));
     row.setConstructionYear(year(value(feature,"r_year_int","construction_year","r_years_str","start_date")));
     row.setArchitect(cut(value(feature,"r_architect","architect"),300));row.setStyle(cut(value(feature,"r_style","style"),100));
     row.setHeritageStatus(cut(value(feature,"r_mkrf","heritage_status","heritage"),100));
     String url=value(feature,"r_url","r_wikipedia","r_cw_url","source_url");
+    if(url.isBlank()&&value(feature,"r_wikidata").matches("Q[1-9][0-9]*"))url="https://www.wikidata.org/wiki/"+value(feature,"r_wikidata");
     try {var uri=java.net.URI.create(url);if(!"https".equals(uri.getScheme())&&!"http".equals(uri.getScheme())||uri.getHost()==null||uri.getUserInfo()!=null)url="";}catch(IllegalArgumentException invalid){url="";}
     row.setSourceUrl(url.isBlank()?"https://disk.yandex.ru/d/6rI165UaOpvG0A":cut(url,2000));row.setGeometry(geometry);return row;
   }
@@ -100,9 +119,13 @@ public class HoithImporter {
     if(value==null)return null;var matcher=YEAR.matcher(value);if(!matcher.find())return null;
     int year=Integer.parseInt(matcher.group());return year<=java.time.Year.now().getValue()?year:null;
   }
+  static boolean hasInformation(SimpleFeature feature){
+    if(year(value(feature,"r_year_int","construction_year","start_date"))!=null)return true;
+    return !value(feature,"r_name","name","r_architect","architect","r_style","style","r_mkrf","heritage","r_years_str","r_wikipedia","r_cw_url","r_url","r_wikidata").isBlank();
+  }
   private static String value(SimpleFeature feature,String...names){
     for(String name:names){if(feature.getFeatureType().getDescriptor(name)==null)continue;Object raw=feature.getAttribute(name);
-      if(raw!=null&&!raw.toString().isBlank())return raw.toString().strip();}return "";
+      if(raw!=null){String text=raw.toString().strip();if(!text.isEmpty()&&!Set.of("nan","none","null","unknown","0","0.0","-").contains(text.toLowerCase(Locale.ROOT)))return text;}}return "";
   }
   private static String valueOr(String fallback,String value){return value.isBlank()?fallback:value;}
   private static String cut(String value,int max){return value.length()>max?value.substring(0,max):value;}

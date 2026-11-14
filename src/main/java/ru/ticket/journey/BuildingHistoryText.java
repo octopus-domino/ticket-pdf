@@ -12,7 +12,9 @@ final class BuildingHistoryText {
       "de",List.of("Baujahr","Architekt","Stil"));
   static String describe(BuildingHistoryService.Info p,String language){
     var labels=LABELS.getOrDefault(language,LABELS.get("en"));var parts=new ArrayList<String>();
-    if(p.constructionYear()!=null)parts.add(labels.get(0)+": "+p.constructionYear());
+    if(p.name()!=null&&!p.name().isBlank())parts.add(p.name());
+    if(p.constructionPeriod()!=null&&!p.constructionPeriod().isBlank())parts.add(labels.get(0)+": "+p.constructionPeriod());
+    else if(p.constructionYear()!=null)parts.add(labels.get(0)+": "+p.constructionYear());
     if(p.architect()!=null&&!p.architect().isBlank())parts.add(labels.get(1)+": "+p.architect());
     if(p.style()!=null&&!p.style().isBlank())parts.add(labels.get(2)+": "+p.style());
     return String.join(" · ",parts);

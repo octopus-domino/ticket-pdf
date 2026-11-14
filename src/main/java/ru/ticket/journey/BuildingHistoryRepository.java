@@ -14,9 +14,9 @@ public interface BuildingHistoryRepository extends JpaRepository<BuildingHistory
 
   @Query(value="""
       SELECT * FROM building_history bh WHERE
-      (bh.construction_year <= :beforeYear OR COALESCE(bh.heritage_status,'') <> '')
+      (:beforeYear=0 OR bh.construction_year <= :beforeYear OR COALESCE(bh.heritage_status,'') <> '')
       AND ST_DWithin(CAST(bh.geometry AS geography),CAST(ST_SetSRID(ST_MakePoint(:lon,:lat),4326) AS geography),:radius)
-      AND (:query='' OR lower(COALESCE(bh.address,'')||' '||COALESCE(bh.architect,'')||' '||COALESCE(bh.style,'')) LIKE :query ESCAPE '!')
+      AND (:query='' OR lower(COALESCE(bh.address,'')||' '||COALESCE(bh.name,'')||' '||COALESCE(bh.architect,'')||' '||COALESCE(bh.style,'')) LIKE :query ESCAPE '!')
       ORDER BY ST_Distance(CAST(bh.geometry AS geography),CAST(ST_SetSRID(ST_MakePoint(:lon,:lat),4326) AS geography)),bh.id
       LIMIT :limit
       """,nativeQuery=true)

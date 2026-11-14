@@ -77,6 +77,8 @@ app:
     cities: ${HOITH_CITIES:}
     refresh-on-start: ${HOITH_REFRESH_ON_START:false}
     before-year: ${HOITH_BEFORE_YEAR:1945}
+    background: ${HOITH_BACKGROUND:false}
+    min-free-space-mb: ${HOITH_MIN_FREE_SPACE_MB:0}
   mystic:
     csv-path: ${MYSTIC_CSV_PATH:classpath:mystic_places.csv}
     refresh-on-start: ${MYSTIC_REFRESH_ON_START:false}

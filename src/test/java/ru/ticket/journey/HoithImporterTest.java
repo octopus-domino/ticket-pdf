@@ -12,6 +12,16 @@ import java.util.*;
 
 class HoithImporterTest {
   @TempDir Path temporary;
+  @Test void acceptsAnyUsefulInformationButNotAnAddressAlone() throws Exception {
+    var types=new SimpleFeatureTypeBuilder();types.setName("information");
+    types.add("r_adress",String.class);types.add("r_year_int",Double.class);types.add("r_name",String.class);types.add("r_style",String.class);
+    var builder=new SimpleFeatureBuilder(types.buildFeatureType());
+    builder.addAll(new Object[]{"Only address",null,null,null});assertFalse(HoithImporter.hasInformation(builder.buildFeature("1")));
+    builder.addAll(new Object[]{"Modern house",2005.0,null,null});assertTrue(HoithImporter.hasInformation(builder.buildFeature("2")));
+    builder.addAll(new Object[]{"Undated house",null,"Named house",null});assertTrue(HoithImporter.hasInformation(builder.buildFeature("3")));
+    builder.addAll(new Object[]{"Undated style",null,null,"Classicism"});assertTrue(HoithImporter.hasInformation(builder.buildFeature("4")));
+    builder.addAll(new Object[]{"Empty placeholders",0.0,"nan","-"});assertFalse(HoithImporter.hasInformation(builder.buildFeature("5")));
+  }
   @Test void streamsARealGeoPackageAndFiltersCities() throws Exception {
     var path=temporary.resolve("fixture.gpkg");
     var types=new SimpleFeatureTypeBuilder();types.setName("buildings");types.setCRS(CRS.decode("EPSG:4326",true));

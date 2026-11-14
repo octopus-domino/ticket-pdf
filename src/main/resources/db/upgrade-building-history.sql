@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS building_history (
     created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_building_history_geometry ON building_history USING GIST(geometry);
+ALTER TABLE building_history ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE building_history ADD COLUMN IF NOT EXISTS construction_period VARCHAR(200);
 CREATE INDEX IF NOT EXISTS idx_building_history_geography ON building_history USING GIST((geometry::geography));
 CREATE INDEX IF NOT EXISTS idx_building_history_osm_id ON building_history(osm_id);
 CREATE INDEX IF NOT EXISTS idx_building_history_year ON building_history(construction_year);

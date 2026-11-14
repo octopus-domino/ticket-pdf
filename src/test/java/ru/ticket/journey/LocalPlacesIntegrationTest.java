@@ -51,6 +51,19 @@ class LocalPlacesIntegrationTest {
     assertTrue(places.findByNameAndLatitudeAndLongitude("CSV fixture",59.938,30.315).orElseThrow().getDescription().contains("\n"));
     places.delete(places.findByNameAndLatitudeAndLongitude("CSV fixture",59.938,30.315).orElseThrow());
   }
+  @Test void anyYearIncludesModernAndUndatedNamedHousesAndPreservesTheirInformation() throws Exception {
+    buildings.deleteAll();
+    var geometry=new WKTReader().read("POLYGON((30.314 59.937,30.316 59.937,30.316 59.939,30.314 59.939,30.314 59.937))");geometry.setSRID(4326);
+    for(int i=0;i<2;i++){
+      var row=new BuildingHistory();row.setSource("HOITH");row.setOsmId("all-years-"+i);row.setAddress("Fixture address");
+      row.setName("Named building "+i);row.setConstructionYear(i==0?2005:null);row.setConstructionPeriod(i==0?"2004–2005":"");row.setGeometry(geometry);history.upsertHoith(List.of(row));
+    }
+    assertEquals(2,history.nearby(30.315,59.938,7,1.5,"named building",0).size());
+    assertTrue(history.nearby(30.315,59.938,7,1.5,"named building",1945).isEmpty());
+    var found=http.getForEntity("/api/journeys/buildings/nearby?lon=30.315&lat=59.938&beforeYear=0",BuildingHistoryService.Info[].class);
+    assertEquals(200,found.getStatusCode().value());assertEquals(2,found.getBody().length);
+    assertTrue(Arrays.stream(found.getBody()).anyMatch(p->"2004–2005".equals(p.constructionPeriod())));
+  }
   @Test void buildingLookupUpsertBoundaryPriorityAndNearbySearch() throws Exception {
     buildings.deleteAll();
     var row=new BuildingHistory();row.setOsmId("hoith:fixture:1");row.setAddress("Historic fixture");row.setConstructionYear(1850);

@@ -12,6 +12,8 @@ public class BuildingHistory {
   @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id;
   @Column(length=50) private String osmId;
   @Column(columnDefinition="TEXT") private String address;
+  @Column(columnDefinition="TEXT") private String name;
+  @Column(length=200) private String constructionPeriod;
   private Integer constructionYear;
   @Column(length=300) private String architect;
   @Column(length=100) private String style;
@@ -26,6 +28,8 @@ public class BuildingHistory {
   public Long getId(){return id;}
   public String getOsmId(){return osmId;} public void setOsmId(String v){osmId=v;}
   public String getAddress(){return address;} public void setAddress(String v){address=v;}
+  public String getName(){return name;} public void setName(String v){name=v;}
+  public String getConstructionPeriod(){return constructionPeriod;} public void setConstructionPeriod(String v){constructionPeriod=v;}
   public Integer getConstructionYear(){return constructionYear;} public void setConstructionYear(Integer v){constructionYear=v;}
   public String getArchitect(){return architect;} public void setArchitect(String v){architect=v;}
   public String getStyle(){return style;} public void setStyle(String v){style=v;}

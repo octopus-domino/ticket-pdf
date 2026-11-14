@@ -19,7 +19,11 @@ public class BuildingHistoryService {
   private final boolean postgis;
   private final GeometryFactory geometry=new GeometryFactory(new PrecisionModel(),4326);
   public record Info(Long id,String osmId,String address,Integer constructionYear,String architect,String style,
-      String heritageStatus,String source,String sourceUrl,double longitude,double latitude) {}
+      String heritageStatus,String source,String sourceUrl,double longitude,double latitude,String name,String constructionPeriod) {
+    public Info(Long id,String osmId,String address,Integer constructionYear,String architect,String style,String heritageStatus,String source,String sourceUrl,double longitude,double latitude){
+      this(id,osmId,address,constructionYear,architect,style,heritageStatus,source,sourceUrl,longitude,latitude,null,null);
+    }
+  }
   public BuildingHistoryService(BuildingHistoryRepository repository,JdbcTemplate jdbc,@Value("${spring.datasource.url:}") String url){
     this.repository=repository;this.jdbc=jdbc;this.postgis=url.startsWith("jdbc:postgresql:");
   }
@@ -35,7 +39,7 @@ public class BuildingHistoryService {
   @Transactional(readOnly=true)
   public List<Info> nearby(double lon,double lat,int limit,double radiusKm,String query,int beforeYear){
     validate(lon,lat);
-    if(limit<1||limit>12||!Double.isFinite(radiusKm)||radiusKm<.1||radiusKm>3||query.length()>100||beforeYear<1||beforeYear>2100)
+    if(limit<1||limit>12||!Double.isFinite(radiusKm)||radiusKm<.1||radiusKm>3||query.length()>100||beforeYear<0||beforeYear>2100)
       throw ru.ticket.common.ApiException.badRequest("journey.route.invalid-route");
     String plain=query.strip().toLowerCase(Locale.ROOT);
     List<BuildingHistory> found;
@@ -43,15 +47,15 @@ public class BuildingHistoryService {
       found=repository.findNearby(lon,lat,radiusKm*1000,beforeYear,plain.isEmpty()?"":"%"+escaped+"%",limit);
     }else {
       found=localRows().stream().filter(p->p.getGeometry()!=null&&!p.getGeometry().isEmpty())
-          .filter(p->p.getConstructionYear()!=null&&p.getConstructionYear()<=beforeYear||p.getHeritageStatus()!=null&&!p.getHeritageStatus().isBlank())
-          .filter(p->(Objects.toString(p.getAddress(),"")+" "+Objects.toString(p.getArchitect(),"")+" "+Objects.toString(p.getStyle(),"")).toLowerCase(Locale.ROOT).contains(plain))
+          .filter(p->beforeYear==0||p.getConstructionYear()!=null&&p.getConstructionYear()<=beforeYear||p.getHeritageStatus()!=null&&!p.getHeritageStatus().isBlank())
+          .filter(p->(Objects.toString(p.getAddress(),"")+" "+Objects.toString(p.getName(),"")+" "+Objects.toString(p.getArchitect(),"")+" "+Objects.toString(p.getStyle(),"")).toLowerCase(Locale.ROOT).contains(plain))
           .filter(p->distance(lon,lat,p)<=radiusKm*1000).sorted(Comparator.comparingDouble(p->distance(lon,lat,p))).limit(limit).toList();
     }
     return found.stream().map(BuildingHistoryService::info).toList();
   }
   public static Info info(BuildingHistory p){
     Point point=p.getGeometry().getInteriorPoint();
-    return new Info(p.getId(),p.getOsmId(),p.getAddress(),p.getConstructionYear(),p.getArchitect(),p.getStyle(),p.getHeritageStatus(),p.getSource(),p.getSourceUrl(),point.getX(),point.getY());
+    return new Info(p.getId(),p.getOsmId(),p.getAddress(),p.getConstructionYear(),p.getArchitect(),p.getStyle(),p.getHeritageStatus(),p.getSource(),p.getSourceUrl(),point.getX(),point.getY(),p.getName(),p.getConstructionPeriod());
   }
   @Transactional(readOnly=true)
   public List<WalkCandidate> enrich(List<WalkCandidate> candidates,String language){
@@ -74,21 +78,23 @@ public class BuildingHistoryService {
     if(batch.size()>1000)throw new IllegalArgumentException("Building batch too large");
     if(postgis){
       jdbc.batchUpdate("""
-          INSERT INTO building_history(osm_id,address,construction_year,architect,style,heritage_status,source,source_url,geometry)
-          VALUES(?,?,?,?,?,?,'HOITH',?,ST_GeomFromText(?,4326))
+          INSERT INTO building_history(osm_id,address,construction_year,architect,style,heritage_status,source,source_url,geometry,name,construction_period)
+          VALUES(?,?,?,?,?,?,'HOITH',?,ST_GeomFromText(?,4326),?,?)
           ON CONFLICT(source,osm_id) WHERE source='HOITH' AND osm_id IS NOT NULL
           DO UPDATE SET address=EXCLUDED.address,construction_year=EXCLUDED.construction_year,architect=EXCLUDED.architect,
-            style=EXCLUDED.style,heritage_status=EXCLUDED.heritage_status,source_url=EXCLUDED.source_url,geometry=EXCLUDED.geometry,updated_at=NOW()
+            style=EXCLUDED.style,heritage_status=EXCLUDED.heritage_status,source_url=EXCLUDED.source_url,geometry=EXCLUDED.geometry,name=EXCLUDED.name,construction_period=EXCLUDED.construction_period,updated_at=NOW()
           """,batch,250,(statement,p)->{
             statement.setString(1,p.getOsmId());statement.setString(2,p.getAddress());
             if(p.getConstructionYear()==null)statement.setNull(3,Types.INTEGER);else statement.setInt(3,p.getConstructionYear());
             statement.setString(4,p.getArchitect());statement.setString(5,p.getStyle());statement.setString(6,p.getHeritageStatus());
             statement.setString(7,p.getSourceUrl());statement.setString(8,p.getGeometry().toText());
+            statement.setString(9,p.getName());statement.setString(10,p.getConstructionPeriod());
           });
     }else {
       for(var p:batch){
         var row=repository.findFirstBySourceAndOsmId("HOITH",p.getOsmId()).orElseGet(BuildingHistory::new);
         row.setOsmId(p.getOsmId());row.setSource("HOITH");row.setSourceUrl(p.getSourceUrl());row.setAddress(p.getAddress());
+        row.setName(p.getName());row.setConstructionPeriod(p.getConstructionPeriod());
         row.setConstructionYear(p.getConstructionYear());row.setArchitect(p.getArchitect());row.setStyle(p.getStyle());row.setHeritageStatus(p.getHeritageStatus());row.setGeometry(p.getGeometry());repository.save(row);
       }
       repository.flush();
