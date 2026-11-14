@@ -26,7 +26,18 @@ class HoithImporterTest {
       for(String city:List.of("Selected","Other")){
         var values=new SimpleFeatureBuilder(schema);values.addAll(new Object[]{polygon,1900.0,"Fixture "+city,city});features.add(values.buildFeature(city));
       }
-      ((org.geotools.api.data.SimpleFeatureStore)store.getFeatureSource("buildings")).addFeatures(features);
+      // Write through SQLite: GeoTools 31's writer does not return generated keys with this JDBC version.
+      try(var db=java.sql.DriverManager.getConnection("jdbc:sqlite:"+path);var insert=db.prepareStatement(
+          "INSERT INTO buildings(fid,geom,r_year_int,r_adress,city_russian) VALUES(?,?,?,?,?)")){
+        int id=0;
+        for(var feature:features){
+          insert.setInt(1,++id);
+          var geometryBytes=new org.locationtech.jts.io.WKBWriter().write((Geometry)feature.getDefaultGeometry());
+          var bytes=java.nio.ByteBuffer.allocate(8+geometryBytes.length).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+          bytes.put((byte)'G').put((byte)'P').put((byte)0).put((byte)1).putInt(4326).put(geometryBytes);
+          insert.setBytes(2,bytes.array());insert.setDouble(3,1900);insert.setString(4,(String)feature.getAttribute("r_adress"));insert.setString(5,(String)feature.getAttribute("city_russian"));insert.executeUpdate();
+        }
+      }
     }finally{store.dispose();}
     var service=mock(BuildingHistoryService.class);
     when(service.upsertHoith(anyList())).thenAnswer(call->{List<BuildingHistory> rows=call.getArgument(0);assertEquals(1,rows.size());assertEquals("Fixture Selected",rows.get(0).getAddress());return rows.size();});
