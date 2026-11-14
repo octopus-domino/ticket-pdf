@@ -26,7 +26,9 @@ public class JourneyRouteLayout {
     for (var stop : snapshot.stops()) if (stop.walkId() != null) {
       var labels = routeLabels(view.data().get("route_labels"));
       String fallback = "ru".equals(view.data().get("locale")) ? "Прогулка" : "City walk";
-      appendSnapshot(pages, view, routes.get(stop.walkId()), labels.getOrDefault("walk", fallback) + " · " + stop.label());
+      var walk=routes.get(stop.walkId());
+      String walkTitle=walk.stops().isEmpty()||walk.stops().get(0).meta()==null?null:walk.stops().get(0).meta().get("walk_title");
+      appendSnapshot(pages, view, walk, walkTitle==null?labels.getOrDefault("walk", fallback) + " · " + stop.label():walkTitle);
     }
     document.slides = pages;
   }
@@ -54,17 +56,26 @@ public class JourneyRouteLayout {
     DateTimeFormatter date =
         DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withLocale(locale);
     var captions = routeLabels(view.data().get("route_labels"));
+    var licenses=new LinkedHashMap<String,String>();
     if (snapshot.photos() != null) for (var photo : snapshot.photos()) {
-      if (y + 150 > 1050) { page = page(view, pages.size()); pages.add(page); y = 50; }
       String number = "";
       for (int index = 0; index < snapshot.stops().size(); index++)
         if (snapshot.stops().get(index).id().equals(photo.stopId())) number = "interior".equals(snapshot.pointNumbering())
             ? RoutePointLabels.marker(index,snapshot.stops().size()) : Integer.toString(index+1);
-      String credit = number + ". " + photo.author() + " · " + photo.license() + "\n"
-          + photo.sourceUrl() + "\n" + photo.licenseUrl();
-      page.elements.add(JourneyTypography.fit(credit, 50, y, 694, 138, 12, false, "#53665b"));
-      y += 150;
+      String credit = (number + ". " + photo.author() + " · " + photo.license() + " · " + photo.sourceUrl()).replaceAll("\\s+"," ").strip();
+      var text=JourneyTypography.fit(credit,50,y,694,900,8,false,"#53665b");
+      text.lineHeight=1.1;text.height=Math.ceil(text.text.split("\n",-1).length*8*1.1)+2;
+      if(y+text.height>1050){page=page(view,pages.size());pages.add(page);y=50;}
+      text.y=y;page.elements.add(text);y+=text.height+2;
+      licenses.put(photo.licenseUrl(),photo.license());
     }
+    for(var license:licenses.entrySet()){
+      var text=JourneyTypography.fit((license.getValue()+" · "+license.getKey()).replaceAll("\\s+"," "),50,y,694,900,8,false,"#53665b");
+      text.lineHeight=1.1;text.height=Math.ceil(text.text.split("\n",-1).length*8*1.1)+2;
+      if(y+text.height>1050){page=page(view,pages.size());pages.add(page);y=50;}
+      text.y=y;page.elements.add(text);y+=text.height+2;
+    }
+    y+=8;
     int stopNumber = 0;
     for (var row : snapshot.timeline()) {
       var stop="stop".equals(row.kind())&&stopNumber<snapshot.stops().size()?snapshot.stops().get(stopNumber):null;
