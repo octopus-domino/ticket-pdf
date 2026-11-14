@@ -20,6 +20,25 @@ class WalkThemeServiceTest {
     return new WalkThemeService(themes,osm,mock(PhotonPoiSource.class),wiki,new OpeningHoursEvaluator(new ObjectMapper()),popularity,25,20);
   }
   private WalkThemeService.WalkRequest request(){return new WalkThemeService.WalkRequest(37.62,55.75,"bars",LocalDateTime.parse("2026-11-13T20:00"),"en",7,1.5);}
+  @Test void slowOverpassCannotPreventPhotonFromFindingBars() throws Exception {
+    var photon=mock(PhotonPoiSource.class);
+    themes.setWalkThemes(Map.of("bars",new WalkThemeProperties.Theme(List.of("amenity=bar"),List.of(),List.of(),true)));
+    when(osm.search(anyDouble(),anyDouble(),anyInt(),any(),anyString())).thenAnswer(call->{Thread.sleep(30000);return List.of();});
+    when(photon.search(anyDouble(),anyDouble(),anyInt(),any(),anyString())).thenReturn(List.of(new OsmMcpClient.Poi("node/77","Fallback bar",37.62,55.75,Map.of("amenity","bar"))));
+    var service=new WalkThemeService(themes,osm,photon,wiki,new OpeningHoursEvaluator(new ObjectMapper()),popularity,25,20);
+    try{
+      var result=assertTimeoutPreemptively(java.time.Duration.ofSeconds(11),()->service.findCandidates(request()));
+      assertEquals(1,result.size());assertEquals("Fallback bar",result.get(0).label());
+    }finally{service.close();}
+  }
+  @Test void anEmptyTransientResponseDoesNotPoisonTheSearchCache() throws Exception {
+    var point=new OsmMcpClient.Poi("node/2","Recovered pub",37.62,55.75,Map.of("amenity","pub"));
+    when(osm.search(anyDouble(),anyDouble(),anyInt(),any(),anyString())).thenReturn(List.of(),List.of(point));
+    var service=service();try{
+      assertTrue(service.findCandidates(request()).isEmpty());
+      assertEquals("Recovered pub",service.findCandidates(request()).get(0).label());
+    }finally{service.close();}
+  }
   @Test void historicCategoryAloneDoesNotMakeAMysticStopButALegendDoes() throws Exception {
     var historic=new WikimapiaPoiSource.WikimapiaPoi(123,"Historic centre",37.621,55.75,List.of("historic"),true);
     var courtyard=new WikimapiaPoiSource.WikimapiaPoi(124,"Old courtyard",37.622,55.75,List.of("historic"),false);

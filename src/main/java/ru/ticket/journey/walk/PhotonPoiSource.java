@@ -75,7 +75,7 @@ public class PhotonPoiSource {
             }
 
             var value = List.copyOf(result.values());
-            cache.put(key, value);
+            if (!value.isEmpty()) cache.put(key, value);
             log.info("photon.search tags={} lang={} effective_lang={} result={}",
                     theme.tags(), language, langParam == null ? "default" : langParam, value.size());
             return value;

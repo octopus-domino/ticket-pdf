@@ -87,7 +87,7 @@ public class OsmPoiSource {
       result.add(new OsmMcpClient.Poi(id,name,x,y,Map.copyOf(values)));
     }
     var points=List.copyOf(result);
-    cache.put(key,points);
+    if(!points.isEmpty())cache.put(key,points);
     return points;
   }
 

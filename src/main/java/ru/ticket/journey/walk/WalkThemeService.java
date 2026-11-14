@@ -44,7 +44,7 @@ public class WalkThemeService {
   private final MysticThemeSource mystic;
   private final BuildingHistoryService buildings;
   private final Semaphore permit = new Semaphore(1);
-  private final ExecutorService discovery = Executors.newFixedThreadPool(2,
+  private final ExecutorService discovery = Executors.newFixedThreadPool(3,
           r -> { var t = new Thread(r, "walk-discovery"); t.setDaemon(true); return t; });
   private final WalkCache<String, List<WalkCandidate>> cache = new WalkCache<>(64, Duration.ofMinutes(10));
   private final int detailsLimit, minDescription;
@@ -92,6 +92,7 @@ public class WalkThemeService {
     long started=System.nanoTime();
     long deadline=started + TOTAL_BUDGET.toNanos();
     Future<List<OsmMcpClient.Poi>> osmTask=null;
+    Future<List<OsmMcpClient.Poi>> photonTask=null;
     Future<List<WikimapiaPoi>> wikiTask=null;
     try(var budget=WalkBudget.until(deadline)){
       double dy=request.radiusKm()/111.195, dx=dy/Math.cos(Math.toRadians(request.startLat()));
@@ -99,16 +100,16 @@ public class WalkThemeService {
 
       osmTask=discovery.submit(()->{
         try(var scope=WalkBudget.until(scopeDeadline)){
-          List<OsmMcpClient.Poi> result;
-          try { result=osm.search(request.startLon(),request.startLat(),(int)(request.radiusKm()*1000),theme,request.language()); }
-          catch(java.io.IOException unavailable) { result=List.of(); }
-          if(result.isEmpty() && !Thread.currentThread().isInterrupted()){
-            try{
-              var fallback=photon.search(request.startLon(),request.startLat(),(int)(request.radiusKm()*1000),theme,request.language());
-              if(!fallback.isEmpty()){ log.info("walk.photon_fallback count={}", fallback.size()); return fallback; }
-            }catch(java.io.IOException ex){ log.debug("walk.photon_unavailable"); }
-          }
-          return result;
+          try { return osm.search(request.startLon(),request.startLat(),(int)(request.radiusKm()*1000),theme,request.language()); }
+          catch(java.io.IOException unavailable) { return List.of(); }
+        }
+      });
+
+      // Reserve an independent fallback: a slow Overpass must not consume Photon's entire budget.
+      photonTask=discovery.submit(()->{
+        try(var scope=WalkBudget.until(scopeDeadline)){
+          try{return photon.search(request.startLon(),request.startLat(),(int)(request.radiusKm()*1000),theme,request.language());}
+          catch(java.io.IOException unavailable){return List.of();}
         }
       });
 
@@ -119,6 +120,10 @@ public class WalkThemeService {
       });
 
       var osmPoints=await(osmTask,deadline,OSM_AWAIT_MS);
+      if(osmPoints.isEmpty()){
+        osmPoints=await(photonTask,deadline,OSM_AWAIT_MS);
+        if(!osmPoints.isEmpty())log.info("walk.photon_fallback count={}",osmPoints.size());
+      }else if(!photonTask.isDone())photonTask.cancel(true);
       var wikiPoints=await(wikiTask,deadline,WIKIMAPIA_AWAIT_MS).stream()
               .filter(p->WikimapiaPoiSourceImpl.distance(request.startLon(),request.startLat(),p.lon(),p.lat())<=request.radiusKm()*1000)
               .sorted(Comparator.comparingDouble((WikimapiaPoi p)->preScore(p,theme)).reversed())
@@ -175,12 +180,13 @@ public class WalkThemeService {
         try {result=buildings.enrich(result,request.language());}
         catch(org.springframework.dao.DataAccessException unavailable){log.warn("building.history enrichment_unavailable");}
       }
-      cache.put(key,result);
+      if(!result.isEmpty())cache.put(key,result);
       log.info("walk.search theme={} lang={} osm_raw={} wiki_raw={} wiki_enriched={} result={} elapsed_ms={}",
               request.theme(),request.language(),osmPoints.size(),wikiPoints.size(),wikiCandidates.size(),result.size(),(System.nanoTime()-started)/1_000_000);
       return result;
     } finally {
       if(osmTask!=null&&!osmTask.isDone())osmTask.cancel(true);
+      if(photonTask!=null&&!photonTask.isDone())photonTask.cancel(true);
       if(wikiTask!=null&&!wikiTask.isDone())wikiTask.cancel(true);
       permit.release();
     }
