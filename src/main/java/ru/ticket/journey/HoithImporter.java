@@ -28,7 +28,7 @@ public class HoithImporter {
   public long importFile(Path path,Set<String> cities,int beforeYear) throws Exception {
     if(!java.nio.file.Files.isRegularFile(path)||!java.nio.file.Files.isReadable(path))throw new IOException("HOITH GeoPackage is not readable");
     var store=DataStoreFinder.getDataStore(Map.of("dbtype","geopkg","database",path.toAbsolutePath().toString(),"read_only",true,
-        "memory map size",32,"max connections",1,"min connections",1,"fetch size",250));
+            "memory map size",32,"max connections",1,"min connections",1,"fetch size",250));
     if(store==null)throw new IOException("No GeoPackage datastore available");
     long imported=0,skipped=0,pendingBytes=0;var batch=new ArrayList<BuildingHistory>(250);
     var wanted=cities.stream().map(v->v.strip().toLowerCase(Locale.ROOT)).filter(v->!v.isEmpty()).collect(java.util.stream.Collectors.toSet());
@@ -51,7 +51,7 @@ public class HoithImporter {
         if(beforeYear>0){
           if(source.getSchema().getDescriptor("r_year_int")==null)throw new IOException("HOITH layer has no construction year field");
           restrictions.add(factory.and(factory.greaterOrEqual(factory.property("r_year_int"),factory.literal(1000)),
-              factory.lessOrEqual(factory.property("r_year_int"),factory.literal(beforeYear))));
+                  factory.lessOrEqual(factory.property("r_year_int"),factory.literal(beforeYear))));
         }
         if(!restrictions.isEmpty())query.setFilter(restrictions.size()==1?restrictions.get(0):factory.and(restrictions));
         // Push city filtering into SQLite; avoid decoding millions of discarded geometries in Java.
@@ -60,7 +60,9 @@ public class HoithImporter {
             if(Thread.currentThread().isInterrupted())throw new InterruptedIOException("HOITH import interrupted");
             var feature=iterator.next();
             if(!wanted.isEmpty()&&!wanted.contains(value(feature,"city_russian").toLowerCase(Locale.ROOT))
-                &&!wanted.contains(value(feature,"city_english").toLowerCase(Locale.ROOT))&&!wanted.contains(value(feature,"city").toLowerCase(Locale.ROOT)))continue;
+                    &&!wanted.contains(value(feature,"city_english").toLowerCase(Locale.ROOT))&&!wanted.contains(value(feature,"city").toLowerCase(Locale.ROOT)))continue;
+            // hasInformation отсекает записи, где есть только адрес (без года/имени/стиля/архитектора/статуса).
+            if(!hasInformation(feature)){skipped++;continue;}
             BuildingHistory row;
             try {row=read(feature,transform,layer);}catch(Exception invalid){skipped++;continue;}
             if(row==null){skipped++;continue;}
@@ -77,6 +79,30 @@ public class HoithImporter {
       log.info("Imported {} building records; skipped {} rows",imported,skipped);return imported;
     }finally{store.dispose();}
   }
+
+  /**
+   * Запись полезна, если у неё есть хоть что-то, кроме адреса:
+   * год постройки, имя дома, архитектор, стиль или охранный статус.
+   * Адрес сам по себе — не повод засорять базу: обогатить описание нечем.
+   */
+  static boolean hasInformation(SimpleFeature feature){
+    if(feature==null)return false;
+    boolean hasYear=false;
+    Object yearRaw=feature.getAttribute("r_year_int");
+    if(yearRaw instanceof Number number){
+      double y=number.doubleValue();
+      hasYear=Double.isFinite(y)&&y>=1000&&y<=java.time.Year.now().getValue();
+    } else if(yearRaw!=null){
+      Integer parsed=year(yearRaw.toString());
+      hasYear=parsed!=null;
+    }
+    return hasYear
+            ||!isPlaceholder(text(feature,"r_name","name"))
+            ||!isPlaceholder(text(feature,"r_architect","architect"))
+            ||!isPlaceholder(text(feature,"r_style","style"))
+            ||!isPlaceholder(text(feature,"r_mkrf","heritage_status","heritage"));
+  }
+
   static BuildingHistory read(SimpleFeature feature,MathTransform transform,String layer) throws Exception {
     if(!(feature.getDefaultGeometry() instanceof Geometry raw)||raw.isEmpty()||raw.getNumPoints()>50000)return null;
     Geometry geometry=transform.isIdentity()?(Geometry)raw.copy():JTS.transform(raw,transform);
@@ -96,13 +122,25 @@ public class HoithImporter {
     try {var uri=java.net.URI.create(url);if(!"https".equals(uri.getScheme())&&!"http".equals(uri.getScheme())||uri.getHost()==null||uri.getUserInfo()!=null)url="";}catch(IllegalArgumentException invalid){url="";}
     row.setSourceUrl(url.isBlank()?"https://disk.yandex.ru/d/6rI165UaOpvG0A":cut(url,2000));row.setGeometry(geometry);return row;
   }
+
   static Integer year(String value){
     if(value==null)return null;var matcher=YEAR.matcher(value);if(!matcher.find())return null;
     int year=Integer.parseInt(matcher.group());return year<=java.time.Year.now().getValue()?year:null;
   }
+
   private static String value(SimpleFeature feature,String...names){
     for(String name:names){if(feature.getFeatureType().getDescriptor(name)==null)continue;Object raw=feature.getAttribute(name);
       if(raw!=null&&!raw.toString().isBlank())return raw.toString().strip();}return "";
+  }
+  private static String text(SimpleFeature feature,String...names){
+    for(String name:names){if(feature.getFeatureType().getDescriptor(name)==null)continue;Object raw=feature.getAttribute(name);
+      if(raw==null)continue;String s=raw.toString().strip();if(!s.isEmpty())return s;}return "";
+  }
+  private static boolean isPlaceholder(String value){
+    if(value==null)return true;String v=value.strip().toLowerCase(Locale.ROOT);
+    if(v.isEmpty())return true;
+    return v.equals("nan")||v.equals("null")||v.equals("-")||v.equals("—")
+            ||v.equals("n/a")||v.equals("na")||v.equals("none")||v.equals("unknown");
   }
   private static String valueOr(String fallback,String value){return value.isBlank()?fallback:value;}
   private static String cut(String value,int max){return value.length()>max?value.substring(0,max):value;}
