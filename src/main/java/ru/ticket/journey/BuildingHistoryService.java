@@ -36,20 +36,33 @@ public class BuildingHistoryService {
         .sorted(Comparator.comparingInt((BuildingHistory p)->"SPB_PASSPORT".equals(p.getSource())?0:1)
             .thenComparingDouble(p->p.getGeometry().getArea())).findFirst();
   }
+  // ticket-pdf/src/main/java/ru/ticket/journey/BuildingHistoryService.java
+// заменить метод nearby:
+
   @Transactional(readOnly=true)
   public List<Info> nearby(double lon,double lat,int limit,double radiusKm,String query,int beforeYear){
     validate(lon,lat);
-    if(limit<1||limit>12||!Double.isFinite(radiusKm)||radiusKm<.1||radiusKm>3||query.length()>100||beforeYear<0||beforeYear>2100)
+    // Было: limit>12 || radiusKm>3
+    if(limit<1||limit>500||!Double.isFinite(radiusKm)||radiusKm<.1||radiusKm>10
+            ||query.length()>100||beforeYear<0||beforeYear>2100)
       throw ru.ticket.common.ApiException.badRequest("journey.route.invalid-route");
     String plain=query.strip().toLowerCase(Locale.ROOT);
     List<BuildingHistory> found;
-    if(postgis){String escaped=plain.replace("!","!!").replace("%","!%").replace("_","!_");
-      found=repository.findNearby(lon,lat,radiusKm*1000,beforeYear,plain.isEmpty()?"":"%"+escaped+"%",limit);
-    }else {
-      found=localRows().stream().filter(p->p.getGeometry()!=null&&!p.getGeometry().isEmpty())
-          .filter(p->beforeYear==0||p.getConstructionYear()!=null&&p.getConstructionYear()<=beforeYear||p.getHeritageStatus()!=null&&!p.getHeritageStatus().isBlank())
-          .filter(p->(Objects.toString(p.getAddress(),"")+" "+Objects.toString(p.getName(),"")+" "+Objects.toString(p.getArchitect(),"")+" "+Objects.toString(p.getStyle(),"")).toLowerCase(Locale.ROOT).contains(plain))
-          .filter(p->distance(lon,lat,p)<=radiusKm*1000).sorted(Comparator.comparingDouble(p->distance(lon,lat,p))).limit(limit).toList();
+    if(postgis){
+      String escaped=plain.replace("!","!!").replace("%","!%").replace("_","!_");
+      found=repository.findNearby(lon,lat,radiusKm*1000,beforeYear,
+              plain.isEmpty()?"":"%"+escaped+"%",limit);
+    } else {
+      found=localRows().stream()
+              .filter(p->p.getGeometry()!=null&&!p.getGeometry().isEmpty())
+              .filter(p->beforeYear==0||p.getConstructionYear()!=null&&p.getConstructionYear()<=beforeYear
+                      ||p.getHeritageStatus()!=null&&!p.getHeritageStatus().isBlank())
+              .filter(p->(Objects.toString(p.getAddress(),"")+" "+Objects.toString(p.getName(),"")
+                      +" "+Objects.toString(p.getArchitect(),"")+" "+Objects.toString(p.getStyle(),""))
+                      .toLowerCase(Locale.ROOT).contains(plain))
+              .filter(p->distance(lon,lat,p)<=radiusKm*1000)
+              .sorted(Comparator.comparingDouble(p->distance(lon,lat,p)))
+              .limit(limit).toList();
     }
     return found.stream().map(BuildingHistoryService::info).toList();
   }
