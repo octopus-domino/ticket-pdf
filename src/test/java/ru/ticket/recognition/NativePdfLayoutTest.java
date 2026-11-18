@@ -45,8 +45,11 @@ class NativePdfLayoutTest {
     String sample = System.getProperty("recognition.sample");
     org.junit.jupiter.api.Assumptions.assumeTrue(sample != null);
     try (var document = Loader.loadPDF(Path.of(sample).toFile())) {
-      var image = new PDFRenderer(document).renderImage(0, 3, ImageType.RGB);
-      var words = new PdfTextExtractor().extract(document, 1, 3);
+      var box = document.getPage(0).getCropBox();
+      float scale = (float) Math.min(300.0 / 72, Math.min(4096.0 / Math.max(box.getWidth(), box.getHeight()),
+          Math.sqrt(6_000_000.0 / (box.getWidth() * box.getHeight()))));
+      var image = new PDFRenderer(document).renderImage(0, scale, ImageType.RGB);
+      var words = new PdfTextExtractor().extract(document, 1, scale);
       var draft = analyzer.analyze(image, words);
       Path output = Path.of(System.getProperty("recognition.output", "target/native-draft.json"));
       new com.fasterxml.jackson.databind.ObjectMapper().writeValue(output.toFile(), draft);
