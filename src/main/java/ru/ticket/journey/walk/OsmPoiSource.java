@@ -71,7 +71,7 @@ public class OsmPoiSource {
       if(!pair[1].equals("*"))query.append("=\"").append(pair[1]).append('"');
       query.append("](around:").append(radius).append(',').append(lat).append(',').append(lon).append(");");
     }
-    query.append(area?");out tags center;":");out tags center 80;");
+    query.append(area?");out body center;":");out body center 80;");
 
     JsonNode payload=osm.walkQuery(query.toString());
     if(!payload.path("elements").isArray()||payload.has("remark")){

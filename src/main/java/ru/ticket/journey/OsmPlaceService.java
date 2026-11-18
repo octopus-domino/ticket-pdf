@@ -18,18 +18,27 @@ public class OsmPlaceService {
   private final Semaphore permit = new Semaphore(1);
   private final ObjectMapper mapper;
   private final String endpoint;
+  private final ru.ticket.journey.walk.OverpassQueryClient walkQueries;
   private long nextRequest;
   private org.springframework.beans.factory.ObjectProvider<ru.ticket.journey.walk.WalkThemeService> themed;
   @org.springframework.beans.factory.annotation.Autowired
   void themed(org.springframework.beans.factory.ObjectProvider<ru.ticket.journey.walk.WalkThemeService> source){this.themed=source;}
+  @org.springframework.beans.factory.annotation.Autowired
+  public OsmPlaceService(ObjectMapper mapper,
+      @Value("${app.journeys.overpass-url:https://overpass-api.de/api/interpreter}") String endpoint,
+      ru.ticket.journey.walk.OverpassQueryClient walkQueries) {
+    this.mapper = mapper; this.endpoint = endpoint; this.walkQueries = walkQueries;
+  }
+
   public OsmPlaceService(ObjectMapper mapper,
       @Value("${app.journeys.overpass-url:https://overpass-api.de/api/interpreter}") String endpoint) {
-    this.mapper = mapper; this.endpoint = endpoint;
+    this(mapper, endpoint, new ru.ticket.journey.walk.OverpassQueryClient(
+        new ru.ticket.journey.walk.WalkRemote(mapper), List.of(endpoint)));
   }
   /** Bounded batched query for thematic discovery and one OSM cross-check per Wikimapia set. */
   public JsonNode walkQuery(String query) throws java.io.IOException {
     if(query.length()>12000||!permit.tryAcquire())throw new java.io.IOException("OSM busy");
-    try{return new ru.ticket.journey.walk.WalkRemote(mapper).post(endpoint,"data="+URLEncoder.encode(query,StandardCharsets.UTF_8));}
+    try{return walkQueries.query(query);}
     finally{permit.release();}
   }
   public List<PlaceRecommendationsController.Place> search(double longitude,double latitude,String kind,String language,String theme,java.time.LocalDateTime visitTime,Integer maxSitelinks){
