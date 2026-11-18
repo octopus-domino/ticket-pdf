@@ -1,114 +1,149 @@
 package ru.ticket.recognition.layout;
 
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import org.springframework.stereotype.Component;
 import ru.ticket.recognition.OcrEngine.Word;
 import ru.ticket.recognition.RecognitionDraft.Item;
 import ru.ticket.recognition.RuleDetector.Rule;
+import ru.ticket.recognition.InkStyleSampler;
 
+/** Connected-component grid analysis keeps separate tables separate, including short two-row forms. */
 @Component
 public class RuledTableDetector {
+  private static final int SNAP = 6;
+  private static final int MAX_ROWS = 80;
+  private static final int MAX_COLS = 40;
 
-    private static final int MAX_HORIZONTAL_RULES = 31;
-    private static final int MAX_VERTICAL_RULES = 16;
-    private static final int SNAP_TOLERANCE = 5;
-    private static final int EDGE_TOLERANCE = 7;
+  public record Result(List<Item> tables, Set<Word> consumedWords,
+                       List<Rule> remainingHorizontal, List<Rule> remainingVertical) {
+    /** Compatibility for callers interested in just the first table. */
+    public Optional<Item> table() { return tables.stream().findFirst(); }
+  }
 
-    public record Result(
-            Optional<Item> table,
-            Set<Word> consumedWords,
-            List<Rule> remainingHorizontal,
-            List<Rule> remainingVertical) {
+  /** Words belong to one cell by their centre, so touching a border never duplicates a value. */
+  public Result detect(BufferedImage image, List<Word> words, List<Rule> horizontal, List<Rule> vertical) {
+    var tables = new ArrayList<Item>();
+    var consumed = new HashSet<Word>();
+    var usedH = new HashSet<Rule>();
+    var usedV = new HashSet<Rule>();
+    for (var group : components(horizontal, vertical)) {
+      var hs = group.stream().filter(horizontal::contains).toList();
+      var vs = group.stream().filter(vertical::contains).toList();
+      Item table = build(image, words, hs, vs, consumed);
+      if (table == null) continue;
+      tables.add(table); usedH.addAll(hs); usedV.addAll(vs);
     }
+    return new Result(List.copyOf(tables), Set.copyOf(consumed),
+        horizontal.stream().filter(r -> !usedH.contains(r)).toList(),
+        vertical.stream().filter(r -> !usedV.contains(r)).toList());
+  }
 
-    public Result detect(
-            BufferedImage image, List<Word> words,
-            List<Rule> horizontal, List<Rule> vertical) {
-
-        int width = image.getWidth();
-
-        List<Rule> gridH = horizontal.stream().filter(r -> r.width() > width / 4).toList();
-        List<Rule> gridV = vertical.stream().filter(r -> r.height() > 30).toList();
-
-        if (gridH.size() < 3 || gridH.size() > MAX_HORIZONTAL_RULES
-                || gridV.size() < 2 || gridV.size() > MAX_VERTICAL_RULES) {
-            return empty(horizontal, vertical);
-        }
-
-        int left = gridH.get(0).x();
-        int right = left + gridH.get(0).width();
-        int top = gridH.get(0).y();
-        int bottom = gridH.get(gridH.size() - 1).y();
-
-        var xs = gridV.stream()
-                .filter(r -> Math.abs(r.y() - top) <= SNAP_TOLERANCE
-                        && Math.abs(r.y() + r.height() - bottom) <= EDGE_TOLERANCE)
-                .map(Rule::x).distinct().sorted().toList();
-
-        var ys = gridH.stream()
-                .filter(r -> Math.abs(r.x() - left) <= SNAP_TOLERANCE
-                        && Math.abs(r.x() + r.width() - right) <= SNAP_TOLERANCE)
-                .map(Rule::y).distinct().sorted().toList();
-
-        if (xs.size() < 2 || ys.size() < 3
-                || Math.abs(xs.get(0) - left) > SNAP_TOLERANCE
-                || Math.abs(xs.get(xs.size() - 1) - right) > EDGE_TOLERANCE) {
-            return empty(horizontal, vertical);
-        }
-
-        var data = new ArrayList<List<String>>();
-        var consumed = new HashSet<Word>();
-        for (int row = 0; row < ys.size() - 1; row++) {
-            var cells = new ArrayList<String>();
-            for (int col = 0; col < xs.size() - 1; col++) {
-                var inCell = new ArrayList<Word>();
-
-                double cellX1 = xs.get(col);
-                double cellX2 = xs.get(col + 1);
-                double cellY1 = ys.get(row);
-                double cellY2 = ys.get(row + 1);
-
-                for (Word word : words) {
-                    double wx1 = word.x();
-                    double wx2 = word.x() + word.width();
-                    double wy1 = word.y();
-                    double wy2 = word.y() + word.height();
-
-                    if (wx1 < cellX2 && wx2 > cellX1 && wy1 < cellY2 && wy2 > cellY1) {
-                        inCell.add(word);
-                    }
-                }
-
-                inCell.sort(Comparator.comparingInt(Word::y).thenComparingInt(Word::x));
-                cells.add(String.join(" ", inCell.stream().map(Word::text).toList()));
-                consumed.addAll(inCell);
-            }
-            data.add(cells);
-        }
-
-        Item table = new Item("table", left, top, right - left, bottom - top,
-                Map.of(
-                        "data", data,
-                        "rows", data.size(),
-                        "cols", xs.size() - 1,
-                        "fontSize", Math.max(8, (ys.get(1) - top) * 0.35)));
-
-        List<Rule> leftoverH = horizontal.stream()
-                .filter(r -> r.y() < top - 3 || r.y() > bottom + 3).toList();
-        List<Rule> leftoverV = vertical.stream()
-                .filter(r -> r.x() < left - 3 || r.x() > right + 3).toList();
-
-        return new Result(Optional.of(table), consumed, leftoverH, leftoverV);
+  private List<List<Rule>> components(List<Rule> horizontal, List<Rule> vertical) {
+    var visited = new HashSet<Rule>();
+    var groups = new ArrayList<List<Rule>>();
+    for (var seed : horizontal) {
+      if (!visited.add(seed)) continue;
+      var group = new ArrayList<Rule>();
+      var queue = new ArrayDeque<Rule>(); queue.add(seed);
+      while (!queue.isEmpty()) {
+        var current = queue.remove(); group.add(current);
+        var opposite = horizontal.contains(current) ? vertical : horizontal;
+        for (var next : opposite)
+          if (intersects(current, next) && visited.add(next)) queue.add(next);
+      }
+      groups.add(group);
     }
+    return groups;
+  }
 
-    private static Result empty(List<Rule> h, List<Rule> v) {
-        return new Result(Optional.empty(), Set.of(), h, v);
+  private boolean intersects(Rule a, Rule b) {
+    return a.x() <= b.x() + b.width() + SNAP && b.x() <= a.x() + a.width() + SNAP
+        && a.y() <= b.y() + b.height() + SNAP && b.y() <= a.y() + a.height() + SNAP;
+  }
+
+  private Item build(BufferedImage image, List<Word> words, List<Rule> hs, List<Rule> vs, Set<Word> consumed) {
+    if (hs.size() < 2 || vs.size() < 2) return null;
+    var xs = snap(vs.stream().map(Rule::x).toList());
+    var ys = snap(hs.stream().map(Rule::y).toList());
+    if (xs.size() < 2 || ys.size() < 2 || xs.size() > MAX_COLS + 1 || ys.size() > MAX_ROWS + 1) return null;
+    int left = xs.get(0), right = xs.get(xs.size() - 1);
+    int top = ys.get(0), bottom = ys.get(ys.size() - 1);
+    if (right - left < 40 || bottom - top < 15 || !closed(hs, vs, left, top, right, bottom)) return null;
+    var cells = cells(image, words, xs, ys, consumed);
+    var data = cells.data();
+    var sizes = words.stream().filter(consumed::contains).filter(w -> w.x() >= left && w.x() < right
+        && w.y() >= top && w.y() < bottom).mapToInt(Word::height).sorted().toArray();
+    double fontSize = sizes.length == 0 ? 12 : Math.max(8, sizes[sizes.length / 2] * 1.05);
+    return new Item("table", left, top, right - left, bottom - top,
+        Map.of("data", data, "rows", data.size(), "cols", xs.size() - 1, "fontSize", fontSize,
+            "columnWidths", differences(xs), "rowHeights", differences(ys),
+            "borderColor", "#202020", "headerBg", "#ffffff", "cellPadding", 2, "cellStyles", cells.styles()));
+  }
+
+  private boolean closed(List<Rule> hs, List<Rule> vs, int left, int top, int right, int bottom) {
+    return hs.stream().filter(r -> Math.abs(r.y() - top) <= SNAP || Math.abs(r.y() - bottom) <= SNAP)
+        .filter(r -> r.x() <= left + SNAP && r.x() + r.width() >= right - SNAP).count() >= 2
+        && vs.stream().filter(r -> Math.abs(r.x() - left) <= SNAP || Math.abs(r.x() - right) <= SNAP)
+        .filter(r -> r.y() <= top + SNAP && r.y() + r.height() >= bottom - SNAP).count() >= 2;
+  }
+
+  private record Cells(List<List<String>> data, List<List<Map<String, Object>>> styles) {}
+
+  private Cells cells(BufferedImage image, List<Word> words, List<Integer> xs, List<Integer> ys, Set<Word> consumed) {
+    var data = new ArrayList<List<String>>();
+    var styles = new ArrayList<List<Map<String, Object>>>();
+    for (int row = 0; row < ys.size() - 1; row++) {
+      var values = new ArrayList<String>();
+      var rowStyles = new ArrayList<Map<String, Object>>();
+      for (int col = 0; col < xs.size() - 1; col++) {
+        int left = xs.get(col), right = xs.get(col + 1), top = ys.get(row), bottom = ys.get(row + 1);
+        var selected = words.stream().filter(w -> w.x() + w.width() / 2.0 >= left
+            && w.x() + w.width() / 2.0 < right && w.y() + w.height() / 2.0 >= top
+            && w.y() + w.height() / 2.0 < bottom)
+            .sorted(Comparator.comparingInt(Word::y).thenComparingInt(Word::x)).toList();
+        values.add(String.join(" ", selected.stream().map(Word::text).toList()));
+        rowStyles.add(cellStyle(image, selected, left, top, right, bottom));
+        consumed.addAll(selected);
+      }
+      data.add(values);
+      styles.add(rowStyles);
     }
+    return new Cells(data, styles);
+  }
+
+  private Map<String, Object> cellStyle(BufferedImage image, List<Word> words, int left, int top, int right, int bottom) {
+    var fontSizes = words.stream().mapToDouble(w -> w.line() != null && w.line().startsWith("pdf:")
+        ? w.hints().fontSize() : w.height() * 1.3).sorted().toArray();
+    double size = fontSizes.length == 0 ? 12 : fontSizes[fontSizes.length / 2];
+    String family = words.stream().map(Word::hints).filter(Objects::nonNull)
+        .map(h -> h.fontFamily()).filter(Objects::nonNull).findFirst().orElse("Arial");
+    boolean bold = words.stream().filter(w -> w.hints() != null && Boolean.TRUE.equals(w.hints().bold())).count() > words.size() / 2;
+    boolean italic = words.stream().filter(w -> w.hints() != null && Boolean.TRUE.equals(w.hints().italic())).count() > words.size() / 2;
+    return Map.of("fontSize", Math.max(8, size), "fontFamily", family,
+        "fontStyle", bold ? (italic ? "bold italic" : "bold") : italic ? "italic" : "normal",
+        "color", InkStyleSampler.textColor(image, words), "background", background(image, left, top, right, bottom));
+  }
+
+  private String background(BufferedImage image, int left, int top, int right, int bottom) {
+    var colors = new HashMap<Integer, Integer>();
+    for (int y = top + 3; y < Math.min(image.getHeight(), bottom - 3); y += 3)
+      for (int x = left + 3; x < Math.min(image.getWidth(), right - 3); x += 3)
+        colors.merge(image.getRGB(x, y) & 0xffffff, 1, Integer::sum);
+    int color = colors.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(0xffffff);
+    return String.format(Locale.ROOT, "#%06x", color);
+  }
+
+  private List<Integer> snap(List<Integer> coordinates) {
+    var result = new ArrayList<Integer>();
+    for (int value : coordinates.stream().distinct().sorted().toList())
+      if (result.isEmpty() || value - result.get(result.size() - 1) > SNAP) result.add(value);
+    return result;
+  }
+
+  private List<Integer> differences(List<Integer> values) {
+    var sizes = new ArrayList<Integer>();
+    for (int i = 1; i < values.size(); i++) sizes.add(values.get(i) - values.get(i - 1));
+    return sizes;
+  }
 }

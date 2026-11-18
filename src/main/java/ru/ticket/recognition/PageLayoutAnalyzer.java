@@ -49,7 +49,7 @@ public class PageLayoutAnalyzer {
     List<Rule> vertical = RuleDetector.detect(image, true);
 
     var tableResult = tableDetector.detect(image, words, horizontal, vertical);
-    tableResult.table().ifPresent(items::add);
+    items.addAll(tableResult.tables());
 
     boolean[] excluded = TextMask.fromOcrWords(width, height, words);
     for (Item item : items) {

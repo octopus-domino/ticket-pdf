@@ -47,7 +47,7 @@ public final class RuleDetector {
           gap = 0;
         } else if (start >= 0 && (++gap > 1 || pos == across)) {
           int length = pos - start - gap + 1;
-          if (length >= Math.max(50, across / 12) && thin(image, vertical, row, start, length)) {
+          if (length >= Math.max(18, across / 100) && thin(image, vertical, row, start, length)) {
 
             Rule next = fullThickness(image, vertical, row, start, length);
             boolean merged = false;
@@ -74,7 +74,7 @@ public final class RuleDetector {
         }
       }
     }
-    return result.size() <= 80 ? result : List.of();
+    return result.size() <= 512 ? result : List.of();
   }
 
   private static Rule fullThickness(
@@ -117,7 +117,7 @@ public final class RuleDetector {
     int contrastingSamples = 0;
     int samples = 31;
     int minRed = 255, minGreen = 255, minBlue = 255, maxRed = 0, maxGreen = 0, maxBlue = 0;
-    int minBackground = 765, maxBackground = 0;
+    var background = new ArrayList<Integer>();
     for (int sample = 1; sample <= samples; sample++) {
       int pos = start + length * sample / (samples + 1);
       int x = vertical ? row : pos;
@@ -143,19 +143,22 @@ public final class RuleDetector {
       int center = brightness(rgb);
       int before = brightness(image.getRGB(beforeX, beforeY));
       int after = brightness(image.getRGB(afterX, afterY));
-      minBackground = Math.min(minBackground, Math.min(before, after));
-      maxBackground = Math.max(maxBackground, Math.max(before, after));
       if (before > center + MIN_RULE_CONTRAST && after > center + MIN_RULE_CONTRAST) {
         contrastingSamples++;
+        background.add(before);
+        background.add(after);
       }
     }
     // Photographic edges can contrast at a few isolated points, but a printed rule
     // has a consistent stroke and clear background on both sides along its length.
-    return contrastingSamples >= 27
+    background.sort(Integer::compareTo);
+    int backgroundSpread = background.isEmpty() ? 765
+        : background.get(background.size() * 3 / 4) - background.get(background.size() / 4);
+    return contrastingSamples >= 24
         && maxRed - minRed <= 48
         && maxGreen - minGreen <= 48
         && maxBlue - minBlue <= 48
-        && maxBackground - minBackground <= 150;
+        && backgroundSpread <= 150;
   }
 
   private static boolean adjacent(Rule a, Rule b, boolean vertical) {

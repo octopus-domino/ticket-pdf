@@ -13,11 +13,9 @@ import ru.ticket.recognition.shape.ShapeRecognizer;
 /**
  * Top-level recognition: dual-pass OCR → fusion → layout (with artwork) → shapes.
  *
- * <p><b>CRITICAL: Only TSV layout is preserved.</b> Unmatched hOCR words have
- * different line IDs (e.g., {@code hocr:L1}) and will scatter the layout when
- * grouped by {@code PageLayoutAnalyzer}. They also sometimes carry wild
- * {@code x_fsize} hints. We strictly filter them out, falling back to pure TSV
- * geometry, which gives the 1:1 original layout quality.
+ * <p>TSV controls the primary layout. Labels found only by the sparse pass are
+ * assigned to geometric lines before layout, so they remain editable without
+ * scattering text or leaking unreliable hOCR font guesses.
  */
 @Service
 public class CompositeRecognitionService {
@@ -42,11 +40,7 @@ public class CompositeRecognitionService {
         var dual = dualRunner.run(image, language);
         var fused = fusion.fuse(dual.tsvWords(), dual.hocrWords());
 
-        // Keep ONLY TSV words for layout. Unmatched hOCR words cause chaos.
-        var words = fused.stream()
-                .filter(f -> dual.tsvWords().isEmpty() || f.line() == null || !f.line().startsWith("hocr:"))
-                .map(f -> f.toWord(null))
-                .toList();
+        var words = ru.ticket.recognition.ensemble.OcrLineReconciler.reconcile(fused, dual.tsvWords());
 
         // Layout WITH artwork: complex graphics become image crops.
         var baseDraft = analyzer.analyze(image, words, true);

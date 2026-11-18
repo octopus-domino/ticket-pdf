@@ -31,7 +31,7 @@ public class TesseractOcrEngine implements OcrEngine {
   @Override
   public List<Word> recognize(BufferedImage image, String language) {
     var request = new TesseractProcessRunner.Request(
-            List.of("-l", language, "--psm", "3", "tsv"),
+            ru.ticket.recognition.tesseract.TesseractProfile.arguments(language, false),
             MAX_OUTPUT_BYTES);
     return parse(runner.run(image, request));
   }

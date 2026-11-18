@@ -32,7 +32,7 @@ public class InkBasedRunSplitter implements StyledRunSplitter {
       for (int i = 1; i < sorted.size(); i++) lineBounds = mergeWords(lineBounds, sorted.get(i));
       try {
         TextStyle estimate = styleAnalyzer.analyze(image, lineBounds);
-        if (estimate.reliable()) lineStyle = estimate;
+        lineStyle = estimate;
       } catch (RuntimeException ignored) {
         // A line estimate is optional; each word still has its original OCR bounds.
       }
@@ -44,7 +44,8 @@ public class InkBasedRunSplitter implements StyledRunSplitter {
     for (Word word : sorted) {
       TextStyle style;
       try {
-        style = styleAnalyzer.analyze(image, word);
+        style = word.line() != null && word.line().startsWith("pdf:")
+            ? pdfStyle(image, word) : styleAnalyzer.analyze(image, word);
       } catch (RuntimeException error) {
         style =
             TextStyle.defaultFor(
@@ -52,7 +53,7 @@ public class InkBasedRunSplitter implements StyledRunSplitter {
       }
 
       if (lineStyle != null
-          && (!style.reliable() || word.text().length() <= 3)
+          && (word.line() == null || !word.line().startsWith("pdf:"))
           && Math.abs(style.fontSize() - lineStyle.fontSize())
               <= Math.max(3, lineStyle.fontSize() * .3)
           && similarColor(style.color(), lineStyle.color())) {
@@ -60,8 +61,8 @@ public class InkBasedRunSplitter implements StyledRunSplitter {
             new TextStyle(
                 style.color(),
                 lineStyle.fontSize(),
-                lineStyle.bold(),
-                lineStyle.italic(),
+                !style.reliable() || word.text().length() <= 3 ? lineStyle.bold() : style.bold(),
+                !style.reliable() || word.text().length() <= 3 ? lineStyle.italic() : style.italic(),
                 style.underline(),
                 style.strike(),
                 lineStyle.fontFamily(),
@@ -82,6 +83,14 @@ public class InkBasedRunSplitter implements StyledRunSplitter {
       result.add(new StyledRun(currentWord, currentStyle));
     }
     return result;
+  }
+
+  /** PDF metadata replaces pixel guesses; OCR hints never enter this trusted path. */
+  private static TextStyle pdfStyle(BufferedImage image, Word word) {
+    var hints = word.hints();
+    return new TextStyle(InkStyleSampler.textColor(image, List.of(word)), hints.fontSize(),
+        Boolean.TRUE.equals(hints.bold()), Boolean.TRUE.equals(hints.italic()), false, false,
+        hints.fontFamily(), true);
   }
 
   /** Ignore small rasterization differences while retaining real emphasis changes. */

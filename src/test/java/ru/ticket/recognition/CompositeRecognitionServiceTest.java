@@ -25,7 +25,7 @@ class CompositeRecognitionServiceTest {
         when(analyzer.analyze(any(), any(), anyBoolean())).thenAnswer(invocation -> {
             List<OcrEngine.Word> words = invocation.getArgument(1);
             assertThat(words).hasSize(1);
-            assertThat(words.get(0).line()).isEqualTo("hocr:L1");
+          assertThat(words.get(0).line()).startsWith("sparse:");
             return new RecognitionDraft(200, 100, List.of(), List.of(), "ocr");
         });
         var shapes = mock(ShapeRecognizer.class);
