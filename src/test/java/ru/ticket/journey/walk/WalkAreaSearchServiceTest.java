@@ -11,6 +11,22 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class WalkAreaSearchServiceTest {
+  @Test void overloadedOverpassUsesAvailableAreaFallbackInsteadOfReturning503() throws Exception {
+    var osm = mock(OsmPoiSource.class);
+    when(osm.searchArea(anyDouble(), anyDouble(), anyInt(), any(), anyString())).thenThrow(new java.io.IOException("HTTP 504"));
+    var fallback = mock(PhotonAreaPoiSource.class);
+    when(fallback.search(anyDouble(), anyDouble(), anyInt(), any(), anyString())).thenReturn(List.of(
+        new OsmMcpClient.Poi("node/91", "Nearby bar", 30.3054, 59.9147, Map.of("amenity", "bar"))));
+    var themes = new WalkThemeProperties();
+    themes.setWalkThemes(Map.of("bars", new WalkThemeProperties.Theme(List.of("amenity=bar"), List.of(), List.of(), false)));
+    var service = new WalkAreaSearchService(themes, osm, mock(WikimapiaPoiSource.class), mock(MysticThemeSource.class),
+        new OpeningHoursEvaluator(new ObjectMapper()), new ObjectMapper(), fallback);
+    try {
+      var result = service.search(new WalkAreaSearchService.Request(30.3054, 59.9147, List.of("bars"), "ru", .8, null));
+      assertEquals(1, result.size());
+      assertEquals("bars", result.get(0).meta().get("themes"));
+    } finally { service.close(); }
+  }
   @Test void combinesThemesOnceReturnsMoreThanSevenAndPreservesActualCategories() throws Exception {
     var osm = mock(OsmPoiSource.class);
     var wiki = mock(WikimapiaPoiSource.class);

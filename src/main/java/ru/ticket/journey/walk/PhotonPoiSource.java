@@ -132,7 +132,7 @@ public class PhotonPoiSource {
         }
     }
 
-    private OsmMcpClient.Poi parse(JsonNode feature) {
+    static OsmMcpClient.Poi parse(JsonNode feature) {
         var props = feature.path("properties");
         String osmType = props.path("osm_type").asText("");
         long osmId = props.path("osm_id").asLong(0);

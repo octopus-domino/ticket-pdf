@@ -20,6 +20,7 @@ public class WalkAreaSearchService {
   private static final Logger log = LoggerFactory.getLogger(WalkAreaSearchService.class);
   private static final Duration BUDGET = Duration.ofSeconds(20);
   private static final int DETAIL_BUDGET = 25;
+  private static final Duration PRIMARY_WAIT = Duration.ofSeconds(8);
   private static final Set<String> LANGUAGES = Set.of("en", "ru", "de", "fr", "it", "es", "pl", "nl", "zh");
   private final WalkThemeProperties properties;
   private final OsmPoiSource osm;
@@ -27,16 +28,24 @@ public class WalkAreaSearchService {
   private final MysticThemeSource mystic;
   private final OpeningHoursEvaluator hours;
   private final ObjectMapper mapper;
+  private final PhotonAreaPoiSource fallback;
   private record SourceResult<T>(List<T> points, boolean available) {}
   private final WalkCache<String, List<PlaceRecommendationsController.Place>> cache = new WalkCache<>(64, Duration.ofMinutes(10));
-  private final ExecutorService sources = Executors.newFixedThreadPool(2, task -> {
+  private final ExecutorService sources = Executors.newFixedThreadPool(3, task -> {
     var thread = new Thread(task, "area-place-discovery"); thread.setDaemon(true); return thread;
   });
 
   public WalkAreaSearchService(WalkThemeProperties properties, OsmPoiSource osm, WikimapiaPoiSource wikimapia,
                               MysticThemeSource mystic, OpeningHoursEvaluator hours, ObjectMapper mapper) {
+    this(properties, osm, wikimapia, mystic, hours, mapper, null);
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired
+  public WalkAreaSearchService(WalkThemeProperties properties, OsmPoiSource osm, WikimapiaPoiSource wikimapia,
+                              MysticThemeSource mystic, OpeningHoursEvaluator hours, ObjectMapper mapper, PhotonAreaPoiSource fallback) {
     this.properties = properties; this.osm = osm; this.wikimapia = wikimapia;
     this.mystic = mystic; this.hours = hours; this.mapper = mapper;
+    this.fallback = fallback;
   }
 
   /** Validates before any provider work and keeps the response independent of selection order. */
@@ -75,8 +84,20 @@ public class WalkAreaSearchService {
     var wikiTask = sources.submit(() -> {
       try (var budget = WalkBudget.until(deadline)) { return wikiBox(request, combined); }
     });
+    var fallbackTask = fallback == null ? null : sources.submit(() -> {
+      try (var budget = WalkBudget.until(deadline)) {
+        return fallback.search(request.longitude(), request.latitude(), (int) (request.radiusKm() * 1000), combined, request.language());
+      }
+    });
     try (var budget = WalkBudget.until(deadline)) {
-      var points = await(osmTask, deadline);
+      var points = await(osmTask, fallbackTask == null ? deadline : Math.min(deadline, System.nanoTime() + PRIMARY_WAIT.toNanos()));
+      if ((!points.available() || points.points().isEmpty()) && fallbackTask != null) {
+        var alternate = await(fallbackTask, deadline);
+        if (alternate.available() && !alternate.points().isEmpty()) {
+          log.info("area.photon-fallback count={}", alternate.points().size());
+          points = alternate;
+        }
+      }
       var community = await(wikiTask, deadline);
       if (!points.available() && community.points().isEmpty())
         throw new ApiException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "journey.route.places-unavailable");
@@ -84,6 +105,7 @@ public class WalkAreaSearchService {
       addWiki(request, selection, community.points(), deadline, found);
     } finally {
       osmTask.cancel(true); wikiTask.cancel(true);
+      if (fallbackTask != null) fallbackTask.cancel(true);
     }
   }
 
