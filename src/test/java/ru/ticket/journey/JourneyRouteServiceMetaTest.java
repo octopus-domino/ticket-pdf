@@ -25,4 +25,20 @@ class JourneyRouteServiceMetaTest {
     var many=new HashMap<String,String>();for(char c='a';c<='k';c++)many.put(String.valueOf(c),"value");
     assertThrows(ru.ticket.common.ApiException.class,()->JourneyRouteService.validate(snapshot(many)));
   }
+
+  @Test void largerPrivateWalksDoNotRaiseTheMainTripLimit() {
+    var base = snapshot(null);
+    var stops = java.util.stream.IntStream.range(0, 13)
+        .mapToObj(index -> new JourneyRouteService.Stop("point-" + index, "Point " + index,
+            37.62, 55.75, "Europe/Moscow", 0)).toList();
+    var legs = java.util.stream.IntStream.range(0, 12).mapToObj(index -> base.legs().get(0)).toList();
+    var walk = new JourneyRouteService.Snapshot(stops, legs, base.startLocal(), base.timeline(), base.mapId(), null, "interior");
+    assertDoesNotThrow(() -> JourneyRouteService.validate(walk));
+    var trip = new JourneyRouteService.Snapshot(stops, legs, base.startLocal(), base.timeline(), base.mapId());
+    assertThrows(ru.ticket.common.ApiException.class, () -> JourneyRouteService.validate(trip));
+    var car = new JourneyRouteService.Leg("car", 60, null, null, null, null, base.legs().get(0).coordinates(), 100.0);
+    var carLegs = new ArrayList<>(legs); carLegs.set(0, car);
+    var invalidWalk = new JourneyRouteService.Snapshot(stops, carLegs, base.startLocal(), base.timeline(), base.mapId(), null, "interior");
+    assertThrows(ru.ticket.common.ApiException.class, () -> JourneyRouteService.validate(invalidWalk));
+  }
 }

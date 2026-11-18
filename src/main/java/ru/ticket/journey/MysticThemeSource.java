@@ -41,4 +41,34 @@ public class MysticThemeSource {
         +Math.cos(Math.toRadians(lat))*Math.cos(Math.toRadians(p.getLatitude()))*Math.pow(Math.sin(Math.toRadians(p.getLongitude()-lon)/2),2);
     return 6371008.8*2*Math.asin(Math.sqrt(Math.min(1,a)));
   }
+
+  /** Returns all distinct catalogue locations in the requested area, independently of route-stop limits. */
+  @Transactional(readOnly=true)
+  public List<WalkCandidate> findAllCandidates(double lon, double lat, double radiusKm) {
+    BRouterRoadRouter.validate(new RoadRouter.Point(lon, lat));
+    if (!Double.isFinite(radiusKm) || radiusKm < .1 || radiusKm > 10) throw new IllegalArgumentException("Invalid mystic search bounds");
+    double dy = radiusKm / 111.195, dx = dy / Math.cos(Math.toRadians(lat));
+    var found = postgis ? repository.findAllNearby(lon, lat, radiusKm * 1000)
+        : areaRows(lon, lat, dx, dy);
+    var coordinates = new HashSet<String>();
+    return found.stream().filter(point -> distance(lon, lat, point) <= radiusKm * 1000)
+        .sorted(Comparator.comparingDouble((MysticPlace point) -> distance(lon, lat, point)).thenComparing(MysticPlace::getId))
+        .filter(point -> coordinates.add(Math.round(point.getLongitude() * 100000) + ":" + Math.round(point.getLatitude() * 100000)))
+        .map(point -> new WalkCandidate("mystic", "mystic-" + point.getId(), point.getName(), point.getLongitude(), point.getLatitude(),
+            "", "UNKNOWN", null, true, Objects.requireNonNullElse(point.getDescription(), ""), List.of(), 10.0, "", "",
+            Objects.requireNonNullElse(point.getSourceUrl(), ""))).toList();
+  }
+
+  private List<MysticPlace> areaRows(double lon, double lat, double dx, double dy) {
+    if (lon - dx >= -180 && lon + dx <= 180) return repository.findInBox(lat - dy, lat + dy, lon - dx, lon + dx);
+    var rows = new ArrayList<MysticPlace>();
+    if (lon - dx < -180) {
+      rows.addAll(repository.findInBox(lat - dy, lat + dy, -180, lon + dx));
+      rows.addAll(repository.findInBox(lat - dy, lat + dy, lon - dx + 360, 180));
+    } else {
+      rows.addAll(repository.findInBox(lat - dy, lat + dy, lon - dx, 180));
+      rows.addAll(repository.findInBox(lat - dy, lat + dy, -180, lon + dx - 360));
+    }
+    return rows;
+  }
 }

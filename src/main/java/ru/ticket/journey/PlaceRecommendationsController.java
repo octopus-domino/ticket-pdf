@@ -28,6 +28,7 @@ public class PlaceRecommendationsController {
   private WalkThemeService walks;
   private PhotoEnricher photos;
   private WalkThemeProperties themes;
+  private WalkAreaSearchService areas;
 
   private final Semaphore searchPermit = new Semaphore(1);
   private final Semaphore enrichPermit = new Semaphore(1);
@@ -41,6 +42,9 @@ public class PlaceRecommendationsController {
     this.photos = photos;
     this.themes = themes;
   }
+
+  @org.springframework.beans.factory.annotation.Autowired
+  void areas(WalkAreaSearchService areas) { this.areas = areas; }
 
   @org.springframework.beans.factory.annotation.Autowired
   void wikimapia(WikimapiaPlaces source) { this.wikimapia = source; }
@@ -101,6 +105,15 @@ public class PlaceRecommendationsController {
 
   @GetMapping("/themes")
   public Set<String> themes() { return themes.getWalkThemes().keySet(); }
+
+  /** Area discovery is one search for all selected themes, with no route-stop limit. */
+  @GetMapping(value = "/themed", params = "themes")
+  public Result themedAreaSearch(@RequestParam double longitude, @RequestParam double latitude,
+      @RequestParam List<String> themes, @RequestParam(defaultValue = "ru") String language,
+      @RequestParam(defaultValue = "1.5") double radiusKm, @RequestParam(required = false) LocalDateTime visitTime) {
+    return withSearchPermit(() -> new Result(true, areas.search(new WalkAreaSearchService.Request(
+        longitude, latitude, themes, language, radiusKm, visitTime)), "CoDoc"), 0L);
+  }
 
   @PostMapping("/themed/enrich")
   public List<JourneyRouteService.Photo> photosForStops(

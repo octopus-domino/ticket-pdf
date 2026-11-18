@@ -23,12 +23,21 @@ public class OsmPoiSource {
   public OsmPoiSource(OsmMcpClient mcp,OsmPlaceService osm){this.mcp=mcp;this.osm=osm;}
 
   public List<OsmMcpClient.Poi> search(double lon,double lat,int radius,WalkThemeProperties.Theme theme,String language) throws IOException {
-    String key=String.format(Locale.ROOT,"%.4f:%.4f:%d:%s:%s",lon,lat,radius,theme.tags(),language);
+    return search(lon,lat,radius,theme,language,false);
+  }
+
+  /** Area discovery has no top-N output truncation; time and response-size safeguards remain in force. */
+  public List<OsmMcpClient.Poi> searchArea(double lon,double lat,int radius,WalkThemeProperties.Theme theme,String language) throws IOException {
+    return search(lon,lat,radius,theme,language,true);
+  }
+
+  private List<OsmMcpClient.Poi> search(double lon,double lat,int radius,WalkThemeProperties.Theme theme,String language,boolean area) throws IOException {
+    String key=String.format(Locale.ROOT,"%.4f:%.4f:%d:%s:%s:%s",lon,lat,radius,theme.tags(),language,area);
     var cached=cache.get(key);if(cached!=null)return cached;
 
     // 1. MCP (primary)
     long mcpDeadline=System.nanoTime()+Duration.ofSeconds(3).toNanos();
-    if(mcp.enabled())try{
+    if(!area&&mcp.enabled())try{
       var points=mcpWithin(()->mcp.findNearby(lon,lat,radius,theme.tags(),25),mcpDeadline);
       if(!points.isEmpty()){
         var complete=new ArrayList<OsmMcpClient.Poi>();
@@ -62,7 +71,7 @@ public class OsmPoiSource {
       if(!pair[1].equals("*"))query.append("=\"").append(pair[1]).append('"');
       query.append("](around:").append(radius).append(',').append(lat).append(',').append(lon).append(");");
     }
-    query.append(");out tags center 80;");
+    query.append(area?");out tags center;":");out tags center 80;");
 
     JsonNode payload=osm.walkQuery(query.toString());
     if(!payload.path("elements").isArray()||payload.has("remark")){

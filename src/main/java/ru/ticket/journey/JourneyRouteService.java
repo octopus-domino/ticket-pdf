@@ -117,17 +117,20 @@ public class JourneyRouteService {
     if (value == null
         || value.stops() == null
         || value.stops().size() < 2
-        || value.stops().size() > 12
+        || value.stops().size() > ("interior".equals(value.pointNumbering()) ? 200 : 12)
         || value.legs() == null
         || value.legs().size() != value.stops().size() - 1
         || value.timeline() == null
         || value.timeline().isEmpty()
-        || value.timeline().size() > 80
+        || value.timeline().size() > ("interior".equals(value.pointNumbering()) ? 400 : 80)
         || value.mapId() == null
         || value.pointNumbering() != null && !value.pointNumbering().equals("interior")
         || !value.mapId().matches("[a-f0-9]{64}")) invalid();
     try {
       LocalDateTime.parse(value.startLocal());
+      if ("interior".equals(value.pointNumbering())
+          && (value.stops().stream().anyMatch(stop -> stop == null || stop.walkId() != null)
+              || value.legs().stream().anyMatch(leg -> leg == null || !"foot".equals(leg.mode())))) invalid();
       Set<String> ids = new HashSet<>();
       for (Stop stop : value.stops()) {
         if (stop == null
