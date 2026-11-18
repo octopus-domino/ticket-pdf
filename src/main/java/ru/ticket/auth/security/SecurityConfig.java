@@ -61,6 +61,7 @@ public class SecurityConfig {
                         "/api/guest/export/pdf",
                         "/api/guest/recognition",
                         "/api/guest/recognition/capabilities",
+                        "/api/guest/recognition/pdf-page",
                         "/api/guest/generate/sync",
                         "/api/guest/generate/preview",
                         "/oauth2/**",
