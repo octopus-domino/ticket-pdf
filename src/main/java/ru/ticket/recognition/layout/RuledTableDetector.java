@@ -70,7 +70,10 @@ public class RuledTableDetector {
     int left = xs.get(0), right = xs.get(xs.size() - 1);
     int top = ys.get(0), bottom = ys.get(ys.size() - 1);
     if (right - left < 40 || bottom - top < 15 || !closed(hs, vs, left, top, right, bottom)) return null;
-    var cells = cells(image, words, xs, ys, consumed);
+    var scannedHeights = words.stream().filter(w -> w.x() >= left && w.x() < right && w.y() >= top && w.y() < bottom)
+        .mapToDouble(w -> w.height() * 1.3).sorted().toArray();
+    double scannedSize = scannedHeights.length > 0 ? scannedHeights[scannedHeights.length / 2] : 12;
+    var cells = cells(image, words, xs, ys, consumed, scannedSize);
     var data = cells.data();
     var sizes = words.stream().filter(consumed::contains).filter(w -> w.x() >= left && w.x() < right
         && w.y() >= top && w.y() < bottom).mapToInt(Word::height).sorted().toArray();
@@ -118,7 +121,7 @@ public class RuledTableDetector {
 
   private record Cells(List<List<String>> data, List<List<Map<String, Object>>> styles) {}
 
-  private Cells cells(BufferedImage image, List<Word> words, List<Integer> xs, List<Integer> ys, Set<Word> consumed) {
+  private Cells cells(BufferedImage image, List<Word> words, List<Integer> xs, List<Integer> ys, Set<Word> consumed, double scannedSize) {
     var data = new ArrayList<List<String>>();
     var styles = new ArrayList<List<Map<String, Object>>>();
     for (int row = 0; row < ys.size() - 1; row++) {
@@ -130,8 +133,8 @@ public class RuledTableDetector {
             && w.x() + w.width() / 2.0 < right && w.y() + w.height() / 2.0 >= top
             && w.y() + w.height() / 2.0 < bottom)
             .sorted(Comparator.comparingInt(Word::y).thenComparingInt(Word::x)).toList();
-        values.add(String.join(" ", selected.stream().map(Word::text).toList()));
-        rowStyles.add(cellStyle(image, selected, left, top, right, bottom));
+        values.add(cellText(selected));
+        rowStyles.add(cellStyle(image, selected, left, top, right, bottom, scannedSize));
         consumed.addAll(selected);
       }
       data.add(values);
@@ -140,10 +143,19 @@ public class RuledTableDetector {
     return new Cells(data, styles);
   }
 
-  private Map<String, Object> cellStyle(BufferedImage image, List<Word> words, int left, int top, int right, int bottom) {
+  private String cellText(List<Word> words) {
+    var lines = new LinkedHashMap<String, List<Word>>();
+    for (var word : words) lines.computeIfAbsent(word.line(), key -> new ArrayList<>()).add(word);
+    return lines.values().stream().sorted(Comparator.comparingInt(line -> line.stream().mapToInt(Word::y).min().orElse(0)))
+        .map(line -> String.join(" ", line.stream().sorted(Comparator.comparingInt(Word::x)).map(Word::text).toList()))
+        .collect(java.util.stream.Collectors.joining("\n"));
+  }
+
+  private Map<String, Object> cellStyle(BufferedImage image, List<Word> words, int left, int top, int right, int bottom, double scannedSize) {
     var fontSizes = words.stream().mapToDouble(w -> w.line() != null && w.line().startsWith("pdf:")
         ? w.hints().fontSize() : w.height() * 1.3).sorted().toArray();
-    double size = fontSizes.length == 0 ? 12 : fontSizes[fontSizes.length / 2];
+    boolean nativeText = words.stream().anyMatch(w -> w.line() != null && w.line().startsWith("pdf:"));
+    double size = nativeText && fontSizes.length > 0 ? fontSizes[fontSizes.length / 2] : scannedSize;
     String family = words.stream().filter(w -> w.line() != null && w.line().startsWith("pdf:"))
         .map(Word::hints).filter(Objects::nonNull)
         .map(h -> h.fontFamily()).filter(Objects::nonNull).findFirst().orElse("Arial");

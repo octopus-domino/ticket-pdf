@@ -27,15 +27,31 @@ class StableRecognitionLayersTest {
     assertThat(nativeRuns.get(0).style().bold()).isTrue();
   }
 
-  @Test void rasterArtworkContainsNoPixelsOwnedByEditableText() throws Exception {
+  @Test void rasterArtworkRemovesOriginalTextAndRestoresOnlyTheVerifiedUniformBackground() throws Exception {
     var image = new BufferedImage(160, 160, BufferedImage.TYPE_INT_RGB);
     var graphics = image.createGraphics();
     graphics.setColor(Color.WHITE); graphics.fillRect(0, 0, 160, 160);
-    graphics.setColor(Color.BLUE); graphics.fillRect(20, 20, 120, 120); graphics.dispose();
+    graphics.setColor(Color.BLUE); graphics.fillRect(20, 20, 120, 120);
+    graphics.setColor(Color.BLACK); graphics.fillRect(50, 50, 40, 40); graphics.dispose();
     boolean[] excluded = new boolean[160 * 160];
     TextMask.paint(excluded, 160, 160, 50, 50, 40, 40);
     var items = new ArtworkDetector().detect(image, excluded);
     var crop = items.stream().filter(i -> i.type().equals("image")).findFirst().orElseThrow();
+    String data = (String) crop.properties().get("src");
+    var decoded = ImageIO.read(new ByteArrayInputStream(Base64.getDecoder().decode(data.split(",")[1])));
+    assertThat(decoded.getRGB(65 - (int) crop.x(), 65 - (int) crop.y())).isEqualTo(Color.BLUE.getRGB());
+    image.flush(); decoded.flush();
+  }
+
+  @Test void complexArtworkIsNotInventedInsideAnEditableTextRegion() throws Exception {
+    var image = new BufferedImage(160, 160, BufferedImage.TYPE_INT_RGB);
+    var graphics = image.createGraphics();
+    graphics.setColor(Color.BLUE); graphics.fillRect(0, 0, 80, 160);
+    graphics.setColor(Color.RED); graphics.fillRect(80, 0, 80, 160);
+    graphics.setColor(Color.BLACK); graphics.fillRect(50, 50, 60, 40); graphics.dispose();
+    boolean[] excluded = new boolean[160 * 160];
+    TextMask.paint(excluded, 160, 160, 50, 50, 60, 40);
+    var crop = new ArtworkDetector().detect(image, excluded).stream().filter(i -> i.type().equals("image")).findFirst().orElseThrow();
     String data = (String) crop.properties().get("src");
     var decoded = ImageIO.read(new ByteArrayInputStream(Base64.getDecoder().decode(data.split(",")[1])));
     assertThat(decoded.getRGB(65 - (int) crop.x(), 65 - (int) crop.y()) >>> 24).isZero();

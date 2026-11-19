@@ -51,6 +51,10 @@ class ImageRecognitionRegressionTest {
         String path = System.getProperty("recognition.imageSample");
         org.junit.jupiter.api.Assumptions.assumeTrue(path != null);
         var image = ImageIO.read(Path.of(path).toFile());
+        String preparedPath = System.getProperty("recognition.preparedImage");
+        if (preparedPath != null) try (var prepared = new OcrRasterPreparation(image)) {
+            ImageIO.write(prepared.image(), "png", Path.of(preparedPath).toFile());
+        }
         var horizontal = PaleGridRules.detect(image, false);
         var vertical = PaleGridRules.detect(image, true);
         System.out.println("pale-grid horizontal=" + horizontal + " vertical=" + vertical);
@@ -60,5 +64,24 @@ class ImageRecognitionRegressionTest {
         System.out.println("screenshot tables=" + tables.size());
         assertThat(tables).isNotEmpty();
         new com.fasterxml.jackson.databind.ObjectMapper().writeValue(Path.of(System.getProperty("recognition.imageOutput")).toFile(), draft);
+    }
+
+    @Test void replayRealScreenshotOcrWithoutRunningAProcessLocally() throws Exception {
+        String directory = System.getProperty("recognition.bankFixtures");
+        org.junit.jupiter.api.Assumptions.assumeTrue(directory != null);
+        var root = Path.of(directory);
+        var image = ImageIO.read(Path.of(System.getProperty("recognition.imageSample")).toFile());
+        try (var prepared = new OcrRasterPreparation(image)) {
+            var primary = prepared.restore(TesseractOcrEngine.parse(java.nio.file.Files.readString(root.resolve("bank-psm3.tsv"))));
+            var sparse = prepared.restore(TesseractOcrEngine.parse(java.nio.file.Files.readString(root.resolve("bank-psm11.tsv"))));
+            var words = OcrLineReconciler.reconcile(new OcrResultFusion().fuse(primary, sparse), primary);
+            var analyzer = new PageLayoutAnalyzer(new RuledTableDetector(), new TextElementBuilder(new StableLineRunSplitter()), new ArtworkDetector());
+            var draft = analyzer.analyze(image, words);
+            var tables = draft.elements().stream().filter(item -> item.type().equals("table")).toList();
+            assertThat(tables).hasSize(1);
+            assertThat(tables.get(0).properties().get("rows")).isEqualTo(10);
+            assertThat(tables.get(0).properties().get("cols")).isEqualTo(3);
+            new com.fasterxml.jackson.databind.ObjectMapper().writeValue(root.resolve("bank-jpg-final.json").toFile(), draft);
+        } finally { image.flush(); }
     }
 }

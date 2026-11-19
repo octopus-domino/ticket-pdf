@@ -128,7 +128,7 @@ public class ArtworkDetector {
         return true;
     }
 
-    /** Already editable text and rules are transparent, never smeared back into a raster layer. */
+    /** Removes original text; only verified simple backgrounds are reconstructed behind editable content. */
     private static BufferedImage unclaimedPixels(
             BufferedImage source, boolean[] excluded, int left, int top, int width, int height) {
         var crop = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
@@ -137,6 +137,7 @@ public class ArtworkDetector {
                 if (!excluded[(top + y) * source.getWidth() + left + x])
                     crop.setRGB(x, y, source.getRGB(left + x, top + y));
             }
+            UniformTextBackground.restoreRow(source, excluded, crop, left, top, y);
         }
         return crop;
     }
