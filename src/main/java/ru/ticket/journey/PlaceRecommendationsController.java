@@ -111,8 +111,8 @@ public class PlaceRecommendationsController {
   public Result themedAreaSearch(@RequestParam double longitude, @RequestParam double latitude,
       @RequestParam List<String> themes, @RequestParam(defaultValue = "ru") String language,
       @RequestParam(defaultValue = "1.5") double radiusKm, @RequestParam(required = false) LocalDateTime visitTime) {
-    return withSearchPermit(() -> new Result(true, areas.search(new WalkAreaSearchService.Request(
-        longitude, latitude, themes, language, radiusKm, visitTime)), "CoDoc"), 0L);
+    return new Result(true, areas.search(new WalkAreaSearchService.Request(
+          longitude, latitude, themes, language, radiusKm, visitTime)), "CoDoc");
   }
 
   @PostMapping("/themed/enrich")

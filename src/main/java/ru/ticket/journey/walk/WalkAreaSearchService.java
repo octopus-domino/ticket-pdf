@@ -30,7 +30,8 @@ public class WalkAreaSearchService {
   private final ObjectMapper mapper;
   private final PhotonAreaPoiSource fallback;
   private record SourceResult<T>(List<T> points, boolean available) {}
-  private final WalkCache<String, List<PlaceRecommendationsController.Place>> cache = new WalkCache<>(64, Duration.ofMinutes(10));
+  private final AreaResultCache cache = new AreaResultCache();
+  private final AreaSearchCoordinator searches = new AreaSearchCoordinator();
   private final ExecutorService sources = Executors.newFixedThreadPool(3, task -> {
     var thread = new Thread(task, "area-place-discovery"); thread.setDaemon(true); return thread;
   });
@@ -52,16 +53,22 @@ public class WalkAreaSearchService {
   public List<PlaceRecommendationsController.Place> search(Request request) {
     validate(request);
     var selection = AreaThemeSelection.resolve(request.themes(), properties);
-    String key = selection.themes().keySet() + ":" + request.longitude() + ":" + request.latitude()
-        + ":" + request.radiusKm() + ":" + request.language() + ":" + request.visitTime();
-    var cached = cache.get(key);
+    var canonical = new Request(request.longitude(), request.latitude(), List.copyOf(selection.themes().keySet()),
+        request.language(), request.radiusKm(), request.visitTime());
+    var cached = cache.get(canonical);
+    if (cached != null) return cached;
+    return searches.execute(canonical, () -> searchUncached(canonical, selection));
+  }
+
+  private List<PlaceRecommendationsController.Place> searchUncached(Request request, AreaThemeSelection selection) {
+    var cached = cache.get(request);
     if (cached != null) return cached;
     var found = new LinkedHashMap<String, PlaceRecommendationsController.Place>();
     if (!selection.publicThemes().isEmpty()) discover(request, selection, found);
     if (selection.themes().containsKey("mystic")) addMystic(request, found);
     var result = found.values().stream().sorted(Comparator.comparingDouble(place ->
         WikimapiaPoiSourceImpl.distance(request.longitude(), request.latitude(), place.longitude(), place.latitude()))).toList();
-    if (!result.isEmpty()) cache.put(key, result);
+    cache.put(request, result);
     return result;
   }
 
@@ -84,20 +91,19 @@ public class WalkAreaSearchService {
     var wikiTask = sources.submit(() -> {
       try (var budget = WalkBudget.until(deadline)) { return wikiBox(request, combined); }
     });
-    var fallbackTask = fallback == null ? null : sources.submit(() -> {
-      try (var budget = WalkBudget.until(deadline)) {
-        return fallback.search(request.longitude(), request.latitude(), (int) (request.radiusKm() * 1000), combined, request.language());
-      }
-    });
+    Future<List<OsmMcpClient.Poi>> fallbackTask = null;
     try (var budget = WalkBudget.until(deadline)) {
-      var points = await(osmTask, fallbackTask == null ? deadline : Math.min(deadline, System.nanoTime() + PRIMARY_WAIT.toNanos()));
-      if ((!points.available() || points.points().isEmpty()) && fallbackTask != null) {
+      var points = await(osmTask, fallback == null ? deadline : Math.min(deadline, System.nanoTime() + PRIMARY_WAIT.toNanos()));
+      if ((!points.available() || points.points().isEmpty()) && fallback != null) {
+        fallbackTask = startFallback(request, combined, deadline);
         var alternate = await(fallbackTask, deadline);
         if (alternate.available() && !alternate.points().isEmpty()) {
           log.info("area.photon-fallback count={}", alternate.points().size());
           points = alternate;
         }
       }
+      // A slow primary may have succeeded while the fallback was being awaited.
+      if (!points.available()) points = await(osmTask, deadline);
       var community = await(wikiTask, deadline);
       if (!points.available() && community.points().isEmpty())
         throw new ApiException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "journey.route.places-unavailable");
@@ -107,6 +113,14 @@ public class WalkAreaSearchService {
       osmTask.cancel(true); wikiTask.cancel(true);
       if (fallbackTask != null) fallbackTask.cancel(true);
     }
+  }
+
+  private Future<List<OsmMcpClient.Poi>> startFallback(Request request, WalkThemeProperties.Theme combined, long deadline) {
+    return sources.submit(() -> {
+      try (var budget = WalkBudget.until(deadline)) {
+        return fallback.search(request.longitude(), request.latitude(), (int) (request.radiusKm() * 1000), combined, request.language());
+      }
+    });
   }
 
   private List<WikimapiaPoiSource.WikimapiaPoi> wikiBox(Request request, WalkThemeProperties.Theme combined) {

@@ -11,6 +11,25 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class WalkAreaSearchServiceTest {
+  @Test void primarySuccessAfterEightSecondsSurvivesFailedFallback() throws Exception {
+    var osm = mock(OsmPoiSource.class);
+    when(osm.searchArea(anyDouble(), anyDouble(), anyInt(), any(), anyString())).thenAnswer(call -> {
+      Thread.sleep(8300);
+      return List.of(new OsmMcpClient.Poi("node/91", "Bar", 30.3054, 59.93155, Map.of("amenity", "bar")));
+    });
+    var fallback = mock(PhotonAreaPoiSource.class);
+    when(fallback.search(anyDouble(), anyDouble(), anyInt(), any(), anyString())).thenThrow(new java.io.IOException("503"));
+    var themes = new WalkThemeProperties();
+    themes.setWalkThemes(Map.of("bars", new WalkThemeProperties.Theme(List.of("amenity=bar"), List.of(), List.of(), false)));
+    var service = new WalkAreaSearchService(themes, osm, mock(WikimapiaPoiSource.class), mock(MysticThemeSource.class),
+        new OpeningHoursEvaluator(new ObjectMapper()), new ObjectMapper(), fallback);
+    try {
+      assertEquals(1, service.search(new WalkAreaSearchService.Request(30.3054, 59.93155, List.of("bars"), "ru", 3.1, null)).size());
+      assertEquals(1, service.search(new WalkAreaSearchService.Request(30.3054, 59.93155, List.of("bars"), "ru", .8, null)).size());
+      verify(osm, times(1)).searchArea(anyDouble(), anyDouble(), anyInt(), any(), anyString());
+    } finally { service.close(); }
+  }
+
   @Test void overloadedOverpassUsesAvailableAreaFallbackInsteadOfReturning503() throws Exception {
     var osm = mock(OsmPoiSource.class);
     when(osm.searchArea(anyDouble(), anyDouble(), anyInt(), any(), anyString())).thenThrow(new java.io.IOException("HTTP 504"));

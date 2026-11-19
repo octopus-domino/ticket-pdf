@@ -11,6 +11,21 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class AreaPlacesControllerTest {
+  @Test void areaCacheIsAccessibleWhileLegacySearchIsBusy() throws Exception {
+    var controller = new PlaceRecommendationsController(new ObjectMapper(), "", mock(OsmPlaceService.class));
+    var service = mock(WalkAreaSearchService.class);
+    controller.areas(service);
+    when(service.search(any())).thenReturn(List.of());
+    var field = PlaceRecommendationsController.class.getDeclaredField("searchPermit");
+    field.setAccessible(true);
+    var permit = (java.util.concurrent.Semaphore) field.get(controller);
+    permit.acquire();
+    try {
+      org.junit.jupiter.api.Assertions.assertTrue(controller.themedAreaSearch(30.3053, 59.93155,
+          List.of("bars"), "ru", .8, null).available());
+    } finally { permit.release(); }
+  }
+
   @Test void themeListUsesOneAreaSearchWithoutRequiringLegacyThemeOrMaxStops() throws Exception {
     var controller = new PlaceRecommendationsController(new ObjectMapper(), "", mock(OsmPlaceService.class));
     var service = mock(WalkAreaSearchService.class);
