@@ -78,14 +78,42 @@ public class RuledTableDetector {
     return new Item("table", left, top, right - left, bottom - top,
         Map.of("data", data, "rows", data.size(), "cols", xs.size() - 1, "fontSize", fontSize,
             "columnWidths", differences(xs), "rowHeights", differences(ys),
-            "borderColor", "#202020", "headerBg", "#ffffff", "cellPadding", 2, "cellStyles", cells.styles()));
+            "borderColor", borderColor(image, hs, vs), "headerBg", "#ffffff", "cellPadding", 2, "cellStyles", cells.styles()));
+  }
+
+  private String borderColor(BufferedImage image, List<Rule> horizontal, List<Rule> vertical) {
+    var colors = new ArrayList<Integer>();
+    for (var rule : java.util.stream.Stream.concat(horizontal.stream(), vertical.stream()).toList()) {
+      boolean upright = rule.height() > rule.width();
+      for (int part = 1; part <= 3; part++) {
+        int x = rule.x() + (upright ? rule.width() / 2 : rule.width() * part / 4);
+        int y = rule.y() + (upright ? rule.height() * part / 4 : rule.height() / 2);
+        int color = image.getRGB(Math.min(image.getWidth() - 1, x), Math.min(image.getHeight() - 1, y));
+        if ((color >> 16 & 255) + (color >> 8 & 255) + (color & 255) < 735) colors.add(color);
+      }
+    }
+    if (colors.isEmpty()) return "#808080";
+    int red = colors.stream().mapToInt(c -> c >> 16 & 255).sorted().toArray()[colors.size() / 2];
+    int green = colors.stream().mapToInt(c -> c >> 8 & 255).sorted().toArray()[colors.size() / 2];
+    int blue = colors.stream().mapToInt(c -> c & 255).sorted().toArray()[colors.size() / 2];
+    return String.format(Locale.ROOT, "#%02x%02x%02x", red, green, blue);
   }
 
   private boolean closed(List<Rule> hs, List<Rule> vs, int left, int top, int right, int bottom) {
-    return hs.stream().filter(r -> Math.abs(r.y() - top) <= SNAP || Math.abs(r.y() - bottom) <= SNAP)
-        .filter(r -> r.x() <= left + SNAP && r.x() + r.width() >= right - SNAP).count() >= 2
+    return covers(hs, top, left, right) && covers(hs, bottom, left, right)
         && vs.stream().filter(r -> Math.abs(r.x() - left) <= SNAP || Math.abs(r.x() - right) <= SNAP)
-        .filter(r -> r.y() <= top + SNAP && r.y() + r.height() >= bottom - SNAP).count() >= 2;
+        .filter(r -> r.y() <= top + SNAP * 2 && r.y() + r.height() >= bottom - SNAP * 2).count() >= 2;
+  }
+
+  /** A tinted header can split one border into adjacent spans with slightly different baselines. */
+  private boolean covers(List<Rule> rules, int y, int left, int right) {
+    int covered = left;
+    for (var rule : rules.stream().filter(r -> Math.abs(r.y() - y) <= SNAP)
+        .sorted(Comparator.comparingInt(Rule::x)).toList()) {
+      if (rule.x() > covered + SNAP) break;
+      covered = Math.max(covered, rule.x() + rule.width());
+    }
+    return covered >= right - SNAP;
   }
 
   private record Cells(List<List<String>> data, List<List<Map<String, Object>>> styles) {}
@@ -116,10 +144,11 @@ public class RuledTableDetector {
     var fontSizes = words.stream().mapToDouble(w -> w.line() != null && w.line().startsWith("pdf:")
         ? w.hints().fontSize() : w.height() * 1.3).sorted().toArray();
     double size = fontSizes.length == 0 ? 12 : fontSizes[fontSizes.length / 2];
-    String family = words.stream().map(Word::hints).filter(Objects::nonNull)
+    String family = words.stream().filter(w -> w.line() != null && w.line().startsWith("pdf:"))
+        .map(Word::hints).filter(Objects::nonNull)
         .map(h -> h.fontFamily()).filter(Objects::nonNull).findFirst().orElse("Arial");
-    boolean bold = words.stream().filter(w -> w.hints() != null && Boolean.TRUE.equals(w.hints().bold())).count() > words.size() / 2;
-    boolean italic = words.stream().filter(w -> w.hints() != null && Boolean.TRUE.equals(w.hints().italic())).count() > words.size() / 2;
+    boolean bold = words.stream().filter(w -> w.line() != null && w.line().startsWith("pdf:") && w.hints() != null && Boolean.TRUE.equals(w.hints().bold())).count() > words.size() / 2;
+    boolean italic = words.stream().filter(w -> w.line() != null && w.line().startsWith("pdf:") && w.hints() != null && Boolean.TRUE.equals(w.hints().italic())).count() > words.size() / 2;
     return Map.of("fontSize", Math.max(8, size), "fontFamily", family,
         "fontStyle", bold ? (italic ? "bold italic" : "bold") : italic ? "italic" : "normal",
         "color", InkStyleSampler.textColor(image, words), "background", background(image, left, top, right, bottom));

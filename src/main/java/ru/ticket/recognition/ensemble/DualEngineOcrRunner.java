@@ -36,6 +36,13 @@ public class DualEngineOcrRunner {
     }
 
     public DualResult run(BufferedImage image, String language) {
+        try (var prepared = new ru.ticket.recognition.OcrRasterPreparation(image)) {
+            var result = recognizePrepared(prepared.image(), language);
+            return new DualResult(prepared.restore(result.tsvWords()), prepared.restore(result.hocrWords()));
+        }
+    }
+
+    private DualResult recognizePrepared(BufferedImage image, String language) {
         CompletableFuture<List<Word>> tsvFuture =
                 CompletableFuture.supplyAsync(() -> tsvEngine.recognize(image, language), pool);
         CompletableFuture<List<Word>> hocrFuture =

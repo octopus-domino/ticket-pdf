@@ -58,7 +58,9 @@ class ArtworkBackgroundTest {
     int left = (int) artwork.x();
     int top = (int) artwork.y();
 
-    assertEquals(Color.BLUE.getRGB(), crop.getRGB(80 - left, 60 - top));
+    assertEquals(Color.BLUE.getRGB(), crop.getRGB(20 - left, 60 - top));
+    assertEquals(0, crop.getRGB(80 - left, 60 - top) >>> 24,
+            "Editable text must leave a transparent area rather than a duplicate raster layer");
     assertEquals(Color.ORANGE.getRGB(), crop.getRGB(220 - left, 60 - top));
     assertEquals(Color.WHITE.getRGB(), crop.getRGB(80 - left, 140 - top),
             "A white detail already present in the source must remain");

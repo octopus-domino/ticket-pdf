@@ -48,7 +48,11 @@ public class PageLayoutAnalyzer {
     List<Rule> horizontal = RuleDetector.detect(image, false);
     List<Rule> vertical = RuleDetector.detect(image, true);
 
-    var tableResult = tableDetector.detect(image, words, horizontal, vertical);
+    var tableHorizontal = new ArrayList<>(horizontal);
+    var tableVertical = new ArrayList<>(vertical);
+    tableHorizontal.addAll(ru.ticket.recognition.layout.PaleGridRules.detect(image, false));
+    tableVertical.addAll(ru.ticket.recognition.layout.PaleGridRules.detect(image, true));
+    var tableResult = tableDetector.detect(image, words, tableHorizontal, tableVertical);
     items.addAll(tableResult.tables());
 
     boolean[] excluded = TextMask.fromOcrWords(width, height, words);
@@ -93,6 +97,7 @@ public class PageLayoutAnalyzer {
     }
 
     for (Rule rule : tableResult.remainingHorizontal()) {
+      if (!horizontal.contains(rule)) continue;
       items.add(new Item("line",
               rule.x(), rule.y() + (rule.height() - 1) / 2.0,
               rule.width(), 1,
@@ -104,6 +109,7 @@ public class PageLayoutAnalyzer {
               rule.x() - 2, rule.y() - 2, rule.width() + 4, rule.height() + 4);
     }
     for (Rule rule : tableResult.remainingVertical()) {
+      if (!vertical.contains(rule)) continue;
       items.add(new Item("line",
               rule.x() + (rule.width() - 1) / 2.0, rule.y(),
               1, rule.height(),
