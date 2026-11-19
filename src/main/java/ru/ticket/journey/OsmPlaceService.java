@@ -13,6 +13,7 @@ import ru.ticket.common.ApiException;
 /** Small, cached, explicitly requested Overpass searches; never scans an entire city/country. */
 @Service
 public class OsmPlaceService {
+  private static final int WALK_QUERY_QUEUE_SECONDS = 15;
   private record Cached(long expires, List<PlaceRecommendationsController.Place> places) {}
   private final Map<String, Cached> cache = new LinkedHashMap<>(64, .75f, true);
   private final Semaphore permit = new Semaphore(1);
@@ -37,9 +38,18 @@ public class OsmPlaceService {
   }
   /** Bounded batched query for thematic discovery and one OSM cross-check per Wikimapia set. */
   public JsonNode walkQuery(String query) throws java.io.IOException {
-    if(query.length()>12000||!permit.tryAcquire())throw new java.io.IOException("OSM busy");
+    if(query.length()>12000||!awaitWalkPermit())throw new java.io.IOException("OSM busy");
     try{return walkQueries.query(query);}
     finally{permit.release();}
+  }
+
+  /** Cancelled HTTP reads may still be releasing their connection; a new area must not fail immediately. */
+  private boolean awaitWalkPermit() throws java.io.IOException {
+    try { return permit.tryAcquire(WALK_QUERY_QUEUE_SECONDS, java.util.concurrent.TimeUnit.SECONDS); }
+    catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      throw new java.io.InterruptedIOException("OSM query cancelled while waiting for the previous request");
+    }
   }
   public List<PlaceRecommendationsController.Place> search(double longitude,double latitude,String kind,String language,String theme,java.time.LocalDateTime visitTime,Integer maxSitelinks){
     if(theme==null)return search(longitude,latitude,kind,language);

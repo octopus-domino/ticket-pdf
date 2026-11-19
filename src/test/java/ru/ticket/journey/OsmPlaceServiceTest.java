@@ -5,6 +5,30 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 class OsmPlaceServiceTest {
+  @Test void nextAreaWaitsForPreviousConnectionToReleaseItsSlot() throws Exception {
+    var provider = org.mockito.Mockito.mock(ru.ticket.journey.walk.OverpassQueryClient.class);
+    var entered = new java.util.concurrent.CountDownLatch(1);
+    var release = new java.util.concurrent.CountDownLatch(1);
+    org.mockito.Mockito.when(provider.query("first")).thenAnswer(call -> {
+      entered.countDown();
+      if (!release.await(3, java.util.concurrent.TimeUnit.SECONDS)) throw new java.io.IOException("Test timed out");
+      return mapper.readTree("{\"elements\":[]}");
+    });
+    org.mockito.Mockito.when(provider.query("next")).thenReturn(mapper.readTree("{\"elements\":[]}"));
+    var service = new OsmPlaceService(mapper, "https://example.org/api", provider);
+    var workers = java.util.concurrent.Executors.newFixedThreadPool(2);
+    try {
+      var first = workers.submit(() -> service.walkQuery("first"));
+      assertThat(entered.await(2, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+      var next = workers.submit(() -> service.walkQuery("next"));
+      Thread.sleep(100);
+      assertThat(next.isDone()).isFalse();
+      release.countDown();
+      assertThat(first.get(3, java.util.concurrent.TimeUnit.SECONDS).has("elements")).isTrue();
+      assertThat(next.get(3, java.util.concurrent.TimeUnit.SECONDS).has("elements")).isTrue();
+    } finally { release.countDown(); workers.shutdownNow(); }
+  }
+
   private final ObjectMapper mapper = new ObjectMapper();
   @Test void weeklyHoursAreConservativeAndIncludeLunchBreaks() {
     var schedule = OsmOpeningHours.parse("Mo-Fr 09:00-12:00,14:00-18:00; Sa 10:00-16:00; Su off", mapper);
