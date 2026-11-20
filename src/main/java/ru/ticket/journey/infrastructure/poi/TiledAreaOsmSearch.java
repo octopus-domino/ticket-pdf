@@ -17,10 +17,12 @@ public class TiledAreaOsmSearch {
   private static final Duration CELL_TIME = Duration.ofSeconds(4);
   private record Cell(int row, int column, int depth) {}
   private record Key(Cell cell, List<String> tags, String language) {}
+  private record CachedSelector(Cell cell, String selector, String language) {}
+  private record Work(Cell cell, List<String> selectors) {}
   private record Bounds(double south, double west, double north, double east) {}
   record Coverage(List<OsmMcpClient.Poi> points, boolean complete, boolean available) {}
   private final OsmPoiSource osm;
-  private final WalkCache<Key, List<OsmMcpClient.Poi>> cells = new WalkCache<>(256, Duration.ofMinutes(10));
+  private final WalkCache<CachedSelector, List<OsmMcpClient.Poi>> cells = new WalkCache<>(512, Duration.ofMinutes(10));
   private final WalkCache<Key, Boolean> split = new WalkCache<>(128, Duration.ofMinutes(10));
   private final WalkCache<Key, Boolean> retryLater = new WalkCache<>(128, Duration.ofSeconds(15));
 
@@ -41,49 +43,74 @@ public class TiledAreaOsmSearch {
       var box = bounds(cell);
       return WikimapiaPoiSourceImpl.distance(lon, lat, (box.west + box.east) / 2, (box.south + box.north) / 2);
     }));
-    var pending = new ArrayDeque<>(grid);
-    var points = new LinkedHashMap<String, OsmMcpClient.Poi>();
     var tags = theme.tags().stream().distinct().sorted().toList();
+    var pending = new ArrayDeque<>(grid.stream().map(cell -> new Work(cell, tags)).toList());
+    var points = new LinkedHashMap<String, OsmMcpClient.Poi>();
     int remaining = MAX_FETCHES;
     long deadline = System.nanoTime() + SEARCH_TIME.toNanos();
     boolean complete = true, available = false;
     while (!pending.isEmpty()) {
-      Cell cell = pending.removeFirst();
+      Work work = pending.removeFirst();
+      Cell cell = work.cell();
       Bounds bounds = bounds(cell);
       if (!intersects(bounds, lon, lat, radius)) continue;
-      var key = new Key(cell, tags, language);
-      if (split.get(key) != null) {
-        for (int y = 0; y < 2; y++) for (int x = 0; x < 2; x++)
-          pending.addLast(new Cell(cell.row * 2 + y, cell.column * 2 + x, cell.depth + 1));
-        continue;
-      }
-      var result = cells.get(key);
-      if (result == null && remaining > 0 && System.nanoTime() < deadline && retryLater.get(key) == null
-          && !Thread.currentThread().isInterrupted()) {
-        remaining--;
-        try (var budget = WalkBudget.until(Math.min(deadline, System.nanoTime() + CELL_TIME.toNanos()))) {
-          result = osm.searchBox(bounds.south, bounds.west, bounds.north, bounds.east, tags, language);
-          cells.put(key, result);
-        } catch (IOException unavailable) {
-          if (unavailable instanceof OsmPoiSource.DenseCell && cell.depth < 2) {
-            split.put(key, true);
-            pending.addFirst(cell);
-            continue;
-          }
-          retryLater.put(key, true);
+      var missing = new ArrayList<String>();
+      for (String tag : work.selectors()) {
+        var cached = cells.get(new CachedSelector(cell, tag, language));
+        if (cached == null) missing.add(tag);
+        else {
+          available = true;
+          addWithinRadius(points, cached, lon, lat, radius);
         }
       }
-      if (result == null) {
+      if (missing.isEmpty()) continue;
+      var key = new Key(cell, List.copyOf(missing), language);
+      if (split.get(key) != null) {
+        for (int y = 0; y < 2; y++) for (int x = 0; x < 2; x++)
+          pending.addLast(new Work(new Cell(cell.row * 2 + y, cell.column * 2 + x, cell.depth + 1), key.tags()));
+        continue;
+      }
+      if (remaining <= 0 || System.nanoTime() >= deadline || retryLater.get(key) != null
+          || Thread.currentThread().isInterrupted()) {
         complete = false;
         continue;
       }
-      available = true;
-      for (var point : result) {
-        if (WikimapiaPoiSourceImpl.distance(lon, lat, point.lon(), point.lat()) <= radius)
-          points.putIfAbsent(point.id(), point);
+      remaining--;
+      try (var budget = WalkBudget.until(Math.min(deadline, System.nanoTime() + CELL_TIME.toNanos()))) {
+        var result = osm.searchBox(bounds.south, bounds.west, bounds.north, bounds.east, key.tags(), language);
+        for (String tag : missing) {
+          var selector = tag.split("=", 2);
+          var matching = result.stream().filter(point -> {
+            String value = point.tags().get(selector[0]);
+            return value != null && (selector[1].equals("*") || selector[1].equals(value));
+          }).toList();
+          cells.put(new CachedSelector(cell, tag, language), matching);
+        }
+        available = true;
+        addWithinRadius(points, result, lon, lat, radius);
+      } catch (IOException unavailable) {
+        if (unavailable instanceof OsmPoiSource.DenseCell && cell.depth < 2) {
+          split.put(key, true);
+          pending.addFirst(work);
+        } else {
+          retryLater.put(key, true);
+          complete = false;
+        }
       }
     }
     return new Coverage(List.copyOf(points.values()), complete, available);
+  }
+
+  private static void addWithinRadius(Map<String, OsmMcpClient.Poi> points, List<OsmMcpClient.Poi> result,
+                                      double lon, double lat, int radius) {
+    for (var point : result) {
+      if (WikimapiaPoiSourceImpl.distance(lon, lat, point.lon(), point.lat()) <= radius)
+        points.merge(point.id(), point, (previous, fresh) -> {
+          var tags = new LinkedHashMap<>(previous.tags());
+          tags.putAll(fresh.tags());
+          return new OsmMcpClient.Poi(fresh.id(), fresh.label(), fresh.lon(), fresh.lat(), Map.copyOf(tags));
+        });
+    }
   }
 
   private static Bounds bounds(Cell cell) {

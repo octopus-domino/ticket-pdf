@@ -36,6 +36,24 @@ class TiledAreaOsmSearchTest {
     verify(osm, times(queried.size())).searchBox(anyDouble(), anyDouble(), anyDouble(), anyDouble(), anyList(), eq("ru"));
   }
 
+  @Test void newlySelectedCategoriesShareOneRequestAndReuseCachedBars() throws Exception {
+    var osm = mock(OsmPoiSource.class);
+    var newSelectors = List.of("tourism=gallery", "tourism=museum");
+    when(osm.searchBox(anyDouble(), anyDouble(), anyDouble(), anyDouble(), eq(BARS.tags()), eq("ru")))
+        .thenReturn(List.of(BAR));
+    when(osm.searchBox(anyDouble(), anyDouble(), anyDouble(), anyDouble(), eq(newSelectors), eq("ru")))
+        .thenReturn(List.of(new OsmMcpClient.Poi("node/43", "Museum", LON, LAT, Map.of("tourism", "museum"))));
+    var search = new TiledAreaOsmSearch(osm);
+    search.search(LON, LAT, 400, BARS, "ru");
+    var combined = new WalkThemeProperties.Theme(List.of("amenity=bar", "tourism=museum", "tourism=gallery"),
+        List.of(), List.of(), false);
+    var result = search.search(LON, LAT, 400, combined, "ru");
+    assertTrue(result.complete());
+    assertEquals(List.of("node/42", "node/43"), result.points().stream().map(OsmMcpClient.Poi::id).toList());
+    assertEquals(result, search.search(LON, LAT, 400, combined, "ru"));
+    verify(osm, times(2)).searchBox(anyDouble(), anyDouble(), anyDouble(), anyDouble(), anyList(), eq("ru"));
+  }
+
   @Test void aFailedOuterCellDoesNotDiscardCachedPointsOrMarkCoverageComplete() throws Exception {
     var osm = mock(OsmPoiSource.class);
     when(osm.searchBox(anyDouble(), anyDouble(), anyDouble(), anyDouble(), anyList(), eq("ru")))
