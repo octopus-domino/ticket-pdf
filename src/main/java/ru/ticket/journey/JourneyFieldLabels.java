@@ -5,10 +5,10 @@ import java.util.*;
 import ru.ticket.common.ApiException;
 
 /** Snapshot the author's field captions so preview and issued PDFs keep identical copy. */
-final class JourneyFieldLabels {
+public final class JourneyFieldLabels {
   private static final ObjectMapper JSON = new ObjectMapper();
 
-  static Map<String, String> read(String value) {
+  public static Map<String, String> read(String value) {
     if (value == null || value.isBlank()) return Map.of();
     if (value.length() > 3000) throw ApiException.badRequest("Invalid field captions");
     try {

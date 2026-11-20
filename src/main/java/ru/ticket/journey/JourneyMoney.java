@@ -5,7 +5,7 @@ import java.text.NumberFormat;
 import java.util.*;
 import ru.ticket.common.ApiException;
 
-final class JourneyMoney {
+public final class JourneyMoney {
   static BigDecimal amount(String value) {
     try {
       var result = new BigDecimal(value.replaceAll("[\\s\u00a0\u202f]", "").replace(',', '.'));
@@ -17,7 +17,7 @@ final class JourneyMoney {
     }
   }
 
-  static String formatted(Map<String, String> data) {
+  public static String formatted(Map<String, String> data) {
     try {
       var format =
           NumberFormat.getCurrencyInstance(

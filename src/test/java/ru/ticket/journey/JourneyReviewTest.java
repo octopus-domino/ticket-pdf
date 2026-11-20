@@ -1,5 +1,7 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.domain.repository.JourneyStore;
+import ru.ticket.journey.domain.model.JourneyEntity;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -21,7 +23,7 @@ class JourneyReviewTest {
         .hasMessage("journey.review.closed");
   }
   @Autowired JourneyReviewRepository reviews;
-  private final JourneyRepository journeys = mock(JourneyRepository.class);
+  private final JourneyStore journeys = mock(JourneyStore.class);
   private final JourneyService documents = mock(JourneyService.class);
   private final PublicationAccess access = mock(PublicationAccess.class);
 

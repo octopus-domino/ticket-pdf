@@ -1,5 +1,6 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.infrastructure.pdf.JourneyAlbumTemplate;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;

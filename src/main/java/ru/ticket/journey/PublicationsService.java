@@ -1,5 +1,6 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.domain.repository.JourneyStore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.*;
@@ -21,7 +22,7 @@ public class PublicationsService {
   public record Claim(String type, String id, String key) {}
   public record Release(String id, String title, String kind, int count, Instant createdAt) {}
 
-  private final JourneyRepository documents;
+  private final JourneyStore documents;
   private final JourneySiteRepository sites;
   private final JourneyService journeys;
   private final ObjectMapper mapper;
@@ -37,7 +38,7 @@ public class PublicationsService {
   }
 
   public PublicationsService(
-      JourneyRepository documents,
+      JourneyStore documents,
       JourneySiteRepository sites,
       JourneyService journeys,
       ObjectMapper mapper) {
@@ -56,18 +57,19 @@ public class PublicationsService {
   @Transactional(readOnly = true)
   public Results<Document> documents(String owner, int number, String site, String search) {
     if (site.length() > 48 || search.length() > 80) throw ApiException.badRequest("Invalid search");
+    if (number < 0 || number > 100000) throw ApiException.badRequest("Invalid page");
     var result =
         documents.findOwned(
-            owner, site, "%" + search.toLowerCase(Locale.ROOT) + "%", page(number, "id"));
+            owner, site, "%" + search.toLowerCase(Locale.ROOT) + "%", number, 20);
     var items =
-        result.getContent().stream()
+        result.items().stream()
             .map(
                 entity -> {
                   var issued = journeys.describe(entity);
                   return new Document(issued.document(), issued.status(), entity.siteSlug);
                 })
             .toList();
-    return new Results<>(items, number, result.getTotalPages(), result.getTotalElements());
+    return new Results<>(items, number, result.pages(), result.total());
   }
 
   @Transactional(readOnly = true)
@@ -112,7 +114,7 @@ public class PublicationsService {
             && PublicationAccess.keyMatches(entity.managementHash, claim.key())) {
           entity.ownerId = owner;
           entity.siteSlug = journeys.describe(entity).document().data().get("site");
-          documents.save(entity);
+          documents.store(entity);
           accepted++;
         }
       }

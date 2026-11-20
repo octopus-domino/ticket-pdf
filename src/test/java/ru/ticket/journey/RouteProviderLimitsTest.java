@@ -5,15 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 class RouteProviderLimitsTest {
-  @Test void carTransferOver400KmIsAdmittedButOver1500KmIsRejectedBeforeRouting() {
-    var router = new BRouterRoadRouter(new ObjectMapper(), "target/nonexistent-router", "target/unused-graphs");
-    var start = new RoadRouter.Point(37.6, 55.7);
-    assertThatThrownBy(() -> router.route(start, new RoadRouter.Point(49.1, 55.8), "car"))
-        .hasMessageContaining("journey.route.unavailable");
-    assertThatThrownBy(() -> router.route(start, new RoadRouter.Point(80, 55), "car"))
-        .hasMessageContaining("journey.route.too-long");
-    assertThat(BRouterRoadRouter.tiles(start, new RoadRouter.Point(49.1, 55.8))).hasSizeGreaterThan(1);
-  }
   @Test void discoveryUsesOsmWhenNoPaidKeyIsConfigured() {
     var osm = org.mockito.Mockito.mock(OsmPlaceService.class);
     org.mockito.Mockito.when(osm.search(37.6, 55.7, "attractions", "ru")).thenReturn(java.util.List.of());

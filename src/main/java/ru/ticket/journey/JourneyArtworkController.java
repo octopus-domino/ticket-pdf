@@ -1,5 +1,7 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.infrastructure.pdf.JourneyDocumentFactory;
+import ru.ticket.journey.application.journey.JourneyPublicationData;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +48,7 @@ public class JourneyArtworkController {
   @PostMapping("/artwork")
   public ResponseEntity<Artwork> artwork(@RequestBody Input input) {
     if (input == null) throw ApiException.badRequest("Заполните приглашение");
-    JourneyService.validate(
+    JourneyPublicationData.validate(
         new JourneyService.Input(input.kind(), input.title(), input.data(), List.of()));
     if (input.definition() != null) {
       JourneySiteService.validatePreview(input.definition());

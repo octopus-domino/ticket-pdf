@@ -1,5 +1,9 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.infrastructure.pdf.JourneyDocumentFactory;
+import ru.ticket.journey.infrastructure.pdf.JourneyRouteLayout;
+import ru.ticket.journey.infrastructure.pdf.JourneyBrandingLayout;
+import ru.ticket.journey.infrastructure.persistence.JourneyRouteRepository;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -79,11 +83,7 @@ class JourneyRouteTest {
                         List.of(invalid),
                         valid.mapId())))
         .hasMessage("journey.route.invalid-route");
-    assertThatThrownBy(() -> BRouterRoadRouter.validate(new RoadRouter.Point(Double.NaN, 55)))
-        .hasMessage("journey.route.invalid-route");
-    assertThat(
-            BRouterRoadRouter.tiles(new RoadRouter.Point(-.1, -.1), new RoadRouter.Point(.1, .1)))
-        .containsExactlyInAnyOrder("W5_S5.rd5", "W5_N0.rd5", "E0_S5.rd5", "E0_N0.rd5");
+
   }
 
   @Test

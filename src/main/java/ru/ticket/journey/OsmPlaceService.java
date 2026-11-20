@@ -1,5 +1,7 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.domain.service.RoadRouter;
+import ru.ticket.journey.shared.RouteCoordinates;
 import com.fasterxml.jackson.databind.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -19,22 +21,22 @@ public class OsmPlaceService {
   private final Semaphore permit = new Semaphore(1);
   private final ObjectMapper mapper;
   private final String endpoint;
-  private final ru.ticket.journey.walk.OverpassQueryClient walkQueries;
+  private final ru.ticket.journey.infrastructure.poi.OverpassQueryClient walkQueries;
   private long nextRequest;
-  private org.springframework.beans.factory.ObjectProvider<ru.ticket.journey.walk.WalkThemeService> themed;
+  private org.springframework.beans.factory.ObjectProvider<ru.ticket.journey.infrastructure.poi.WalkThemeService> themed;
   @org.springframework.beans.factory.annotation.Autowired
-  void themed(org.springframework.beans.factory.ObjectProvider<ru.ticket.journey.walk.WalkThemeService> source){this.themed=source;}
+  void themed(org.springframework.beans.factory.ObjectProvider<ru.ticket.journey.infrastructure.poi.WalkThemeService> source){this.themed=source;}
   @org.springframework.beans.factory.annotation.Autowired
   public OsmPlaceService(ObjectMapper mapper,
       @Value("${app.journeys.overpass-url:https://overpass-api.de/api/interpreter}") String endpoint,
-      ru.ticket.journey.walk.OverpassQueryClient walkQueries) {
+      ru.ticket.journey.infrastructure.poi.OverpassQueryClient walkQueries) {
     this.mapper = mapper; this.endpoint = endpoint; this.walkQueries = walkQueries;
   }
 
   public OsmPlaceService(ObjectMapper mapper,
       @Value("${app.journeys.overpass-url:https://overpass-api.de/api/interpreter}") String endpoint) {
-    this(mapper, endpoint, new ru.ticket.journey.walk.OverpassQueryClient(
-        new ru.ticket.journey.walk.WalkRemote(mapper), List.of(endpoint)));
+    this(mapper, endpoint, new ru.ticket.journey.infrastructure.poi.OverpassQueryClient(
+        new ru.ticket.journey.infrastructure.poi.WalkRemote(mapper), List.of(endpoint)));
   }
   /** Bounded batched query for thematic discovery and one OSM cross-check per Wikimapia set. */
   public JsonNode walkQuery(String query) throws java.io.IOException {
@@ -53,11 +55,11 @@ public class OsmPlaceService {
   }
   public List<PlaceRecommendationsController.Place> search(double longitude,double latitude,String kind,String language,String theme,java.time.LocalDateTime visitTime,Integer maxSitelinks){
     if(theme==null)return search(longitude,latitude,kind,language);
-    return themed.getObject().findCandidates(new ru.ticket.journey.walk.WalkThemeService.WalkRequest(longitude,latitude,theme,visitTime,language,7,1.5,maxSitelinks)).stream()
+    return themed.getObject().findCandidates(new ru.ticket.journey.infrastructure.poi.WalkThemeService.WalkRequest(longitude,latitude,theme,visitTime,language,7,1.5,maxSitelinks)).stream()
         .map(point->PlaceRecommendationsController.themedPlace(point,theme,mapper)).toList();
   }
   public List<PlaceRecommendationsController.Place> search(double longitude, double latitude, String kind, String language) {
-    BRouterRoadRouter.validate(new RoadRouter.Point(longitude, latitude));
+    RouteCoordinates.validate(new RoadRouter.Point(longitude, latitude));
     if (!Set.of("attractions", "hotels").contains(kind)) throw ApiException.badRequest("journey.route.invalid-route");
     if (!permit.tryAcquire()) throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "journey.route.search-busy");
     try {

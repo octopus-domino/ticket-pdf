@@ -23,6 +23,11 @@ public class McpClientFactory {
   McpSyncClient commons(ObjectMapper mapper,@Value("${app.mcp.commons.url:https://gateway.pipeworx.io/commons-wikimedia/mcp}") String url){return create(mapper,url);}
 
   public static McpSyncClient create(ObjectMapper mapper,String url){
+    return create(mapper,url,Duration.ofSeconds(3),Duration.ofSeconds(15));
+  }
+
+  /** Applies provider-specific connection and request deadlines to the shared SDK transport. */
+  public static McpSyncClient create(ObjectMapper mapper,String url,Duration connect,Duration request){
     var uri=URI.create(url);
     if(!java.util.Set.of("http","https").contains(uri.getScheme())||uri.getHost()==null||uri.getUserInfo()!=null||uri.getQuery()!=null||uri.getFragment()!=null)
       throw new IllegalArgumentException("Invalid MCP endpoint configuration");
@@ -30,11 +35,11 @@ public class McpClientFactory {
     String path=uri.getRawPath().isBlank()?"/mcp":uri.getRawPath();
     var transport=HttpClientStreamableHttpTransport.builder(origin).endpoint(path)
         .jsonMapper(new JacksonMcpJsonMapper(mapper.copy()))
-        .clientBuilder(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).followRedirects(HttpClient.Redirect.NEVER))
-        .connectTimeout(Duration.ofSeconds(3)).maxResponseSize(1_000_000)
-        .requestBuilder(HttpRequest.newBuilder().timeout(Duration.ofSeconds(15)))
+        .clientBuilder(HttpClient.newBuilder().connectTimeout(connect).followRedirects(HttpClient.Redirect.NEVER))
+        .connectTimeout(connect).maxResponseSize(1_000_000)
+        .requestBuilder(HttpRequest.newBuilder().timeout(request))
         .build();
-    return McpClient.sync(transport).initializationTimeout(Duration.ofSeconds(3))
-        .requestTimeout(Duration.ofSeconds(15)).enableCallToolSchemaCaching(false).build();
+    return McpClient.sync(transport).initializationTimeout(connect)
+        .requestTimeout(request).enableCallToolSchemaCaching(false).build();
   }
 }

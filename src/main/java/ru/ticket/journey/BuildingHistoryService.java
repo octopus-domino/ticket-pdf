@@ -9,7 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.*;
-import ru.ticket.journey.walk.WalkThemeService.WalkCandidate;
+import ru.ticket.journey.infrastructure.poi.WalkThemeService.WalkCandidate;
 
 @Service
 public class BuildingHistoryService {

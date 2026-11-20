@@ -8,7 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.locationtech.jts.io.WKTReader;
-import ru.ticket.journey.walk.WalkThemeService;
+import ru.ticket.journey.infrastructure.poi.WalkThemeService;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={
@@ -24,9 +24,9 @@ class LocalPlacesIntegrationTest {
   @Autowired BuildingHistoryService history;
   @Autowired BuildingHistoryRepository buildings;
   @Autowired TestRestTemplate http;
-  @org.springframework.boot.test.mock.mockito.MockBean ru.ticket.journey.walk.OsmPoiSource osm;
-  @org.springframework.boot.test.mock.mockito.MockBean ru.ticket.journey.walk.PhotonPoiSource photon;
-  @org.springframework.boot.test.mock.mockito.MockBean ru.ticket.journey.walk.WikimapiaPoiSource wikimapia;
+  @org.springframework.boot.test.mock.mockito.MockBean ru.ticket.journey.infrastructure.poi.OsmPoiSource osm;
+  @org.springframework.boot.test.mock.mockito.MockBean ru.ticket.journey.infrastructure.poi.PhotonPoiSource photon;
+  @org.springframework.boot.test.mock.mockito.MockBean ru.ticket.journey.infrastructure.poi.WikimapiaPoiSource wikimapia;
 
   @Test void startupImportsTheRealCatalogAndMysticSearchIsLocal(){
     assertTrue(places.count()>150);

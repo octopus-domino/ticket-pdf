@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 class OsmPlaceServiceTest {
   @Test void nextAreaWaitsForPreviousConnectionToReleaseItsSlot() throws Exception {
-    var provider = org.mockito.Mockito.mock(ru.ticket.journey.walk.OverpassQueryClient.class);
+    var provider = org.mockito.Mockito.mock(ru.ticket.journey.infrastructure.poi.OverpassQueryClient.class);
     var entered = new java.util.concurrent.CountDownLatch(1);
     var release = new java.util.concurrent.CountDownLatch(1);
     org.mockito.Mockito.when(provider.query("first")).thenAnswer(call -> {

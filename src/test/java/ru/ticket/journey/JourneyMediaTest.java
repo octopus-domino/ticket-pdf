@@ -1,5 +1,6 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.infrastructure.pdf.JourneyBrandingLayout;
 import static org.assertj.core.api.Assertions.*;
 
 import java.awt.Color;

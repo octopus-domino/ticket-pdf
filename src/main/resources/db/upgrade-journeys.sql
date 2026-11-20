@@ -41,3 +41,11 @@ CREATE TABLE IF NOT EXISTS journey_routes (
     payload VARCHAR(750000) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE
 );
+-- v2 private trip drafts use an owner-scoped identifier. Legacy journeys remain in their original tables.
+CREATE TABLE IF NOT EXISTS journey_trip_drafts (
+  owner_id VARCHAR(36) NOT NULL,
+  trip_id VARCHAR(64) NOT NULL,
+  payload TEXT NOT NULL,
+  version BIGINT,
+  PRIMARY KEY (owner_id, trip_id)
+);

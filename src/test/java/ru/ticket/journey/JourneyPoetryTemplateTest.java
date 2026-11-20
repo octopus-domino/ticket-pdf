@@ -1,5 +1,6 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.infrastructure.pdf.JourneyPoetryTemplate;
 import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.Test;

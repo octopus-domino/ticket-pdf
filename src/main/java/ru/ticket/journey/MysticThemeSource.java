@@ -1,10 +1,12 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.domain.service.RoadRouter;
+import ru.ticket.journey.shared.RouteCoordinates;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.ticket.journey.walk.WalkThemeService.WalkCandidate;
+import ru.ticket.journey.infrastructure.poi.WalkThemeService.WalkCandidate;
 
 @Service
 public class MysticThemeSource {
@@ -45,7 +47,7 @@ public class MysticThemeSource {
   /** Returns all distinct catalogue locations in the requested area, independently of route-stop limits. */
   @Transactional(readOnly=true)
   public List<WalkCandidate> findAllCandidates(double lon, double lat, double radiusKm) {
-    BRouterRoadRouter.validate(new RoadRouter.Point(lon, lat));
+    RouteCoordinates.validate(new RoadRouter.Point(lon, lat));
     if (!Double.isFinite(radiusKm) || radiusKm < .1 || radiusKm > 10) throw new IllegalArgumentException("Invalid mystic search bounds");
     double dy = radiusKm / 111.195, dx = dy / Math.cos(Math.toRadians(lat));
     var found = postgis ? repository.findAllNearby(lon, lat, radiusKm * 1000)

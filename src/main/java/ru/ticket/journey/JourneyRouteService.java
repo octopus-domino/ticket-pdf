@@ -1,5 +1,9 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.domain.service.RoadRouter;
+import ru.ticket.journey.shared.RouteCoordinates;
+import ru.ticket.journey.domain.repository.RouteSnapshotStore;
+import ru.ticket.journey.domain.model.JourneyRoute;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -58,12 +62,12 @@ public class JourneyRouteService {
 
   public record Saved(String id) {}
 
-  private final JourneyRouteRepository repository;
+  private final RouteSnapshotStore repository;
   private final JourneyMediaService media;
   private final ObjectMapper mapper;
 
   public JourneyRouteService(
-      JourneyRouteRepository repository, JourneyMediaService media, ObjectMapper mapper) {
+      RouteSnapshotStore repository, JourneyMediaService media, ObjectMapper mapper) {
     this.repository = repository;
     this.media = media;
     this.mapper = mapper;
@@ -89,11 +93,7 @@ public class JourneyRouteService {
                       .digest(payload.getBytes(StandardCharsets.UTF_8)));
       if (!repository.existsById(id)) {
         if (repository.count() >= 256) throw ApiException.conflict("journey.route.storage-full");
-        var route = new JourneyRoute();
-        route.id = id;
-        route.payload = payload;
-        route.createdAt = Instant.now();
-        repository.save(route);
+        repository.store(new JourneyRoute(id, payload, Instant.now()));
       }
       return new Saved(id);
     } catch (java.io.IOException | java.security.NoSuchAlgorithmException ex) {
@@ -107,7 +107,7 @@ public class JourneyRouteService {
       throw ApiException.badRequest("journey.route.invalid-route");
     var route = repository.findById(id).orElseThrow(() -> ApiException.notFound("Route"));
     try {
-      return mapper.readValue(route.payload, Snapshot.class);
+      return mapper.readValue(route.payload(), Snapshot.class);
     } catch (java.io.IOException ex) {
       throw new IllegalStateException(ex);
     }
@@ -144,7 +144,7 @@ public class JourneyRouteService {
             || (stop.walkId() != null && !stop.walkId().matches("[a-f0-9]{64}"))
             || stop.stayMinutes() < 0
             || stop.stayMinutes() > 10080) invalid();
-        BRouterRoadRouter.validate(new RoadRouter.Point(stop.longitude(), stop.latitude()));
+        RouteCoordinates.validate(new RoadRouter.Point(stop.longitude(), stop.latitude()));
         ZoneId.of(stop.zone());
         validateMeta(stop.meta());
       }
@@ -180,7 +180,7 @@ public class JourneyRouteService {
               || coordinate.size() != 2
               || coordinate.get(0) == null
               || coordinate.get(1) == null) invalid();
-          BRouterRoadRouter.validate(new RoadRouter.Point(coordinate.get(0), coordinate.get(1)));
+          RouteCoordinates.validate(new RoadRouter.Point(coordinate.get(0), coordinate.get(1)));
           if (++count > 30000) invalid();
         }
       }

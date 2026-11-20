@@ -1,5 +1,10 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.infrastructure.pdf.JourneyDocumentFactory;
+import ru.ticket.journey.infrastructure.pdf.JourneyPoetryTemplate;
+import ru.ticket.journey.infrastructure.pdf.JourneyConstructorSource;
+import ru.ticket.journey.infrastructure.persistence.JourneyRepository;
+import ru.ticket.journey.domain.model.JourneyEntity;
 import static org.assertj.core.api.Assertions.*;
 import java.util.*;
 import org.junit.jupiter.api.Test;

@@ -1,5 +1,7 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.infrastructure.pdf.JourneyDocumentFactory;
+import ru.ticket.journey.infrastructure.pdf.JourneyConstructorSource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.*;

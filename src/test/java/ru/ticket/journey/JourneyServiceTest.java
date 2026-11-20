@@ -1,5 +1,6 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.infrastructure.persistence.JourneyRepository;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -18,6 +19,8 @@ import ru.ticket.common.ApiException;
 
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
 @Import({
+  ru.ticket.journey.application.journey.JourneyConstructorService.class,
+  ru.ticket.journey.application.journey.JourneyPublicationData.class,
   JourneyService.class,
   JourneySiteService.class,
   JourneyContentPolicy.class,

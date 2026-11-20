@@ -7,7 +7,7 @@ import java.util.*;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
-import ru.ticket.journey.walk.CommonsImages;
+import ru.ticket.journey.infrastructure.poi.CommonsImages;
 
 /** Pipeworx prefixes search in its live tools/list, while file_info keeps its original name. */
 @Component

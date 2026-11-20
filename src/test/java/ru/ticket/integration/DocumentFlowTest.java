@@ -11,6 +11,8 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.*;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import ru.ticket.journey.JourneyMediaService;
+import ru.ticket.journey.JourneyRouteService;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -19,6 +21,7 @@ import org.springframework.test.context.DynamicPropertySource;
       "spring.jpa.hibernate.ddl-auto=create-drop",
       "jwt.secret=contract-test-secret-only-012345678901234567890123456789",
       "app.rate-limit.enabled=false",
+      "app.journeys.trip-planner-enabled=true",
       "spring.security.oauth2.client.registration.google.client-id=test",
       "spring.security.oauth2.client.registration.google.client-secret=test",
       "spring.security.oauth2.client.provider.google.issuer-uri=https://accounts.google.com",
@@ -29,6 +32,101 @@ import org.springframework.test.context.DynamicPropertySource;
 class DocumentFlowTest {
   private static final java.nio.file.Path ARTIFACT_ROOT =
       java.nio.file.Path.of("target", "test-artifacts", "run-" + java.util.UUID.randomUUID());
+  @Autowired JourneyRouteService tripRoutes;
+  @Autowired JourneyMediaService tripMedia;
+
+  @Test
+  void opensALegacyWalkWithGeometryAndKeepsTheOriginalPublicationPrintable() throws Exception {
+    var headers = registeredHeaders("legacy-trip-owner");
+    var image = new java.awt.image.BufferedImage(32, 24, java.awt.image.BufferedImage.TYPE_INT_RGB);
+    var png = new java.io.ByteArrayOutputStream();
+    javax.imageio.ImageIO.write(image, "png", png);
+    var map = tripMedia.save("data:image/png;base64," + Base64.getEncoder().encodeToString(png.toByteArray()));
+    var stops = List.of(
+        new JourneyRouteService.Stop("a", "Museum", 37.62, 55.75, "Europe/Moscow", 0),
+        new JourneyRouteService.Stop("b", "Park", 37.63, 55.76, "Europe/Moscow", 0));
+    var geometry = List.of(List.of(37.62, 55.75), List.of(37.63, 55.76));
+    var route = new JourneyRouteService.Snapshot(stops,
+        List.of(new JourneyRouteService.Leg("foot", 900, null, null, null, null, geometry, 1500d)),
+        "2027-01-01T10:00", List.of(new JourneyRouteService.Row("foot", "Museum to park",
+            "2027-01-01T07:00:00Z", "2027-01-01T07:15:00Z", "Europe/Moscow")), map.id());
+    String routeId = tripRoutes.save(route).id();
+    var input = new ru.ticket.journey.JourneyService.Input(ru.ticket.journey.JourneyService.Kind.TOUR,
+        "Legacy walk", Map.of("route", routeId, "city", "Moscow"), List.of());
+    var created = http.postForEntity("/api/journeys", new HttpEntity<>(input, headers),
+        ru.ticket.journey.JourneyService.Created[].class);
+    assertEquals(200, created.getStatusCode().value(), created.toString());
+    String id = created.getBody()[0].document().id();
+    var projected = http.exchange("/api/trips/" + id, HttpMethod.GET, new HttpEntity<>(headers),
+        ru.ticket.journey.domain.model.Trip.class);
+    assertEquals(200, projected.getStatusCode().value(), projected.toString());
+    assertEquals(routeId, projected.getBody().meta().legacyRouteId());
+    assertEquals(2, projected.getBody().days().get(0).walkingSections().get(0).geometry().size());
+    assertEquals(geometry, tripRoutes.get(routeId).legs().get(0).coordinates());
+    var originalJson = http.exchange("/api/trips/" + id + "/json?format=v1-compat", HttpMethod.GET,
+        new HttpEntity<>(headers), JourneyRouteService.Snapshot.class);
+    assertEquals(200, originalJson.getStatusCode().value());
+    assertEquals("no-store", originalJson.getHeaders().getCacheControl());
+    assertEquals(tripRoutes.get(routeId), originalJson.getBody());
+    var original = http.getForEntity("/api/journeys/" + id + "/pdf", byte[].class);
+    assertEquals(200, original.getStatusCode().value());
+    try (var pdf = org.apache.pdfbox.Loader.loadPDF(original.getBody())) {
+      assertTrue(pdf.getNumberOfPages() > 0);
+    }
+  }
+
+  @Test
+  void savedTripRoundTripsAndExportsPrivatePdfAndCalendar() throws Exception {
+    var owner = registeredHeaders("trip-export-owner");
+    var other = registeredHeaders("trip-export-other");
+    owner.setContentType(MediaType.APPLICATION_JSON);
+    String path = "/api/trips/contract-trip";
+    String itinerary = """
+        {"version":2,"id":"contract-trip","title":"Winter itinerary","startDate":"2027-01-01","endDate":"2027-01-02",
+         "baseCurrency":"RUB","travelers":[{"name":"Private traveler","email":"private@example.invalid"}],
+         "cities":[{"id":"moscow","name":"Moscow"},{"id":"yen","name":"Yekaterinburg"}],
+         "days":[{"date":"2027-01-01","cityId":"moscow","note":"River walk","accommodationId":"hotel","segments":[]}],
+         "legs":[{"id":"train","fromCityId":"moscow","toCityId":"yen","transport":"TRAIN",
+           "departureAt":"2027-01-01T10:00:00+03:00","arrivalAt":"2027-01-01T16:00:00+05:00","note":"Train 014",
+           "cost":{"amount":1900,"currency":"RUB"}}],
+         "accommodations":[{"id":"hotel","cityId":"yen","name":"Station Hotel","address":"Main Street",
+           "checkIn":"2027-01-01","checkOut":"2027-01-02","provider":"MANUAL","cost":{"amount":80,"currency":"EUR"}}],
+         "documents":[{"id":"reservation","title":"Rail reservation","url":"https://example.invalid/reservation"}],
+         "budget":{"limit":{"amount":12500,"currency":"RUB"}},"meta":{"mode":"TRIP","source":"MANUAL","legacyFields":{}}}
+        """;
+    var saved = http.exchange(path, HttpMethod.PUT, new HttpEntity<>(itinerary, owner), String.class);
+    assertEquals(200, saved.getStatusCode().value(), saved.toString());
+    assertEquals("no-store", saved.getHeaders().getCacheControl());
+    var opened = http.exchange(path, HttpMethod.GET, new HttpEntity<>(owner), String.class);
+    assertEquals(200, opened.getStatusCode().value(), opened.toString());
+    assertTrue(opened.getBody().contains("+03:00") && opened.getBody().contains("+05:00"));
+    var v2 = http.exchange(path + "/json", HttpMethod.GET, new HttpEntity<>(owner), String.class);
+    assertEquals(200, v2.getStatusCode().value());
+    assertEquals(opened.getBody(), v2.getBody());
+    assertEquals("no-store", v2.getHeaders().getCacheControl());
+    for (String suffix : List.of("", "/pdf", "/calendar", "/json", "/json?format=v1-compat")) {
+      var rejected = http.exchange(path + suffix, HttpMethod.GET, new HttpEntity<>(other), String.class);
+      assertTrue(rejected.getStatusCode().is4xxClientError(), rejected.toString());
+    }
+    var pdf = http.exchange(path + "/pdf", HttpMethod.GET, new HttpEntity<>(owner), byte[].class);
+    assertEquals(200, pdf.getStatusCode().value());
+    assertEquals(MediaType.APPLICATION_PDF, pdf.getHeaders().getContentType());
+    try (var parsed = org.apache.pdfbox.Loader.loadPDF(pdf.getBody())) {
+      String text = new org.apache.pdfbox.text.PDFTextStripper().getText(parsed);
+      for (String item : List.of("Winter itinerary", "River walk", "Train 014", "+03:00", "+05:00",
+          "Station Hotel", "1900 RUB", "80 EUR", "12500", "Rail reservation")) assertTrue(text.contains(item), text);
+      assertFalse(text.contains("private@example.invalid"));
+    }
+    var calendar = http.exchange(path + "/calendar", HttpMethod.GET, new HttpEntity<>(owner), String.class);
+    assertEquals(200, calendar.getStatusCode().value());
+    assertEquals("no-store", calendar.getHeaders().getCacheControl());
+    String ics = calendar.getBody();
+    var parsed = new net.fortuna.ical4j.data.CalendarBuilder().build(new java.io.StringReader(ics));
+    assertEquals(4, parsed.getComponents().size());
+    assertTrue(ics.contains("DTSTART:20270101T070000Z"));
+    assertTrue(ics.contains("DTEND:20270101T110000Z"));
+    assertFalse(ics.contains("private@example.invalid"));
+  }
 
   @Test
   void newWorkflowsExposeProtectedIssuanceAndPrintableTables() throws Exception {
@@ -171,7 +269,7 @@ class DocumentFlowTest {
   }
 
   @Autowired TestRestTemplate http;
-  @Autowired ru.ticket.journey.JourneyDocumentFactory journeyDocuments;
+  @Autowired ru.ticket.journey.infrastructure.pdf.JourneyDocumentFactory journeyDocuments;
   @Autowired ru.ticket.svg.SvgDocumentBuilder journeySvg;
 
   @Test

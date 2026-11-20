@@ -1,5 +1,6 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.infrastructure.pdf.JourneyDocumentFactory;
 import java.net.URI;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;

@@ -19,4 +19,16 @@ public class JourneyMedia {
   int width;
   int height;
   Instant createdAt;
+
+  public int width() {
+    return width;
+  }
+
+  public int height() {
+    return height;
+  }
+
+  public String dataUri() {
+    return "data:" + contentType + ";base64," + java.util.Base64.getEncoder().encodeToString(content);
+  }
 }

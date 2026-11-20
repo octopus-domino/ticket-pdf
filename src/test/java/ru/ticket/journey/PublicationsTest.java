@@ -12,6 +12,8 @@ import ru.ticket.common.ApiException;
 
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
 @Import({
+  ru.ticket.journey.application.journey.JourneyConstructorService.class,
+  ru.ticket.journey.application.journey.JourneyPublicationData.class,
   JourneyService.class,
   JourneySiteService.class,
   JourneyContentPolicy.class,

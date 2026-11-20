@@ -1,5 +1,6 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.infrastructure.pdf.JourneyRouteLayout;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import java.time.Instant;

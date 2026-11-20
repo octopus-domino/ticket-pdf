@@ -1,5 +1,7 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.infrastructure.pdf.JourneyDocumentFactory;
+import ru.ticket.journey.application.journey.JourneyPrintService;
 import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.Test;
@@ -27,7 +29,7 @@ class JourneyPdfControllerTest {
       assertThat(files.get(0).content()).isEqualTo(pdf);
       return new PackResult(archive, "release.zip", "application/zip");
     });
-    var controller = new JourneyPdfController(service, factory, exporter, generation);
+    var controller = new JourneyPdfController(service, new JourneyPrintService(service, factory, exporter, generation));
     assertThat(controller.zip("batch", "key").getBody()).isEqualTo(archive);
     verify(factory, never()).document(revoked.document());
   }
@@ -41,7 +43,7 @@ class JourneyPdfControllerTest {
     when(exporter.export(ExportFormat.PDF, request)).thenThrow(new IllegalStateException("Renderer unavailable"))
         .thenReturn(new ExportResult(new byte[]{1}, "document.pdf", "application/pdf"));
     when(generation.pack(eq("zip"), eq("pdf"), anyList())).thenReturn(new PackResult(new byte[]{2}, "release.zip", "application/zip"));
-    var controller = new JourneyPdfController(service, factory, exporter, generation);
+    var controller = new JourneyPdfController(service, new JourneyPrintService(service, factory, exporter, generation));
     assertThatThrownBy(() -> controller.zip("batch", "key")).isInstanceOf(IllegalStateException.class);
     assertThat(controller.zip("batch", "key").getStatusCode().value()).isEqualTo(200);
   }

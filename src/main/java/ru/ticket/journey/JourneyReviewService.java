@@ -1,5 +1,6 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.domain.repository.JourneyStore;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -18,13 +19,13 @@ public class JourneyReviewService {
   public record Results(List<Review> items, int page, int pages, long total, double average) {}
 
   private final JourneyReviewRepository reviews;
-  private final JourneyRepository journeys;
+  private final JourneyStore journeys;
   private final JourneyService documents;
   private final PublicationAccess access;
 
   public JourneyReviewService(
       JourneyReviewRepository reviews,
-      JourneyRepository journeys,
+      JourneyStore journeys,
       JourneyService documents,
       PublicationAccess access) {
     this.reviews = reviews;

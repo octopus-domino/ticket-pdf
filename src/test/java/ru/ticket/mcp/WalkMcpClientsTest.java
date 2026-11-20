@@ -50,7 +50,7 @@ class WalkMcpClientsTest {
       var session=new McpToolSession(()->client,mapper,Set.of("find_nearby_pois","poi_details","commons_wikimedia_search","file_info"));
       assertEquals(1,session.call("find_nearby_pois",Map.of("near","55.75,37.62","category","amenity=pub")).path("results").size());
       assertEquals("Q1",session.call("poi_details",Map.of("osm_id","node/1")).path("tags").path("wikidata").asText());
-      var image=ru.ticket.journey.walk.CommonsImages.parse(session.call("file_info",Map.of("title","File:Fixture.jpg"))).get(0);
+      var image=ru.ticket.journey.infrastructure.poi.CommonsImages.parse(session.call("file_info",Map.of("title","File:Fixture.jpg"))).get(0);
       assertEquals("CC BY 4.0",image.license());assertTrue(image.imageUrl().contains("/thumb/"));
       assertThrows(java.io.IOException.class,()->session.call("remember",Map.of()));
       assertEquals(List.of("find_nearby_pois","poi_details","file_info"),called);

@@ -1,5 +1,6 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.domain.model.JourneyEntity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.net.URI;

@@ -1,5 +1,7 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.domain.service.RoadRouter;
+import ru.ticket.journey.shared.RouteCoordinates;
 import com.fasterxml.jackson.databind.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -13,7 +15,7 @@ import ru.ticket.common.ApiException;
 import java.time.LocalDateTime;
 import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
-import ru.ticket.journey.walk.*;
+import ru.ticket.journey.infrastructure.poi.*;
 
 @RestController
 @RequestMapping("/api/journeys/routes/places")
@@ -187,7 +189,7 @@ public class PlaceRecommendationsController {
   }
 
   private synchronized Result searchProviders(double longitude, double latitude, String kind, String language) {
-    BRouterRoadRouter.validate(new RoadRouter.Point(longitude, latitude));
+    RouteCoordinates.validate(new RoadRouter.Point(longitude, latitude));
     if (!Set.of("attractions", "hotels").contains(kind)) throw ApiException.badRequest("journey.route.invalid-route");
     if (kind.equals("attractions") && wikimapia != null && wikimapia.enabled()) {
       try {

@@ -1,5 +1,7 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.domain.repository.JourneyStore;
+import ru.ticket.journey.domain.model.JourneyEntity;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import org.springframework.stereotype.Component;
@@ -8,10 +10,10 @@ import ru.ticket.common.ApiException;
 /** Account ownership is separate from public management-link authorization. */
 @Component
 public class PublicationAccess {
-  private final JourneyRepository documents;
+  private final JourneyStore documents;
   private final JourneySiteRepository sites;
 
-  public PublicationAccess(JourneyRepository documents, JourneySiteRepository sites) {
+  public PublicationAccess(JourneyStore documents, JourneySiteRepository sites) {
     this.documents = documents;
     this.sites = sites;
   }
