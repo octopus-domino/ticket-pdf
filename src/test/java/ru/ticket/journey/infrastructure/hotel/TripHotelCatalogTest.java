@@ -37,7 +37,14 @@ class TripHotelCatalogTest {
                 {"content":[],"structuredContent":{"hotels":[{"id":"live","city":"Тверь","name":"Hotel",
                   "cost":{"amount":3400,"currency":"RUB"},"freeCancellation":true}]}}
                 """);
-        if (method.equals("tools/call")) captured.set(request.path("params"));
+        if (method.equals("tools/call")) {
+          captured.set(request.path("params"));
+          if ("Unsupported".equals(request.at("/params/arguments/city").asText())) {
+            result = mapper.readTree("""
+                {"isError":true,"content":[{"type":"text","text":"Unsupported city"}]}
+                """);
+          }
+        }
         var envelope = mapper.createObjectNode().put("jsonrpc", "2.0");
         envelope.set("id", request.path("id"));
         envelope.set("result", result);
@@ -51,6 +58,8 @@ class TripHotelCatalogTest {
     var catalog = new TripHotelCatalog(mapper, "http://127.0.0.1:" + server.getAddress().getPort() + "/mcp",
         "hotel_fixture", "", Duration.ofSeconds(3), Duration.ofSeconds(5));
     try {
+      var unsupported = new Query("Unsupported", query.checkIn(), query.checkOut(), query.guests());
+      assertThat(catalog.search(unsupported).available()).isFalse();
       var result = catalog.search(query);
       assertThat(result.provider()).isEqualTo(Trip.HotelProvider.OSTROVOK_MCP);
       assertThat(result.hotels()).singleElement().satisfies(hotel -> {

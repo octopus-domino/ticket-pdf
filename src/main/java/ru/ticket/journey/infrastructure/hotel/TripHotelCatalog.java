@@ -57,7 +57,7 @@ public class TripHotelCatalog implements HotelProvider, DisposableBean {
         var result = client.callTool(new McpSchema.CallToolRequest(tool, Map.of(
             "city", query.city(), "checkIn", query.checkIn().toString(), "checkOut", query.checkOut().toString(),
             "guests", query.guests())));
-        if (Boolean.TRUE.equals(result.isError())) throw new IOException("Hotel tool unavailable");
+        if (Boolean.TRUE.equals(result.isError())) return registrySearch(query);
         var data = hotelResponse(result);
         var unique = new HashSet<String>();
         return new Result(true, Trip.HotelProvider.OSTROVOK_MCP,
@@ -69,6 +69,10 @@ public class TripHotelCatalog implements HotelProvider, DisposableBean {
         destroy();
       }
     }
+    return registrySearch(query);
+  }
+
+  private Result registrySearch(Query query) {
     if (registry.isEmpty()) return Result.unavailable();
     try {
       if (snapshot == null) {
