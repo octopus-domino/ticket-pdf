@@ -76,7 +76,11 @@ public class PlaceRecommendationsController {
     }
   }
 
-  public record Result(boolean available, List<Place> places, String source) {}
+  public record Result(boolean available, List<Place> places, String source,
+                       @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+                       Boolean complete) {
+    public Result(boolean available, List<Place> places, String source) { this(available, places, source, null); }
+  }
 
   @GetMapping("/wikimapia-{id}")
   public WikimapiaPlaces.Details details(
@@ -113,8 +117,9 @@ public class PlaceRecommendationsController {
   public Result themedAreaSearch(@RequestParam double longitude, @RequestParam double latitude,
       @RequestParam List<String> themes, @RequestParam(defaultValue = "ru") String language,
       @RequestParam(defaultValue = "1.5") double radiusKm, @RequestParam(required = false) LocalDateTime visitTime) {
-    return new Result(true, areas.search(new WalkAreaSearchService.Request(
-          longitude, latitude, themes, language, radiusKm, visitTime)), "CoDoc");
+    var result = areas.searchWithCoverage(new WalkAreaSearchService.Request(
+        longitude, latitude, themes, language, radiusKm, visitTime));
+    return new Result(result.complete() || !result.places().isEmpty(), result.places(), "CoDoc", result.complete());
   }
 
   @PostMapping("/themed/enrich")

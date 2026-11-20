@@ -40,14 +40,19 @@ public class OsmPlaceService {
   }
   /** Bounded batched query for thematic discovery and one OSM cross-check per Wikimapia set. */
   public JsonNode walkQuery(String query) throws java.io.IOException {
-    if(query.length()>12000||!awaitWalkPermit())throw new java.io.IOException("OSM busy");
+    return walkQuery(query, java.util.concurrent.TimeUnit.SECONDS.toMillis(WALK_QUERY_QUEUE_SECONDS));
+  }
+
+  /** Uses a shorter permit wait for incremental area cells. */
+  public JsonNode walkQuery(String query, long permitWaitMillis) throws java.io.IOException {
+    if(query.length()>12000||!awaitWalkPermit(permitWaitMillis))throw new java.io.IOException("OSM busy");
     try{return walkQueries.query(query);}
     finally{permit.release();}
   }
 
   /** Cancelled HTTP reads may still be releasing their connection; a new area must not fail immediately. */
-  private boolean awaitWalkPermit() throws java.io.IOException {
-    try { return permit.tryAcquire(WALK_QUERY_QUEUE_SECONDS, java.util.concurrent.TimeUnit.SECONDS); }
+  private boolean awaitWalkPermit(long timeoutMillis) throws java.io.IOException {
+    try { return permit.tryAcquire(timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS); }
     catch (InterruptedException interrupted) {
       Thread.currentThread().interrupt();
       throw new java.io.InterruptedIOException("OSM query cancelled while waiting for the previous request");

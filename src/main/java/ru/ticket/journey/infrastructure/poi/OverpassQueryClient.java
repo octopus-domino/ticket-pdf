@@ -39,6 +39,8 @@ public class OverpassQueryClient {
         JsonNode result = remote.post(endpoint, "data=" + WalkRemote.encode(query));
         if (!result.path("elements").isArray() || result.has("remark")) throw new IOException("Incomplete OSM response");
         return result;
+      } catch (WalkRemote.ResponseTooLarge oversized) {
+        throw oversized;
       } catch (IOException unavailable) {
         failure = unavailable;
       }

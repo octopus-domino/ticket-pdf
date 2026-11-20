@@ -80,6 +80,43 @@ public class OsmPoiSource implements PoiSource<OsmMcpClient.Poi, WalkThemeProper
       throw new IOException("OSM unavailable: "+payload.path("remark").asText("no elements"));
     }
 
+    var points = parse(payload, language).stream()
+        .filter(point -> WikimapiaPoiSourceImpl.distance(lon, lat, point.lon(), point.lat()) <= radius).toList();
+    if (!points.isEmpty()) cache.put(key, points);
+    return points;
+  }
+
+  static final class DenseCell extends IOException {}
+
+  List<OsmMcpClient.Poi> searchBox(double south, double west, double north, double east,
+                                  List<String> selectors, String language) throws IOException {
+    var query = new StringBuilder("[out:json][timeout:3][maxsize:16777216];(");
+    for (String tag : selectors) {
+      if (!tag.matches("[a-z_:]{1,40}=[a-z_0-9*]{1,60}")) throw new IOException("Invalid theme configuration");
+      var pair = tag.split("=", 2);
+      query.append("nwr[\"").append(pair[0]).append('"');
+      if (!pair[1].equals("*")) query.append("=\"").append(pair[1]).append('"');
+      query.append(String.format(Locale.ROOT, "](%.6f,%.6f,%.6f,%.6f);", south, west, north, east));
+    }
+    // One extra element detects a dense cell without caching a truncated page.
+    JsonNode payload;
+    try {
+      payload = osm.walkQuery(query.append(");out body center 151;").toString(), WalkBudget.timeout(350));
+    } catch (WalkRemote.ResponseTooLarge oversized) {
+      throw new DenseCell();
+    }
+    if (payload.path("elements").size() >= 151) throw new DenseCell();
+    var keys = new HashSet<String>();
+    selectors.forEach(tag -> keys.add(tag.split("=", 2)[0]));
+    keys.add("opening_hours");
+    return parse(payload, language).stream()
+        .map(point -> new OsmMcpClient.Poi(point.id(), point.label(), point.lon(), point.lat(),
+            point.tags().entrySet().stream().filter(tag -> keys.contains(tag.getKey()))
+                .collect(java.util.stream.Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue))))
+        .toList();
+  }
+
+  private static List<OsmMcpClient.Poi> parse(JsonNode payload, String language) {
     var result=new ArrayList<OsmMcpClient.Poi>();
     for(var element:payload.path("elements")){
       var point=element.has("center")?element.path("center"):element;
@@ -88,8 +125,7 @@ public class OsmPoiSource implements PoiSource<OsmMcpClient.Poi, WalkThemeProper
       String name=tags.path("name:"+language).asText(tags.path("name").asText(""));
       double x=point.path("lon").asDouble(Double.NaN),y=point.path("lat").asDouble(Double.NaN);
       if(!id.matches("(node|way|relation)/[0-9]{1,20}")||name.isBlank()||name.length()>250
-              ||!Double.isFinite(x)||!Double.isFinite(y)
-              ||WikimapiaPoiSourceImpl.distance(lon,lat,x,y)>radius)continue;
+              ||!Double.isFinite(x)||!Double.isFinite(y))continue;
       var values=new LinkedHashMap<String,String>();
       tags.fields().forEachRemaining(entry->{
         if(entry.getValue().isTextual()&&entry.getKey().length()<=80&&entry.getValue().asText().length()<=500)
@@ -97,9 +133,7 @@ public class OsmPoiSource implements PoiSource<OsmMcpClient.Poi, WalkThemeProper
       });
       result.add(new OsmMcpClient.Poi(id,name,x,y,Map.copyOf(values)));
     }
-    var points=List.copyOf(result);
-    if(!points.isEmpty())cache.put(key,points);
-    return points;
+    return List.copyOf(result);
   }
 
   private <T> T mcpWithin(Callable<T> call,long deadline) throws IOException {

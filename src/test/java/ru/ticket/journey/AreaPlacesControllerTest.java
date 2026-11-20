@@ -15,7 +15,7 @@ class AreaPlacesControllerTest {
     var controller = new PlaceRecommendationsController(new ObjectMapper(), "", mock(OsmPlaceService.class));
     var service = mock(WalkAreaSearchService.class);
     controller.areas(service);
-    when(service.search(any())).thenReturn(List.of());
+    when(service.searchWithCoverage(any())).thenReturn(new WalkAreaSearchService.Result(List.of(), true));
     var field = PlaceRecommendationsController.class.getDeclaredField("searchPermit");
     field.setAccessible(true);
     var permit = (java.util.concurrent.Semaphore) field.get(controller);
@@ -30,11 +30,11 @@ class AreaPlacesControllerTest {
     var controller = new PlaceRecommendationsController(new ObjectMapper(), "", mock(OsmPlaceService.class));
     var service = mock(WalkAreaSearchService.class);
     controller.areas(service);
-    when(service.search(any())).thenReturn(List.of());
+    when(service.searchWithCoverage(any())).thenReturn(new WalkAreaSearchService.Result(List.of(), true));
     MockMvcBuilders.standaloneSetup(controller).build().perform(get("/api/journeys/routes/places/themed")
         .param("longitude", "30.3236").param("latitude", "59.9259").param("language", "ru")
         .param("themes", "bars,religious").param("radiusKm", "1"))
-        .andExpect(status().isOk()).andExpect(jsonPath("$.available").value(true));
-    verify(service).search(argThat(request -> request.themes().equals(List.of("bars", "religious")) && request.radiusKm() == 1));
+        .andExpect(status().isOk()).andExpect(jsonPath("$.available").value(true)).andExpect(jsonPath("$.complete").value(true));
+    verify(service).searchWithCoverage(argThat(request -> request.themes().equals(List.of("bars", "religious")) && request.radiusKm() == 1));
   }
 }

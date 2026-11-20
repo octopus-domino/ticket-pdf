@@ -15,6 +15,10 @@ public class WalkRemote {
   public WalkRemote(ObjectMapper mapper) { this.mapper = mapper; }
 
   public JsonNode get(String url) throws IOException { return json(url, null, 5000); }
+  static final class ResponseTooLarge extends IOException {
+    ResponseTooLarge() { super("Walk source response too large"); }
+  }
+
   public JsonNode post(String url, String form) throws IOException { return json(url, form, 5000); }
 
   private JsonNode json(String url, String form, int timeout) throws IOException {
@@ -50,7 +54,7 @@ public class WalkRemote {
       }
       byte[] data;
       try (var input = connection.getInputStream()) { data = input.readNBytes(1_000_001); }
-      if (data.length > 1_000_000) throw new IOException("Walk source response too large");
+      if (data.length > 1_000_000) throw new ResponseTooLarge();
       var result = mapper.readTree(data);
       if (result == null || result.has("error")) throw new IOException("Invalid walk source response");
       return result;

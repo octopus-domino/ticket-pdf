@@ -20,6 +20,7 @@ import ru.ticket.mcp.OsmMcpClient;
 public class WalkAreaSearchService {
   public record Request(double longitude, double latitude, List<String> themes, String language,
                         double radiusKm, LocalDateTime visitTime) {}
+  public record Result(List<PlaceRecommendationsController.Place> places, boolean complete) {}
   private static final Logger log = LoggerFactory.getLogger(WalkAreaSearchService.class);
   private static final Duration BUDGET = Duration.ofSeconds(20);
   private static final int DETAIL_BUDGET = 25;
@@ -27,6 +28,7 @@ public class WalkAreaSearchService {
   private static final Set<String> LANGUAGES = Set.of("en", "ru", "de", "fr", "it", "es", "pl", "nl", "zh");
   private final WalkThemeProperties properties;
   private final PoiSource<OsmMcpClient.Poi, WalkThemeProperties.Theme> osm;
+  private final TiledAreaOsmSearch tiles;
   private final WikimapiaPoiSource wikimapia;
   private final MysticThemeSource mystic;
   private final OpeningHoursEvaluator hours;
@@ -44,11 +46,20 @@ public class WalkAreaSearchService {
     this(properties, osm, wikimapia, mystic, hours, mapper, null);
   }
 
+  public WalkAreaSearchService(WalkThemeProperties properties,
+      @Qualifier("osmPoiSource") PoiSource<OsmMcpClient.Poi, WalkThemeProperties.Theme> osm,
+      WikimapiaPoiSource wikimapia, MysticThemeSource mystic, OpeningHoursEvaluator hours, ObjectMapper mapper,
+      PoiSource<OsmMcpClient.Poi, WalkThemeProperties.Theme> fallback) {
+    this(properties, osm, wikimapia, mystic, hours, mapper, fallback, null);
+  }
+
   @org.springframework.beans.factory.annotation.Autowired
   public WalkAreaSearchService(WalkThemeProperties properties,
       @Qualifier("osmPoiSource") PoiSource<OsmMcpClient.Poi, WalkThemeProperties.Theme> osm,
       WikimapiaPoiSource wikimapia, MysticThemeSource mystic, OpeningHoursEvaluator hours, ObjectMapper mapper,
-      @Qualifier("photonAreaPoiSource") PoiSource<OsmMcpClient.Poi, WalkThemeProperties.Theme> fallback) {
+      @Qualifier("photonAreaPoiSource") PoiSource<OsmMcpClient.Poi, WalkThemeProperties.Theme> fallback,
+      TiledAreaOsmSearch tiles) {
+    this.tiles = tiles;
     this.properties = properties; this.osm = osm; this.wikimapia = wikimapia;
     this.mystic = mystic; this.hours = hours; this.mapper = mapper;
     this.fallback = fallback;
@@ -56,25 +67,33 @@ public class WalkAreaSearchService {
 
   /** Validates before any provider work and keeps the response independent of selection order. */
   public List<PlaceRecommendationsController.Place> search(Request request) {
+    return searchWithCoverage(request).places();
+  }
+
+  public Result searchWithCoverage(Request request) {
     validate(request);
     var selection = AreaThemeSelection.resolve(request.themes(), properties);
     var canonical = new Request(request.longitude(), request.latitude(), List.copyOf(selection.themes().keySet()),
         request.language(), request.radiusKm(), request.visitTime());
     var cached = cache.get(canonical);
-    if (cached != null) return cached;
+    if (cached != null) return new Result(cached, true);
     return searches.execute(canonical, () -> searchUncached(canonical, selection));
   }
 
-  private List<PlaceRecommendationsController.Place> searchUncached(Request request, AreaThemeSelection selection) {
+  private Result searchUncached(Request request, AreaThemeSelection selection) {
     var cached = cache.get(request);
-    if (cached != null) return cached;
+    if (cached != null) return new Result(cached, true);
     var found = new LinkedHashMap<String, PlaceRecommendationsController.Place>();
-    if (!selection.publicThemes().isEmpty()) discover(request, selection, found);
+    boolean complete = true;
+    if (!selection.publicThemes().isEmpty()) {
+      if (tiles == null) discover(request, selection, found);
+      else complete = discoverTiled(request, selection, found);
+    }
     if (selection.themes().containsKey("mystic")) addMystic(request, found);
     var result = found.values().stream().sorted(Comparator.comparingDouble(place ->
         WikimapiaPoiSourceImpl.distance(request.longitude(), request.latitude(), place.longitude(), place.latitude()))).toList();
-    cache.put(request, result);
-    return result;
+    if (complete) cache.put(request, result);
+    return new Result(result, complete);
   }
 
   private void validate(Request request) {
@@ -83,6 +102,31 @@ public class WalkAreaSearchService {
         || !Double.isFinite(request.radiusKm()) || request.radiusKm() < .1 || request.radiusKm() > 10
         || !LANGUAGES.contains(Objects.requireNonNullElse(request.language(), "")))
       throw ApiException.badRequest("journey.route.invalid-route");
+  }
+
+  private boolean discoverTiled(Request request, AreaThemeSelection selection,
+                                Map<String, PlaceRecommendationsController.Place> found) {
+    long deadline = System.nanoTime() + BUDGET.toNanos();
+    var combined = selection.combined();
+    var wikiTask = sources.submit(() -> {
+      try (var budget = WalkBudget.until(deadline)) { return wikiBox(request, combined); }
+    });
+    Future<List<OsmMcpClient.Poi>> fallbackTask = null;
+    try (var budget = WalkBudget.until(deadline)) {
+      var coverage = tiles.search(request.longitude(), request.latitude(), (int) (request.radiusKm() * 1000),
+          combined, request.language());
+      coverage.points().forEach(point -> addOsm(request, selection, point, found));
+      if (!coverage.available() && fallback != null) {
+        fallbackTask = startFallback(request, combined, deadline);
+        await(fallbackTask, deadline).points().forEach(point -> addOsm(request, selection, point, found));
+      }
+      var community = await(wikiTask, deadline);
+      addWiki(request, selection, community.points(), deadline, found);
+      return coverage.complete();
+    } finally {
+      wikiTask.cancel(true);
+      if (fallbackTask != null) fallbackTask.cancel(true);
+    }
   }
 
   private void discover(Request request, AreaThemeSelection selection, Map<String, PlaceRecommendationsController.Place> found) {
