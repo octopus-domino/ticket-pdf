@@ -56,20 +56,24 @@ public class TripHotelCatalog implements HotelProvider, DisposableBean {
         if (!client.isInitialized()) client.initialize();
         var result = client.callTool(new McpSchema.CallToolRequest(tool, Map.of(
             "city", query.city(), "checkIn", query.checkIn().toString(), "checkOut", query.checkOut().toString(),
-            "guests", query.guests())));
-        if (Boolean.TRUE.equals(result.isError())) return registrySearch(query);
+            "guests", query.guests(), "page", query.page())));
+        if (Boolean.TRUE.equals(result.isError())) return fallback(query);
         var data = hotelResponse(result);
         var unique = new HashSet<String>();
         return new Result(true, Trip.HotelProvider.OSTROVOK_MCP,
             mapper.readerForListOf(Hotel.class).<List<Hotel>>readValue(data.path("hotels")).stream()
                 .filter(TripHotelCatalog::usable).filter(hotel -> unique.add(hotel.id())).limit(50).toList(),
-            data.path("catalogOnly").asBoolean(false));
+            data.path("catalogOnly").asBoolean(false), data.path("hasMore").asBoolean(false));
       } catch (IOException | RuntimeException unavailable) {
         retryAt = Instant.now().plusSeconds(60);
         destroy();
       }
     }
-    return registrySearch(query);
+    return fallback(query);
+  }
+
+  private Result fallback(Query query) {
+    return query.page() == 1 ? registrySearch(query) : Result.unavailable();
   }
 
   private Result registrySearch(Query query) {

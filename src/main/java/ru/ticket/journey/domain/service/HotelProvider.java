@@ -8,12 +8,16 @@ import ru.ticket.journey.domain.model.Trip;
 /** Finds accommodation candidates for a city and travel dates. */
 public interface HotelProvider {
   /** Validated search criteria shared across accommodation sources. */
-  record Query(String city, LocalDate checkIn, LocalDate checkOut, int guests) {
+  record Query(String city, LocalDate checkIn, LocalDate checkOut, int guests, Integer page) {
+    public Query(String city, LocalDate checkIn, LocalDate checkOut, int guests) {
+      this(city, checkIn, checkOut, guests, 1);
+    }
     public Query {
       city = city == null ? "" : city.strip();
+      page = page == null ? 1 : page;
       if (city.length() < 2 || city.length() > 120 || checkIn == null || checkOut == null
           || !checkOut.isAfter(checkIn) || ChronoUnit.DAYS.between(checkIn, checkOut) > 90
-          || guests < 1 || guests > 12) throw new IllegalArgumentException("journey.trip.invalid-hotel-query");
+          || guests < 1 || guests > 12 || page < 1 || page > 100) throw new IllegalArgumentException("journey.trip.invalid-hotel-query");
     }
   }
 
@@ -22,9 +26,12 @@ public interface HotelProvider {
       Integer stars, Double rating, String photoUrl, Trip.Money cost, Boolean freeCancellation, String sourceUrl) {}
 
   /** Results and the source that produced them. */
-  record Result(boolean available, Trip.HotelProvider provider, List<Hotel> hotels, boolean catalogOnly) {
+  record Result(boolean available, Trip.HotelProvider provider, List<Hotel> hotels, boolean catalogOnly, boolean hasMore) {
     public Result(boolean available, Trip.HotelProvider provider, List<Hotel> hotels) {
-      this(available, provider, hotels, provider == Trip.HotelProvider.RUSSIAN_TOURISM);
+      this(available, provider, hotels, provider == Trip.HotelProvider.RUSSIAN_TOURISM, false);
+    }
+    public Result(boolean available, Trip.HotelProvider provider, List<Hotel> hotels, boolean catalogOnly) {
+      this(available, provider, hotels, catalogOnly, false);
     }
     public static Result unavailable() { return new Result(false, null, List.of()); }
   }
