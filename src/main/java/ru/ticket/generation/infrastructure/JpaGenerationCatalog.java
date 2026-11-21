@@ -33,7 +33,7 @@ public class JpaGenerationCatalog implements GenerationCatalog {
               .orElseThrow(() -> ApiException.notFound("Template"));
       slides = template.getSlides();
       schemaId = template.getSchemaId();
-      bindings = template.getBindings();
+      if (bindings == null || bindings.isEmpty()) bindings = template.getBindings();
     }
     if (slides == null || slides.isEmpty()) throw ApiException.badRequest("Template has no slides");
     var fields =

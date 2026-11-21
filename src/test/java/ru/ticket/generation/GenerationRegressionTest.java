@@ -97,6 +97,38 @@ class GenerationRegressionTest {
   }
 
   @Test
+  void materializesAllTableColumnsSeparatelyAndKeepsCanvasCellStyle() {
+    var slide = new Slide();
+    var table = new TableElement();
+    table.type = "table";
+    table.id = "table";
+    table.rows = 1;
+    table.cols = 2;
+    table.width = 300;
+    table.height = 60;
+    table.columnWidths = List.of(1.0, 2.0);
+    table.data = List.of(List.of("{{layout.rows[0].name}}", "{{layout.rows[0].price}}"));
+    table.cellStyles = List.of(List.of(new TableElement.CellStyle(16.0, "DejaVu Serif", "bold italic",
+        "#123456", "#ffffff")));
+    slide.elements.add(table);
+    var alias = new BindingDto("table", "Table", "layout.rows", "order.rows", "manual", "linked", null);
+    var layout = mock(ru.ticket.text.TextLayoutService.class);
+    when(layout.wrap(anyString(), anyDouble(), anyString(), anyInt(), anyString()))
+        .thenAnswer(call -> List.of(call.<String>getArgument(0)));
+    var renderer = new ru.ticket.svg.renderer.TableElementRenderer(layout);
+    for (var name : List.of("First", "Second")) {
+      var filled = DataFiller.fill(slide, Map.of("order", Map.of("rows", List.of(Map.of("name", name, "price", 42)))), List.of(alias));
+      var svg = new ru.ticket.svg.SvgContext(filled);
+      renderer.render((TableElement) filled.elements.get(0), svg);
+      assertTrue(svg.body().toString().contains(">" + name + "</text>"));
+      assertTrue(svg.body().toString().contains(">42</text>"));
+      assertTrue(svg.body().toString().contains("font-family=\"DejaVu Serif\" font-weight=\"bold\" font-style=\"italic\""));
+      assertTrue(svg.body().toString().contains("width=\"200.00\""));
+    }
+    assertEquals("{{layout.rows[0].name}}", table.data.get(0).get(0));
+  }
+
+  @Test
   void validatesEveryArrayRowAndRejectsUnsafePathsAndTypes() {
     for (String path : List.of("__proto__.x", "a.constructor.x", "a.prototype.x", "a..b"))
       assertThrows(IllegalArgumentException.class, () -> ModelValues.validatePath(path));
