@@ -152,8 +152,7 @@ public final class RichTextLayout {
 
         List<PositionedRun> finalRuns = new ArrayList<>(currentLine.size());
         for (PositionedRun r : currentLine) {
-            double baseline = topLine + lineHeight * 0.8
-                    - (lineHeight - r.fontSize()) * 0.5;
+            double baseline = topLine + r.fontSize() * 0.8;
             finalRuns.add(new PositionedRun(
                     r.text(), r.x(), baseline, r.width(),
                     r.fontSize(), r.fontFamily(),

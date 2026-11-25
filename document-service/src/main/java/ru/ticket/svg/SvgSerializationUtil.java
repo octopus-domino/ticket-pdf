@@ -12,6 +12,12 @@ public final class SvgSerializationUtil {
 
     private SvgSerializationUtil() {}
 
+    public static String textLengthAttr(double width) {
+        return Double.isFinite(width) && width > 0
+                ? String.format(Locale.ROOT, " textLength=\"%.4f\" lengthAdjust=\"spacingAndGlyphs\"", width)
+                : "";
+    }
+
     public static String imageTag(String url, double x, double y,
                                   double w, double h, String extra) {
         if (url != null && url.startsWith("data:image/svg+xml")) {

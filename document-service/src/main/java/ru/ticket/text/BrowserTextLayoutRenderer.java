@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Locale;
 import org.springframework.stereotype.Component;
 import ru.ticket.dto.TextElement;
+import ru.ticket.svg.SvgSerializationUtil;
 import ru.ticket.util.XmlEscape;
 
 /** Uses source-guarded canvas positions; changed bindings fall back to normal layout. */
@@ -34,7 +35,7 @@ public class BrowserTextLayoutRenderer {
             String decoration = (run.path("underline").asBoolean() ? "underline " : "") + (run.path("strike").asBoolean() ? "line-through" : "");
             rendered.append(String.format(Locale.ROOT, "<text x=\"%.4f\" y=\"%.4f\" font-size=\"%.4f\" font-family=\"%s\" font-weight=\"%s\" font-style=\"%s\" fill=\"%s\" text-decoration=\"%s\" xml:space=\"preserve\"%s>%s</text>\n",
                     x, y, size, XmlEscape.attr(run.path("family").asText("Arial")), run.path("bold").asBoolean() ? "700" : "400", run.path("italic").asBoolean() ? "italic" : "normal", XmlEscape.attr(color), decoration.trim(),
-                    width > 0 ? String.format(Locale.ROOT, " textLength=\"%.4f\" lengthAdjust=\"spacingAndGlyphs\"", width) : "", XmlEscape.escape(run.path("text").asText())));
+                    SvgSerializationUtil.textLengthAttr(width), XmlEscape.escape(run.path("text").asText())));
         }
         out.append(rendered);
         return true;

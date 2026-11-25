@@ -2,6 +2,8 @@ package ru.ticket.text.richtext;
 
 import ru.ticket.dto.Padding;
 import ru.ticket.dto.TextElement;
+import ru.ticket.svg.SvgSerializationUtil;
+import ru.ticket.text.FontFamilyResolver;
 import ru.ticket.text.TextLayoutService;
 import ru.ticket.util.XmlEscape;
 import org.springframework.stereotype.Component;
@@ -104,12 +106,12 @@ public class RichTextSvgRenderer {
             out.append(String.format(Locale.ROOT,
                     "<text x=\"%.2f\" y=\"%.2f\" font-size=\"%.2f\" font-family=\"%s\" " +
                             "font-weight=\"%s\" font-style=\"%s\"%s fill=\"%s\" " +
-                            "xml:space=\"preserve\">%s</text>\n",
+                            "xml:space=\"preserve\"%s>%s</text>\n",
                     x, y, (double) run.fontSize(),
-                    XmlEscape.attr(run.fontFamily()),
+                    XmlEscape.attr(FontFamilyResolver.resolve(run.fontFamily())),
                     fontWeight, fontStyle,
                     decoration.isEmpty() ? "" : " text-decoration=\"" + decoration + "\"",
-                    color, XmlEscape.escape(run.text())
+                    color, SvgSerializationUtil.textLengthAttr(run.width()), XmlEscape.escape(run.text())
             ));
         }
     }

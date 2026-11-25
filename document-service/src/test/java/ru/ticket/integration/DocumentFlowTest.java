@@ -1048,6 +1048,38 @@ class DocumentFlowTest {
     }
   }
 
+  @Test
+  void generatedPdfaKeepsTheWordGapInABoundCyrillicHeading() throws Exception {
+    var heading = Map.ofEntries(Map.entry("type", "text"), Map.entry("id", "heading"),
+        Map.entry("x", 24), Map.entry("y", 24), Map.entry("width", 345), Map.entry("height", 128),
+        Map.entry("fontSize", 36), Map.entry("fontFamily", "Arial"), Map.entry("text", "{{name}}"),
+        Map.entry("html", "<p>{{name}}</p>"));
+    var request = Map.of("inlineSlides", List.of(Map.of("id", "page", "width", 400, "height", 170,
+        "elements", List.of(heading))), "items", List.of(Map.of("inlineValues",
+        Map.of("name", "Уважаемый клиент, это КП для Вас 345"))), "format", "pdfa", "packAs", "single");
+    var preview = http.postForEntity("/api/guest/generate/preview", request, String.class);
+    assertEquals(HttpStatus.OK, preview.getStatusCode());
+    var words = org.jsoup.Jsoup.parse(preview.getBody(), "", org.jsoup.parser.Parser.xmlParser()).select("text");
+    assertEquals("Уважаемый", words.get(0).text());
+    assertEquals("клиент,", words.get(2).text());
+    assertEquals(28.8, Double.parseDouble(words.get(0).attr("y")), 0.001);
+    double firstWordEnd = Double.parseDouble(words.get(0).attr("textLength"));
+    double secondWordStart = Double.parseDouble(words.get(2).attr("x"));
+    assertTrue(secondWordStart - firstWordEnd > 5);
+
+    var response = http.postForEntity("/api/guest/generate/sync", request, byte[].class);
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    try (var pdf = org.apache.pdfbox.Loader.loadPDF(response.getBody())) {
+      var image = new org.apache.pdfbox.rendering.PDFRenderer(pdf).renderImageWithDPI(0, 192);
+      int gap = (int) Math.round((24 + (firstWordEnd + secondWordStart) / 2) * 2);
+      for (int y = 42; y < 124; y++) {
+        for (int x = gap - 2; x <= gap + 2; x++) {
+          assertTrue((image.getRGB(x, y) & 0xff) > 200, "Text crossed the measured word gap");
+        }
+      }
+    }
+  }
+
   @DynamicPropertySource
   static void storage(DynamicPropertyRegistry properties) throws Exception {
     String path = Files.createTempDirectory("ticket-contract-").toString();

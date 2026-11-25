@@ -18,4 +18,10 @@ public class WalkAddressesController {
             @RequestParam(defaultValue = "en") String language) {
         return addresses.search(q, language);
     }
+
+    @GetMapping("/city")
+    public AddressSearchService.City city(@RequestParam double longitude, @RequestParam double latitude,
+            @RequestParam(defaultValue = "en") String language) {
+        return addresses.cityAt(longitude, latitude, language);
+    }
 }
