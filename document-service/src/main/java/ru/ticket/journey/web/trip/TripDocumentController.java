@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -12,7 +13,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,38 +21,43 @@ import ru.ticket.auth.security.UserIdPrincipal;
 import ru.ticket.common.ApiException;
 import ru.ticket.journey.application.journey.PrivateJourneyReader;
 import ru.ticket.journey.application.journey.JourneyPrintService;
-import ru.ticket.journey.application.trip.TripDraftService;
+import org.springframework.web.bind.annotation.RequestHeader;
+import ru.ticket.journey.application.trip.LegacyTrips;
 import ru.ticket.journey.domain.model.Trip;
 import ru.ticket.journey.infrastructure.calendar.TripCalendar;
+import ru.ticket.journey.infrastructure.RoutingTripClient;
 
-/** Endpoints for explicit, account-scoped trip storage and walk conversion. */
+/** Document exports and private access to historical publications. */
 @RestController
 @RequestMapping("/api/trips")
 @ConditionalOnProperty(name = "app.journeys.trip-planner-enabled", havingValue = "true")
-public class TripDraftController {
-  private final TripDraftService drafts;
+public class TripDocumentController {
+  private final LegacyTrips legacy;
+  private final RoutingTripClient trips;
   private final JourneyPrintService printing;
 
-  public TripDraftController(TripDraftService drafts, JourneyPrintService printing) {
-    this.drafts = drafts;
+  public TripDocumentController(LegacyTrips legacy, RoutingTripClient trips, JourneyPrintService printing) {
+    this.legacy = legacy;
+    this.trips = trips;
     this.printing = printing;
   }
 
   public record WalkImport(PrivateJourneyReader.Transfer walk, LocalDate startDate, String city) {}
 
-  @GetMapping("/{id}")
-  public ResponseEntity<Trip> open(@AuthenticationPrincipal UserIdPrincipal user, @PathVariable String id) {
-    return privateResponse(drafts.openOwned(owner(user), id));
+  @GetMapping("/legacy/{id}")
+  public ResponseEntity<Trip> legacy(@AuthenticationPrincipal UserIdPrincipal user, @PathVariable String id) {
+    return privateResponse(legacy.openLegacy(owner(user), id));
   }
 
   /** Exports either the v2 itinerary or the original snapshot of an owned legacy route. */
   @GetMapping("/{id}/json")
   public ResponseEntity<?> json(@AuthenticationPrincipal UserIdPrincipal user, @PathVariable String id,
+      @RequestHeader(HttpHeaders.AUTHORIZATION) String auth,
       @RequestParam(defaultValue = "v2") String format) {
     String owner = owner(user);
     Object data = switch (format) {
-      case "v2" -> drafts.openOwned(owner, id);
-      case "v1-compat" -> drafts.openLegacySnapshot(owner, id);
+      case "v2" -> trips.read(id, auth);
+      case "v1-compat" -> legacy.openLegacySnapshot(owner, id);
       default -> throw ApiException.badRequest("journey.trip.invalid-export-format");
     };
     return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).cacheControl(CacheControl.noStore())
@@ -63,9 +68,9 @@ public class TripDraftController {
 
   /** Downloads calendar events from the account copy. */
   @GetMapping("/{id}/calendar")
-  public ResponseEntity<String> calendar(@AuthenticationPrincipal UserIdPrincipal user, @PathVariable String id)
+  public ResponseEntity<String> calendar(@RequestHeader(HttpHeaders.AUTHORIZATION) String auth, @PathVariable String id)
       throws IOException {
-    Trip trip = drafts.openOwned(owner(user), id);
+    Trip trip = trips.read(id, auth);
     if (trip.startDate() == null || trip.endDate() == null) throw ApiException.badRequest("journey.trip.invalid-date");
     return ResponseEntity.ok().cacheControl(CacheControl.noStore())
         .contentType(new MediaType("text", "calendar", StandardCharsets.UTF_8))
@@ -75,27 +80,17 @@ public class TripDraftController {
 
   /** Renders the owner's saved trip through the shared PDF renderer. */
   @GetMapping("/{id}/pdf")
-  public ResponseEntity<byte[]> pdf(@AuthenticationPrincipal UserIdPrincipal user, @PathVariable String id) {
+  public ResponseEntity<byte[]> pdf(@RequestHeader(HttpHeaders.AUTHORIZATION) String auth, @PathVariable String id) {
     return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(MediaType.APPLICATION_PDF)
         .header("Content-Disposition", "attachment; filename=trip.pdf")
-        .body(printing.tripPdf(drafts.openOwned(owner(user), id)));
-  }
-
-  @PutMapping("/{id}")
-  public ResponseEntity<Trip> save(@AuthenticationPrincipal UserIdPrincipal user, @PathVariable String id,
-      @RequestBody Trip trip) {
-    String owner = owner(user);
-    if (trip == null || !id.equals(trip.id()) || trip.meta().mode() != Trip.Mode.TRIP) {
-      throw ApiException.badRequest("journey.trip.invalid-data");
-    }
-    return privateResponse(drafts.saveOwned(owner, trip));
+        .body(printing.tripPdf(trips.read(id, auth)));
   }
 
   @PostMapping("/import-walk")
   public ResponseEntity<Trip> importWalk(@AuthenticationPrincipal UserIdPrincipal user, @RequestBody WalkImport input) {
     owner(user);
     if (input == null) throw ApiException.badRequest("journey.trip.invalid-private-walk");
-    return privateResponse(drafts.importWalk(input.walk(), input.startDate(), input.city()));
+    return privateResponse(legacy.importWalk(input.walk(), input.startDate(), input.city()));
   }
 
   private static String owner(UserIdPrincipal user) {

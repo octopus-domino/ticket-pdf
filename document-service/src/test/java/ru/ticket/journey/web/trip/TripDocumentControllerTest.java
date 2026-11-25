@@ -13,40 +13,41 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import ru.ticket.auth.security.UserIdPrincipal;
 import ru.ticket.common.ApiException;
-import ru.ticket.journey.application.trip.TripDraftService;
+import ru.ticket.journey.application.trip.LegacyTrips;
 import ru.ticket.journey.application.journey.JourneyPrintService;
 import ru.ticket.journey.domain.model.Trip;
+import ru.ticket.journey.infrastructure.RoutingTripClient;
 
-class TripDraftControllerTest {
-  private final TripDraftService drafts = mock(TripDraftService.class);
-  private final TripDraftController controller = new TripDraftController(drafts, mock(JourneyPrintService.class));
+class TripDocumentControllerTest {
+  private final LegacyTrips legacy = mock(LegacyTrips.class);
+  private final RoutingTripClient trips = mock(RoutingTripClient.class);
+  private final TripDocumentController controller =
+      new TripDocumentController(legacy, trips, mock(JourneyPrintService.class));
   private final UserIdPrincipal owner = new UserIdPrincipal("owner");
 
   @Test
   void takesTheOwnerFromThePrincipalAndMakesResponsesPrivate() {
     var trip = trip();
-    when(drafts.saveOwned("owner", trip)).thenReturn(trip);
-    when(drafts.openOwned("owner", "trip")).thenReturn(trip);
-    assertThat(controller.save(owner, "trip", trip).getBody()).isEqualTo(trip);
-    assertThat(controller.open(owner, "trip").getHeaders().getCacheControl()).isEqualTo("no-store");
-    verify(drafts).saveOwned("owner", trip);
-    verify(drafts).openOwned("owner", "trip");
+    when(legacy.openLegacy("owner", "trip")).thenReturn(trip);
+    var response = controller.legacy(owner, "trip");
+    assertThat(response.getBody()).isEqualTo(trip);
+    assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-store");
+    verify(legacy).openLegacy("owner", "trip");
   }
 
   @Test
   void exportsTheAccountCalendarWithAnExclusiveEndDate() throws Exception {
-    when(drafts.openOwned("owner", "trip")).thenReturn(trip());
-    var response = controller.calendar(owner, "trip");
+    when(trips.read("trip", "Bearer owner-token")).thenReturn(trip());
+    var response = controller.calendar("Bearer owner-token", "trip");
     assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-store");
     assertThat(response.getBody()).contains("BEGIN:VCALENDAR", "VERSION:2.0",
         "DTSTART;VALUE=DATE:20261231", "DTEND;VALUE=DATE:20270102", "SUMMARY:Travel");
   }
 
   @Test
-  void rejectsAnonymousAccessAndMismatchedIdentifiersBeforeStorage() {
-    assertThatThrownBy(() -> controller.open(null, "trip")).isInstanceOf(ApiException.class);
-    assertThatThrownBy(() -> controller.save(owner, "other", trip())).isInstanceOf(ApiException.class);
-    verifyNoInteractions(drafts);
+  void rejectsAnonymousLegacyAccessBeforeReadingPublication() {
+    assertThatThrownBy(() -> controller.legacy(null, "trip")).isInstanceOf(ApiException.class);
+    verifyNoInteractions(legacy);
   }
 
   private static Trip trip() {

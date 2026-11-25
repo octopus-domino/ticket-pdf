@@ -108,7 +108,7 @@ public record Trip(int version, String id, String title, String description,
       String legacyRouteId, Map<String, String> legacyFields) {
     /** Preserves a snapshot of the legacy fields. */
     public Meta {
-      legacyFields = Map.copyOf(legacyFields);
+      legacyFields = legacyFields == null ? Map.of() : Map.copyOf(legacyFields);
     }
   }
 }

@@ -8,11 +8,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.*;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import ru.ticket.journey.infrastructure.media.JourneyMediaService;
 import ru.ticket.journey.application.journey.RouteSnapshotService;
+import ru.ticket.journey.domain.model.Trip;
+import ru.ticket.journey.infrastructure.RoutingTripClient;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -34,6 +37,8 @@ class DocumentFlowTest {
       java.nio.file.Path.of("target", "test-artifacts", "run-" + java.util.UUID.randomUUID());
   @Autowired RouteSnapshotService tripRoutes;
   @Autowired JourneyMediaService tripMedia;
+  @Autowired com.fasterxml.jackson.databind.ObjectMapper mapper;
+  @MockBean RoutingTripClient routingTrips;
 
   @Test
   void documentServiceRejectsTheRemovedRoadCalculationMethod() {
@@ -66,7 +71,7 @@ class DocumentFlowTest {
         ru.ticket.journey.application.journey.JourneyService.Created[].class);
     assertEquals(200, created.getStatusCode().value(), created.toString());
     String id = created.getBody()[0].document().id();
-    var projected = http.exchange("/api/trips/" + id, HttpMethod.GET, new HttpEntity<>(headers),
+    var projected = http.exchange("/api/trips/legacy/" + id, HttpMethod.GET, new HttpEntity<>(headers),
         ru.ticket.journey.domain.model.Trip.class);
     assertEquals(200, projected.getStatusCode().value(), projected.toString());
     assertEquals(routeId, projected.getBody().meta().legacyRouteId());
@@ -85,7 +90,7 @@ class DocumentFlowTest {
   }
 
   @Test
-  void savedTripRoundTripsAndExportsPrivatePdfAndCalendar() throws Exception {
+  void exportsTheOwnedRoutingTripToPrivatePdfCalendarAndJson() throws Exception {
     var owner = registeredHeaders("trip-export-owner");
     var other = registeredHeaders("trip-export-other");
     owner.setContentType(MediaType.APPLICATION_JSON);
@@ -101,19 +106,17 @@ class DocumentFlowTest {
          "accommodations":[{"id":"hotel","cityId":"yen","name":"Station Hotel","address":"Main Street",
            "checkIn":"2027-01-01","checkOut":"2027-01-02","provider":"MANUAL","cost":{"amount":80,"currency":"EUR"}}],
          "documents":[{"id":"reservation","title":"Rail reservation","url":"https://example.invalid/reservation"}],
-         "budget":{"limit":{"amount":12500,"currency":"RUB"}},"meta":{"mode":"TRIP","source":"MANUAL","legacyFields":{}}}
+         "budget":{"limit":{"amount":12500,"currency":"RUB"}},"meta":{"mode":"TRIP","source":"MANUAL"}}
         """;
-    var saved = http.exchange(path, HttpMethod.PUT, new HttpEntity<>(itinerary, owner), String.class);
-    assertEquals(200, saved.getStatusCode().value(), saved.toString());
-    assertEquals("no-store", saved.getHeaders().getCacheControl());
-    var opened = http.exchange(path, HttpMethod.GET, new HttpEntity<>(owner), String.class);
-    assertEquals(200, opened.getStatusCode().value(), opened.toString());
-    assertTrue(opened.getBody().contains("+03:00") && opened.getBody().contains("+05:00"));
+    org.mockito.Mockito.when(routingTrips.read("contract-trip", owner.getFirst(HttpHeaders.AUTHORIZATION)))
+        .thenReturn(mapper.readValue(itinerary, Trip.class));
+    org.mockito.Mockito.when(routingTrips.read("contract-trip", other.getFirst(HttpHeaders.AUTHORIZATION)))
+        .thenThrow(ru.ticket.common.ApiException.notFound("Trip"));
     var v2 = http.exchange(path + "/json", HttpMethod.GET, new HttpEntity<>(owner), String.class);
     assertEquals(200, v2.getStatusCode().value());
-    assertEquals(opened.getBody(), v2.getBody());
+    assertTrue(v2.getBody().contains("+03:00") && v2.getBody().contains("+05:00"));
     assertEquals("no-store", v2.getHeaders().getCacheControl());
-    for (String suffix : List.of("", "/pdf", "/calendar", "/json", "/json?format=v1-compat")) {
+    for (String suffix : List.of("/pdf", "/calendar", "/json", "/json?format=v1-compat")) {
       var rejected = http.exchange(path + suffix, HttpMethod.GET, new HttpEntity<>(other), String.class);
       assertTrue(rejected.getStatusCode().is4xxClientError(), rejected.toString());
     }

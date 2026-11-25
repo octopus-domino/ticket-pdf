@@ -37,4 +37,44 @@ class LegacyWalkDatabaseMigrationTest {
             assertEquals(1, data.getLong(1));
         }
     }
+
+    @Test void importsLegacyTripsIntoAnExistingRoutingDatabaseWithoutOverwritingEdits() throws Exception {
+        var legacy = directory.resolve("documents");
+        var routing = directory.resolve("walks");
+        String payload = """
+            {"id":"trip","title":"Winter trip","startDate":"2027-01-01","endDate":"2027-01-02"}
+            """;
+        try (var db = DriverManager.getConnection("jdbc:h2:file:" + legacy, "sa", "");
+             var sql = db.createStatement()) {
+            sql.execute("CREATE TABLE journey_trip_drafts(owner_id VARCHAR(36), trip_id VARCHAR(64), payload TEXT, version BIGINT)");
+            try (var insert = db.prepareStatement("INSERT INTO journey_trip_drafts VALUES ('owner','trip',?,3)")) {
+                insert.setString(1, payload);
+                insert.executeUpdate();
+            }
+        }
+        try (var db = DriverManager.getConnection("jdbc:h2:file:" + routing, "sa", "");
+             var sql = db.createStatement()) {
+            sql.execute("CREATE SCHEMA routing");
+        }
+        LegacyWalkDatabaseMigration.transfer(legacy, routing, "sa", "");
+        try (var db = DriverManager.getConnection("jdbc:h2:file:" + routing, "sa", "");
+             var sql = db.createStatement();
+             var row = sql.executeQuery("SELECT * FROM routing.journey_trip_drafts")) {
+            assertTrue(row.next());
+            assertEquals("owner", row.getString("owner_id"));
+            assertEquals("trip", row.getString("trip_id"));
+            assertEquals("Winter trip", row.getString("title"));
+            assertEquals(payload, row.getString("payload"));
+            assertEquals(3, row.getLong("version"));
+            sql.executeUpdate("UPDATE routing.journey_trip_drafts SET title = 'Edited'");
+        }
+        LegacyWalkDatabaseMigration.transfer(legacy, routing, "sa", "");
+        try (var db = DriverManager.getConnection("jdbc:h2:file:" + routing, "sa", "");
+             var sql = db.createStatement();
+             var rows = sql.executeQuery("SELECT title FROM routing.journey_trip_drafts")) {
+            assertTrue(rows.next());
+            assertEquals("Edited", rows.getString(1));
+            assertFalse(rows.next());
+        }
+    }
 }

@@ -8,8 +8,11 @@ import java.nio.file.Path;
 public class H2ToPostgres {
     record SourceTable(Connection connection, String schema, String name) {}
     record Column(String source, String target, int type, String typeName) {}
+    private static boolean walkingCatalog(String table) {
+        return Set.of("building_history", "mystic_places").contains(table);
+    }
     private static String schema(String table) {
-        return Set.of("building_history", "mystic_places").contains(table) ? "routing" : "public";
+        return walkingCatalog(table) || table.equals("journey_trip_drafts") ? "routing" : "public";
     }
     private static String qualified(String table) { return quote(schema(table)) + "." + quote(table); }
     static String quote(String name) { return "\"" + name.replace("\"", "\"\"") + "\""; }
@@ -32,7 +35,7 @@ public class H2ToPostgres {
                 var sourceTables = new LinkedHashMap<String, SourceTable>();
                 loadSources(source, "PUBLIC", sourceTables, false);
                 if (routingSource != null) {
-                    sourceTables.keySet().removeIf(table -> schema(table).equals("routing"));
+                    sourceTables.keySet().removeIf(H2ToPostgres::walkingCatalog);
                     loadSources(routingSource, "ROUTING", sourceTables, true);
                 }
                 if (sourceTables.isEmpty()) throw new IllegalStateException("No H2 tables found");
@@ -78,12 +81,12 @@ public class H2ToPostgres {
         }
     }
     private static void loadSources(Connection connection, String schema,
-                                    Map<String, SourceTable> sources, boolean catalogOnly) throws SQLException {
+                                    Map<String, SourceTable> sources, boolean routingOnly) throws SQLException {
         try (var tables = connection.getMetaData().getTables(null, schema, "%", new String[]{"TABLE"})) {
             while (tables.next()) {
                 String name = tables.getString("TABLE_NAME");
                 String key = name.toLowerCase(Locale.ROOT);
-                if (!catalogOnly || schema(key).equals("routing")) {
+                if (!routingOnly || schema(key).equals("routing")) {
                     sources.put(key, new SourceTable(connection, schema, name));
                 }
             }
@@ -134,7 +137,7 @@ public class H2ToPostgres {
             count.next();
             if (count.getLong(1) != copied) throw new IllegalStateException("Row-count mismatch in " + table);
         }
-        if (schema(table).equals("routing") && copied > 0) {
+        if (walkingCatalog(table) && copied > 0) {
             try (var sql = target.createStatement()) {
                 sql.execute("SELECT setval(pg_get_serial_sequence('" + qualified(table)
                     + "', 'id'), max(id), true) FROM " + qualified(table));
