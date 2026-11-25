@@ -4,13 +4,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import ru.ticket.common.ApiException;
 
 @Service
 public class PoetryCardsService {
-  public record Input(Double latitude, Double longitude, String zone, String language, String mood, String audience, String seed,String moodText) {
-    public Input(double latitude,double longitude,String zone,String language,String mood,String audience,String seed){this(latitude,longitude,zone,language,mood,audience,seed,null);}
+  public record Input(Double latitude, Double longitude, String zone, String language, String mood, String audience, String seed, String moodText, String previousId) {
+    public Input(Double latitude, Double longitude, String zone, String language, String mood, String audience, String seed, String moodText) {
+      this(latitude, longitude, zone, language, mood, audience, seed, moodText, null);
+    }
+    public Input(double latitude,double longitude,String zone,String language,String mood,String audience,String seed){this(latitude,longitude,zone,language,mood,audience,seed,null,null);}
   }
   public record Card(String date, String title, String poem, String author, String authorId, String authorUrl, String country, String sourceUrl, String licenseUrl,Map<String,Object> sourceMetadata) {
     public Card(String date,String title,String poem,String author,String authorId,String authorUrl,String country,String sourceUrl,String licenseUrl){this(date,title,poem,author,authorId,authorUrl,country,sourceUrl,licenseUrl,null);}
@@ -31,13 +36,13 @@ public class PoetryCardsService {
     if (input == null || input.seed() != null && input.seed().length() > 100
         || input.moodText()!=null&&(input.moodText().length()>200||!input.moodText().isBlank()&&input.moodText().strip().length()<2)) throw ApiException.badRequest("journey.poetry.preferences");
     PoetrySelection.validate(input.language(), input.mood(), input.audience());
-    boolean useWeather=input.latitude()!=null||input.longitude()!=null;
-    if(useWeather&&(input.latitude()==null||input.longitude()==null))throw ApiException.badRequest("journey.poetry.location");
     long started=System.nanoTime();
-    var forecast = useWeather?weather.forecast(input.latitude(), input.longitude(), input.zone()):withoutWeather(input.zone());
+    var forecast = readForecast(input);
+    boolean useWeather = !forecast.source().isBlank();
     long selectionStarted=System.nanoTime();
+    var query = new PoetryQuery(input.language(),input.mood(),input.audience(),input.moodText(),input.seed(),forecast.days());
     List<PoetryWork> selected;
-    if(sources!=null)selected=sources.select(new PoetryQuery(input.language(),input.mood(),input.audience(),input.moodText(),input.seed(),forecast.days()));
+    if(sources!=null)selected=sources.select(query, previousWorks(input));
     else selected=PoetrySelection.select(poems.poems(input.language(),input.mood(),input.audience()),forecast.days(),input.language(),input.mood(),input.audience(),input.seed()).stream()
         .map(poem->PoetryWork.wiki(poem,input.language(),input.mood())).toList();
     var cards = new ArrayList<Card>();
@@ -46,7 +51,7 @@ public class PoetryCardsService {
       var metadata = new LinkedHashMap<String,Object>(poem.metadata());
       metadata.putIfAbsent("tags",List.of());
       metadata.put("weather_used",useWeather);
-      metadata.putIfAbsent("need",new PoetryQuery(input.language(),input.mood(),input.audience(),input.moodText(),input.seed(),forecast.days()).need());
+      metadata.putIfAbsent("need",query.need());
       if(input.moodText()!=null&&!input.moodText().isBlank())metadata.put("requested_mood",input.moodText().strip());
       cards.add(new Card(forecast.days().get(index).date(), poem.title(), poem.text(), poem.author(), poem.authorId(), poem.authorUrl(), poem.country(), poem.sourceUrl(), poem.licenseUrl(),Map.copyOf(metadata)));
     }
@@ -64,6 +69,29 @@ public class PoetryCardsService {
       return new Prepared(id, bundle, forecast.source(), forecast.license());
     } catch (java.io.IOException | java.security.NoSuchAlgorithmException ex) { throw new IllegalStateException(ex); }
   }
+  private PoetryWeatherService.Forecast readForecast(Input input) {
+    if (input.latitude() == null && input.longitude() == null) return withoutWeather(input.zone());
+    if (input.latitude() == null || input.longitude() == null) throw ApiException.badRequest("journey.poetry.location");
+    try {
+      return weather.forecast(input.latitude(), input.longitude(), input.zone());
+    } catch (ApiException ex) {
+      if (ex.status() == HttpStatus.SERVICE_UNAVAILABLE || ex.status() == HttpStatus.TOO_MANY_REQUESTS) {
+        return withoutWeather(input.zone());
+      }
+      throw ex;
+    }
+  }
+
+  private Set<String> previousWorks(Input input) {
+    if (input.previousId() == null || !input.previousId().matches("[a-f0-9]{64}")) return Set.of();
+    var previous = sets.findById(input.previousId()).map(this::readBundle);
+    return previous.filter(bundle -> input.language().equals(bundle.language())
+            && input.mood().equals(bundle.mood()) && input.audience().equals(bundle.audience()))
+        .map(bundle -> bundle.cards().stream().map(card -> PoetryWork.identity(card.author(), card.title()))
+            .collect(Collectors.toUnmodifiableSet()))
+        .orElseGet(Set::of);
+  }
+
   private static PoetryWeatherService.Forecast withoutWeather(String zone){
     java.time.ZoneId timeZone;
     try{timeZone=java.time.ZoneId.of(zone==null||zone.isBlank()?"UTC":zone);}catch(java.time.DateTimeException invalid){throw ApiException.badRequest("journey.poetry.location");}
@@ -73,7 +101,9 @@ public class PoetryCardsService {
   }
   public Bundle get(String id) {
     if (id == null || !id.matches("[a-f0-9]{64}")) throw ApiException.badRequest("journey.poetry.preferences");
-    var row = sets.findById(id).orElseThrow(() -> ApiException.notFound("Poetry cards"));
+    return sets.findById(id).map(this::readBundle).orElseThrow(() -> ApiException.notFound("Poetry cards"));
+  }
+  private Bundle readBundle(PoetrySet row) {
     try { return mapper.readValue(row.payload, Bundle.class); } catch (java.io.IOException ex) { throw new IllegalStateException(ex); }
   }
 }

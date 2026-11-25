@@ -16,6 +16,23 @@ class PoetrySourceChainTest {
   private final WikisourcePoems wiki=mock(WikisourcePoems.class);
   private final PoetryQuery query=new PoetryQuery("en","heartfelt","middle",null,"seed",List.of());
   private List<PoetryWork> works(){return IntStream.range(0,7).mapToObj(i->new PoetryWork("Fixture "+i,"Body "+i,"Author","","","","https://example.test/"+i,"",Map.<String,Object>of("source","fixture"))).toList();}
+  @Test void repeatRequestUsesNewWorksBeforeReusingAny() throws Exception {
+    var first = works();
+    var expanded = new ArrayList<>(first);
+    for (var poem : first) {
+      expanded.add(new PoetryWork(poem.title() + " new", poem.text(), poem.author(),"","","",poem.sourceUrl(),"",Map.of()));
+    }
+    when(ship.find(query)).thenReturn(first);
+    when(ship.findExpanded(query)).thenReturn(expanded);
+    var chain = new PoetrySourceChain(ship,db,tree,wiki);
+    var previous = Set.copyOf(chain.select(query).stream().map(PoetryWork::identity).toList());
+    var next = chain.select(query, previous);
+    assertEquals(7, next.size());
+    assertTrue(next.stream().noneMatch(poem -> previous.contains(poem.identity())));
+    assertEquals(next, chain.select(query, previous));
+    verify(ship, times(1)).findExpanded(query);
+    verifyNoInteractions(db,tree,wiki);
+  }
   @Test void primarySuccessSkipsFallbackAndReusesSnapshotCandidates() throws Exception {
     when(ship.find(any())).thenReturn(works());var chain=new PoetrySourceChain(ship,db,tree,wiki);
     assertEquals(7,chain.select(query).size());assertEquals(7,chain.select(query).size());

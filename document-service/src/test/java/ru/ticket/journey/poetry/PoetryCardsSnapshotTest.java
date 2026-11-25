@@ -6,6 +6,8 @@ import java.util.*;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.http.HttpStatus;
+import ru.ticket.common.ApiException;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -15,11 +17,11 @@ class PoetryCardsSnapshotTest {
     var weather=mock(PoetryWeatherService.class);var wiki=mock(WikisourcePoems.class);var sources=mock(PoetrySourceChain.class);
     var repository=mock(PoetrySetRepository.class);var service=new PoetryCardsService(weather,wiki,repository,new ObjectMapper());service.sources(sources);
     var works=IntStream.range(0,7).mapToObj(i->new PoetryWork("Fixture "+i,"Body "+i,"Author","","","","https://example.test/"+i,"",Map.<String,Object>of("source","fixture","language","en"))).toList();
-    when(sources.select(any())).thenReturn(works);
+    when(sources.select(any(), eq(Set.of()))).thenReturn(works);
     var result=service.prepare(new PoetryCardsService.Input(null,null,null,"en","heartfelt","middle","seed",null));
     assertEquals(7,result.bundle().cards().size());assertEquals("",result.weatherSource());assertEquals(false,result.bundle().cards().get(0).sourceMetadata().get("weather_used"));
     verifyNoInteractions(weather,wiki);
-    var query=ArgumentCaptor.forClass(PoetryQuery.class);verify(sources).select(query.capture());
+    var query=ArgumentCaptor.forClass(PoetryQuery.class);verify(sources).select(query.capture(), eq(Set.of()));
     assertTrue(query.getValue().days().stream().allMatch(day->day.symbol().isBlank()&&!Double.isFinite(day.temperature())));
   }
   @Test void freezesSourceMetadataWithoutChangingWeatherOrOldInputContract() throws Exception {
@@ -28,7 +30,7 @@ class PoetryCardsSnapshotTest {
     var days=IntStream.range(0,7).mapToObj(i->new PoetryWeatherService.Day("2026-11-"+(13+i),"cloudy",10)).toList();
     when(weather.forecast(55.75,37.62,"Europe/Moscow")).thenReturn(new PoetryWeatherService.Forecast("Europe/Moscow",days,Instant.now(),"https://example.test/weather","https://example.test/license"));
     var works=IntStream.range(0,7).mapToObj(i->new PoetryWork("Fixture "+i,"Synthetic body "+i,"Author","","","","https://example.test/"+i,"",Map.<String,Object>of("source","poemship","mood","joyful","language","ru","poemship_id","id"+i))).toList();
-    when(sources.select(any())).thenReturn(works);
+    when(sources.select(any(), anySet())).thenReturn(works);
     var service=new PoetryCardsService(weather,wiki,repository,mapper);service.sources(sources);
     var input=new PoetryCardsService.Input(55.75,37.62,"Europe/Moscow","ru","funny","child","seed","радостный");
     var prepared=service.prepare(input);assertEquals(7,prepared.bundle().cards().size());
@@ -40,6 +42,13 @@ class PoetryCardsSnapshotTest {
     when(repository.findById(prepared.id())).thenReturn(Optional.of(stored.getValue()));
     assertEquals(frozen,service.get(prepared.id()));verifyNoInteractions(wiki);
     verify(weather,times(1)).forecast(55.75,37.62,"Europe/Moscow");
+    when(weather.forecast(55.75,37.62,"Europe/Moscow"))
+        .thenThrow(new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "weather outage"));
+    var next = service.prepare(new PoetryCardsService.Input(55.75,37.62,"Europe/Moscow","ru","funny","child","seed","радостный",prepared.id()));
+    assertEquals("", next.weatherSource());
+    assertEquals(7, next.bundle().cards().size());
+    assertTrue(next.bundle().cards().stream().noneMatch(card -> (boolean) card.sourceMetadata().get("weather_used")));
+    verify(sources).select(any(), eq(Set.copyOf(works.stream().map(PoetryWork::identity).toList())));
     assertNull(new PoetryCardsService.Input(55.75,37.62,"Europe/Moscow","ru","funny","child","seed").moodText());
   }
 }

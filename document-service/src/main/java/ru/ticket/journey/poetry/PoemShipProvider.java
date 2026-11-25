@@ -30,7 +30,17 @@ public class PoemShipProvider implements PoetryProvider {
     return value;
   }
   public List<PoetryWork> find(PoetryQuery query) throws IOException {
+    return find(query, false);
+  }
+
+  List<PoetryWork> findExpanded(PoetryQuery query) throws IOException {
+    return find(query, true);
+  }
+
+  private List<PoetryWork> find(PoetryQuery query, boolean expand) throws IOException {
     String key=query.language()+":"+query.mood()+":"+query.audience()+":"+Objects.toString(query.moodText(),"")+":"+query.need();
+    if (expand) key += ":expanded";
+    int target = expand ? 14 : 10;
     synchronized(cache){var found=cache.get(key);if(found!=null&&found.until>System.currentTimeMillis())return found.value;}
     if(!permit.tryAcquire())return List.of();
     try {
@@ -59,12 +69,12 @@ public class PoemShipProvider implements PoetryProvider {
       for(int pass=0;pass<2;pass++){
         if(pass==1){
           // Broaden only the default mood; never discard an explicitly requested mood/theme or age.
-          if(result.size()>=7||query.moodText()!=null&&!query.moodText().isBlank()||System.nanoTime()>deadline)break;
+          if(result.size()>=(expand ? target : 7)||query.moodText()!=null&&!query.moodText().isBlank()||System.nanoTime()>deadline)break;
           args.remove("mood");
           try{found=client.call("find_poems",args);}catch(IOException unavailable){break;}
         }
       for(var candidate:found.path("poems")){
-        if(result.size()>=10||System.nanoTime()>deadline)break;
+        if(result.size()>=target||System.nanoTime()>deadline)break;
         String id=candidate.path("id").asText(""),title=candidate.path("title").asText(""),author=candidate.path("author").asText("");
         String url=candidate.path("url").asText("");
         if(!id.matches("[a-fA-F0-9]{24}")||title.isBlank()||title.length()>300||author.isBlank()||author.length()>300||!seen.add(id)||!trusted(url)
@@ -93,7 +103,7 @@ public class PoemShipProvider implements PoetryProvider {
       }
       }
       var value=List.copyOf(result);
-      synchronized(cache){cache.put(key,new Cached<>(System.currentTimeMillis()+Duration.ofMinutes(value.size()>=7?360:2).toMillis(),value));while(cache.size()>32)cache.remove(cache.keySet().iterator().next());}
+      synchronized(cache){cache.put(key,new Cached<>(System.currentTimeMillis()+Duration.ofMinutes(value.size()>=(expand?target:7)?360:2).toMillis(),value));while(cache.size()>32)cache.remove(cache.keySet().iterator().next());}
       return value;
     }finally{permit.release();}
   }

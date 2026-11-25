@@ -42,24 +42,22 @@ public class WikisourcePoems {
     }return Optional.empty();
   }
   public List<Poem> poems(String language, String mood, String audience) {
+    var result = candidates(language, mood, audience);
+    if (result.size() < 7) throw insufficient(result.size());
+    return result;
+  }
+
+  List<Poem> candidates(String language, String mood, String audience) {
     PoetrySelection.validate(language, mood, audience);
     String hint = PoetrySelection.hint(language, mood, audience), key = language + ":" + mood + ":" + audience;
     synchronized (cache) {
       var found = cache.get(key);
-      if (found != null && found.until > System.currentTimeMillis()) {
-        if (found.poems.size() < 7) throw insufficient(found.poems.size());
-        return found.poems;
-      }
+      if (found != null && found.until > System.currentTimeMillis()) return found.poems;
     }
     if (!discovery.tryAcquire()) throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "journey.poetry.busy");
     try {
       var result = collect(language, hint, mood, audience);
-      if (result.size() < 7) {
-        // A retry must not immediately repeat dozens of requests to a public source.
-        remember(key, result, Duration.ofMinutes(2));
-        throw insufficient(result.size());
-      }
-      remember(key, result, Duration.ofHours(6));
+      remember(key, result, result.size() < 7 ? Duration.ofMinutes(2) : Duration.ofHours(6));
       return result;
     } catch (java.io.IOException ex) {
       var failure = new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "journey.poetry.sources-unavailable"); failure.initCause(ex); throw failure;

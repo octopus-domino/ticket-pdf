@@ -5,6 +5,12 @@ import java.util.Map;
 /** Full text and provenance; provider excerpts cannot silently become complete cards. */
 public record PoetryWork(String title,String text,String author,String authorId,String authorUrl,
     String country,String sourceUrl,String licenseUrl,Map<String,Object> metadata) {
+  String identity() { return identity(author, title); }
+
+  static String identity(String author, String title) {
+    return PoetryDbProvider.normalize(author) + ":" + PoetryDbProvider.normalize(title);
+  }
+
   boolean suitableFallback(PoetryQuery query) {
     return PoetrySelection.suitable(new WikisourcePoems.Poem(title,text,author,authorId,authorUrl,country,0,sourceUrl,licenseUrl,""),query.language(),query.mood(),query.audience());
   }
