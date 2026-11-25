@@ -2,6 +2,12 @@ package ru.ticket.journey;
 
 import static org.assertj.core.api.Assertions.*;
 
+import ru.ticket.journey.application.journey.JourneyContentPolicy;
+import ru.ticket.journey.application.journey.JourneyService;
+import ru.ticket.journey.application.journey.JourneySiteService;
+import ru.ticket.journey.application.journey.PublicationAccess;
+import ru.ticket.journey.application.journey.PublicationsService;
+import ru.ticket.journey.application.journey.ShortCodeGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
 import org.junit.jupiter.api.Test;

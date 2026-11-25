@@ -1,7 +1,5 @@
 package ru.ticket.journey.infrastructure.pdf;
 
-import ru.ticket.journey.*;
-
 import java.awt.Font;
 import java.awt.font.FontRenderContext;
 import java.util.ArrayList;
@@ -15,6 +13,14 @@ import ru.ticket.dto.ExportRequest;
 import ru.ticket.dto.QrElement;
 import ru.ticket.dto.Slide;
 import ru.ticket.dto.TextElement;
+import ru.ticket.journey.application.journey.JourneyAlbumService;
+import ru.ticket.journey.application.journey.JourneyContentPolicy;
+import ru.ticket.journey.application.journey.JourneyService;
+import ru.ticket.journey.application.journey.JourneySiteService;
+import ru.ticket.journey.infrastructure.media.JourneyMediaService;
+import ru.ticket.journey.infrastructure.persistence.JourneyPrintSourceRepository;
+import ru.ticket.journey.shared.JourneyBranding;
+import ru.ticket.journey.shared.JourneyFieldLabels;
 import ru.ticket.journey.domain.model.Trip;
 
 /** Projects a workflow document into paginated, printable pages. */

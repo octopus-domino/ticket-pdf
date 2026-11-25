@@ -10,8 +10,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import ru.ticket.journey.JourneyRouteService;
-import ru.ticket.journey.JourneyService.View;
+import ru.ticket.journey.application.journey.RouteSnapshotService;
+import ru.ticket.journey.application.journey.JourneyService.View;
 import ru.ticket.journey.domain.model.Trip;
 
 /** Projects a historical publication and its route into the v2 model without editing the original. */
@@ -19,7 +19,7 @@ public final class TripV1Migration {
   private TripV1Migration() {}
 
   /** Converts a historical route, retaining unknown fields and the original route identifier. */
-  public static Trip convert(View publication, JourneyRouteService.Snapshot route) {
+  public static Trip convert(View publication, RouteSnapshotService.Snapshot route) {
     var fields = new LinkedHashMap<String, String>();
     if (publication.data() != null) publication.data().forEach((key, value) -> {
       if (key != null && value != null) fields.put(key, value);
@@ -69,7 +69,7 @@ public final class TripV1Migration {
             fields.get("contact"), fields.get("route"), fields));
   }
 
-  private static void addStop(JourneyRouteService.Stop stop, LocalDate date, String defaultCity,
+  private static void addStop(RouteSnapshotService.Stop stop, LocalDate date, String defaultCity,
       Map<String, Trip.City> cities, List<Visit> visits, List<String> photoRefs) {
     var metadata = stop.meta() == null ? Map.<String, String>of() : stop.meta();
     String cityName = Objects.requireNonNullElse(metadata.get("city"), Objects.requireNonNullElse(defaultCity, "")).strip();
@@ -87,7 +87,7 @@ public final class TripV1Migration {
         null, stop.description(), photoRefs, false));
   }
 
-  private static List<Trip.Coordinate> geometry(JourneyRouteService.Leg leg) {
+  private static List<Trip.Coordinate> geometry(RouteSnapshotService.Leg leg) {
     if (leg == null || leg.coordinates() == null) return List.of();
     var result = new ArrayList<Trip.Coordinate>();
     for (var tuple : leg.coordinates()) {
@@ -99,7 +99,7 @@ public final class TripV1Migration {
     return List.copyOf(result);
   }
 
-  private static Trip.Transport transport(JourneyRouteService.Leg leg) {
+  private static Trip.Transport transport(RouteSnapshotService.Leg leg) {
     if (leg == null) return Trip.Transport.WALK;
     if ("flight".equals(leg.mode())) return Trip.Transport.PLANE;
     return "car".equals(leg.mode()) ? Trip.Transport.CAR : Trip.Transport.WALK;

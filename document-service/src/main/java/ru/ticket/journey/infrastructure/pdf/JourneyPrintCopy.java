@@ -1,6 +1,6 @@
 package ru.ticket.journey.infrastructure.pdf;
 
-import ru.ticket.journey.*;
+import ru.ticket.journey.application.journey.JourneyService;
 
 /** Print-only copy follows the author's publication language, independently of the viewer UI. */
 final class JourneyPrintCopy {

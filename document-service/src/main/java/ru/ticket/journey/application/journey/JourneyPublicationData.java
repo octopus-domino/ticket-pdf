@@ -7,12 +7,11 @@ import java.security.MessageDigest;
 import java.util.*;
 import org.springframework.stereotype.Component;
 import ru.ticket.common.ApiException;
-import ru.ticket.journey.JourneyBranding;
-import ru.ticket.journey.JourneyFieldLabels;
-import ru.ticket.journey.JourneyService.Input;
-import ru.ticket.journey.JourneyService.Kind;
-import ru.ticket.journey.JourneyService.View;
-import ru.ticket.journey.ProposalContent;
+import ru.ticket.journey.shared.JourneyBranding;
+import ru.ticket.journey.shared.JourneyFieldLabels;
+import ru.ticket.journey.application.journey.JourneyService.Input;
+import ru.ticket.journey.application.journey.JourneyService.Kind;
+import ru.ticket.journey.application.journey.JourneyService.View;
 import ru.ticket.journey.domain.model.JourneyEntity;
 import ru.ticket.journey.poetry.PoetryCardsService;
 

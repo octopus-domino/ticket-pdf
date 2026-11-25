@@ -1,7 +1,8 @@
 package ru.ticket.journey.infrastructure.pdf;
 
-import ru.ticket.journey.*;
-
+import ru.ticket.journey.application.journey.JourneyMoney;
+import ru.ticket.journey.application.journey.JourneyService;
+import ru.ticket.journey.shared.JourneyFieldLabels;
 import java.util.*;
 import ru.ticket.common.ApiException;
 import ru.ticket.dto.*;

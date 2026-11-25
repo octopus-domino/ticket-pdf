@@ -1,7 +1,8 @@
 package ru.ticket.journey.infrastructure.pdf;
 
-import ru.ticket.journey.*;
-
+import ru.ticket.journey.infrastructure.media.JourneyMedia;
+import ru.ticket.journey.infrastructure.media.JourneyMediaService;
+import ru.ticket.journey.shared.JourneyBranding;
 import org.springframework.stereotype.Component;
 import ru.ticket.dto.*;
 

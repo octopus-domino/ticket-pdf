@@ -1,7 +1,9 @@
 package ru.ticket.journey.infrastructure.pdf;
 
-import ru.ticket.journey.*;
-
+import ru.ticket.journey.application.journey.JourneyService;
+import ru.ticket.journey.application.journey.RouteSnapshotService;
+import ru.ticket.journey.infrastructure.media.JourneyMediaService;
+import ru.ticket.journey.shared.JourneyFieldLabels;
 import java.time.*;
 import java.time.format.*;
 import java.util.*;
@@ -11,10 +13,10 @@ import ru.ticket.dto.*;
 /** Dedicated map and itinerary pages are composed once for both SVG preview and PDF. */
 @Component
 public class JourneyRouteLayout {
-  private final JourneyRouteService routes;
+  private final RouteSnapshotService routes;
   private final JourneyMediaService media;
 
-  public JourneyRouteLayout(JourneyRouteService routes, JourneyMediaService media) {
+  public JourneyRouteLayout(RouteSnapshotService routes, JourneyMediaService media) {
     this.routes = routes;
     this.media = media;
   }
@@ -35,7 +37,7 @@ public class JourneyRouteLayout {
     document.slides = pages;
   }
 
-  private void appendSnapshot(List<Slide> pages, JourneyService.View view, JourneyRouteService.Snapshot snapshot, String title) {
+  private void appendSnapshot(List<Slide> pages, JourneyService.View view, RouteSnapshotService.Snapshot snapshot, String title) {
     var asset = media.get(snapshot.mapId());
     Slide page = page(view, pages.size());
     pages.add(page);
@@ -59,7 +61,7 @@ public class JourneyRouteLayout {
       String number = "";
       for (int index = 0; index < snapshot.stops().size(); index++)
         if (snapshot.stops().get(index).id().equals(photo.stopId())) number = "interior".equals(snapshot.pointNumbering())
-            ? RoutePointLabels.marker(index,snapshot.stops().size()) : Integer.toString(index+1);
+            ? RoutePrintLabels.pointMarker(index,snapshot.stops().size()) : Integer.toString(index+1);
       String credit = (number + ". " + photo.author() + " · " + photo.license() + " · " + photo.sourceUrl()).replaceAll("\\s+"," ").strip();
       var text=JourneyTypography.fit(credit,50,y,694,900,8,false,"#53665b");
       text.lineHeight=1.1;text.height=Math.ceil(text.text.split("\n",-1).length*8*1.1)+2;
@@ -80,9 +82,9 @@ public class JourneyRouteLayout {
       var badges=new ArrayList<String>();
       if(stop!=null&&stop.meta()!=null&&stop.meta().containsKey("theme")){
         var meta=stop.meta();
-        if("wikimapia".equals(meta.get("source"))&&"false".equals(meta.get("in_osm")))badges.add(WalkLabels.text(locale.getLanguage(),0));
-        if("CLOSED".equals(meta.get("visit_status")))badges.add(WalkLabels.text(locale.getLanguage(),1));
-        if("UNKNOWN".equals(meta.get("visit_status")))badges.add(WalkLabels.text(locale.getLanguage(),2));
+        if("wikimapia".equals(meta.get("source"))&&"false".equals(meta.get("in_osm")))badges.add(RoutePrintLabels.badge(locale.getLanguage(),0));
+        if("CLOSED".equals(meta.get("visit_status")))badges.add(RoutePrintLabels.badge(locale.getLanguage(),1));
+        if("UNKNOWN".equals(meta.get("visit_status")))badges.add(RoutePrintLabels.badge(locale.getLanguage(),2));
       }
       double badgeHeight=badges.isEmpty()?0:28;
       boolean hasNotes = row.description() != null && !row.description().isBlank();
@@ -96,7 +98,7 @@ public class JourneyRouteLayout {
       String start = date.format(Instant.parse(row.start()).atZone(ZoneId.of(startZone)));
       String end = date.format(Instant.parse(row.end()).atZone(ZoneId.of(row.zone())));
       String caption="stop".equals(row.kind())
-          ? RoutePointLabels.caption(stopNumber++,snapshot.stops().size(),locale.getLanguage(),captions)
+          ? RoutePrintLabels.pointCaption(stopNumber++,snapshot.stops().size(),locale.getLanguage(),captions)
           : captions.getOrDefault(row.kind(),row.kind());
       page.elements.add(
           JourneyTypography.fit(

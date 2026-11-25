@@ -116,10 +116,6 @@ logging:
     ru.ticket: INFO
     org.apache.pdfbox: WARN
     org.apache.batik: WARN
-    ru.ticket.journey.WikimapiaKeyProvider: DEBUG
-    ru.ticket.journey.infrastructure.poi.WikimapiaPoiSourceImpl: DEBUG
-    ru.ticket.journey.WikimapiaPlaces: DEBUG
-
 
 management:
   endpoints:

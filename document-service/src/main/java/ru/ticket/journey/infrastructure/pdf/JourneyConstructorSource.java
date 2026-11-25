@@ -1,7 +1,5 @@
 package ru.ticket.journey.infrastructure.pdf;
 
-import ru.ticket.journey.*;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
 import org.jsoup.parser.Parser;

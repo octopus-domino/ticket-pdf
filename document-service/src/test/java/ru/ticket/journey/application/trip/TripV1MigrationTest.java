@@ -8,12 +8,12 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import ru.ticket.journey.JourneyRouteService.Snapshot;
-import ru.ticket.journey.JourneyRouteService.Stop;
-import ru.ticket.journey.JourneyRouteService.Leg;
-import ru.ticket.journey.JourneyRouteService.Photo;
-import ru.ticket.journey.JourneyService.Kind;
-import ru.ticket.journey.JourneyService.View;
+import ru.ticket.journey.application.journey.RouteSnapshotService.Snapshot;
+import ru.ticket.journey.application.journey.RouteSnapshotService.Stop;
+import ru.ticket.journey.application.journey.RouteSnapshotService.Leg;
+import ru.ticket.journey.application.journey.RouteSnapshotService.Photo;
+import ru.ticket.journey.application.journey.JourneyService.Kind;
+import ru.ticket.journey.application.journey.JourneyService.View;
 import ru.ticket.journey.domain.model.Trip;
 
 class TripV1MigrationTest {

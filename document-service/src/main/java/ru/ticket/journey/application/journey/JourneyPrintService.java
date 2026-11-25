@@ -12,7 +12,6 @@ import ru.ticket.export.ExportFacade;
 import ru.ticket.export.ExportFormat;
 import ru.ticket.generation.application.GenerationService;
 import ru.ticket.generation.application.dto.NamedDocument;
-import ru.ticket.journey.JourneyService;
 import ru.ticket.journey.domain.model.Trip;
 import ru.ticket.journey.infrastructure.pdf.JourneyDocumentFactory;
 

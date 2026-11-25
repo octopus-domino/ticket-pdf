@@ -1,5 +1,8 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.application.journey.JourneyService;
+import ru.ticket.journey.application.journey.JourneySiteService;
+import ru.ticket.journey.application.journey.ProposalContent;
 import ru.ticket.journey.infrastructure.pdf.JourneyDocumentFactory;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.mock;

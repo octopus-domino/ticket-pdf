@@ -4,7 +4,7 @@ import java.util.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ticket.common.ApiException;
-import ru.ticket.journey.JourneyService;
+import ru.ticket.journey.application.journey.JourneyService;
 
 /** One unique namespace shared by simple sites and professional workflows. */
 @Service

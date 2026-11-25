@@ -8,17 +8,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import ru.ticket.common.ApiException;
-import ru.ticket.journey.JourneyBatch;
-import ru.ticket.journey.JourneyBatchRepository;
-import ru.ticket.journey.JourneyContentPolicy;
-import ru.ticket.journey.JourneyService.Created;
-import ru.ticket.journey.JourneyService.Input;
-import ru.ticket.journey.JourneySiteService;
-import ru.ticket.journey.ShortCodeGenerator;
+import ru.ticket.journey.infrastructure.persistence.JourneyBatch;
+import ru.ticket.journey.infrastructure.persistence.JourneyBatchRepository;
+import ru.ticket.journey.application.journey.JourneyService.Created;
+import ru.ticket.journey.application.journey.JourneyService.Input;
 import ru.ticket.journey.domain.model.JourneyEntity;
 import ru.ticket.journey.domain.repository.JourneyStore;
 
-import static ru.ticket.journey.JourneyService.MAX_RECIPIENTS;
+import static ru.ticket.journey.application.journey.JourneyService.MAX_RECIPIENTS;
 
 /** Constructs and issues publications and their release registry entries. */
 @Service

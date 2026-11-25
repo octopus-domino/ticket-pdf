@@ -6,8 +6,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import ru.ticket.common.ApiException;
-import ru.ticket.journey.JourneyRouteService;
-import ru.ticket.journey.JourneyService;
+import ru.ticket.journey.application.journey.RouteSnapshotService;
+import ru.ticket.journey.application.journey.JourneyService;
 import ru.ticket.journey.application.journey.PrivateJourneyReader;
 import ru.ticket.journey.domain.model.Trip;
 import ru.ticket.journey.domain.repository.TripRepository;
@@ -18,12 +18,12 @@ import ru.ticket.journey.domain.repository.TripRepository;
 public class TripDraftService {
   private final TripRepository trips;
   private final JourneyService publications;
-  private final JourneyRouteService routes;
+  private final RouteSnapshotService routes;
   private final PrivateJourneyToTripConverter walkConverter;
   private final ApplicationEventPublisher events;
 
   /** Wires private v2 storage and the legacy publication readers. */
-  public TripDraftService(TripRepository trips, JourneyService publications, JourneyRouteService routes,
+  public TripDraftService(TripRepository trips, JourneyService publications, RouteSnapshotService routes,
       PrivateJourneyToTripConverter walkConverter, ApplicationEventPublisher events) {
     this.trips = trips;
     this.publications = publications;
@@ -43,7 +43,7 @@ public class TripDraftService {
   }
 
   /** Returns the original v1 snapshot for an owned legacy itinerary. */
-  public JourneyRouteService.Snapshot openLegacySnapshot(String ownerId, String id) {
+  public RouteSnapshotService.Snapshot openLegacySnapshot(String ownerId, String id) {
     var publication = publications.manageOwned(id, ownerId);
     String routeId = publication.data().get("route");
     if (publication.kind() != JourneyService.Kind.TOUR || routeId == null || routeId.isBlank()) {
@@ -66,7 +66,7 @@ public class TripDraftService {
     return TripV1Migration.convert(publication, routeId == null || routeId.isBlank() ? null : route(routeId));
   }
 
-  private JourneyRouteService.Snapshot route(String id) {
+  private RouteSnapshotService.Snapshot route(String id) {
     try {
       return routes.get(id);
     } catch (ApiException invalid) {

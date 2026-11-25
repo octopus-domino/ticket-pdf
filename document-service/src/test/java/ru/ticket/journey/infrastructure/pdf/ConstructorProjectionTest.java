@@ -1,8 +1,8 @@
 package ru.ticket.journey.infrastructure.pdf;
 
-import ru.ticket.journey.*;
-
 import static org.assertj.core.api.Assertions.*;
+import ru.ticket.journey.application.journey.JourneyService;
+import ru.ticket.journey.application.journey.JourneySiteService;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.databind.ObjectMapper;

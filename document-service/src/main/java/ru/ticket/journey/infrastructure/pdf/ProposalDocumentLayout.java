@@ -1,7 +1,7 @@
 package ru.ticket.journey.infrastructure.pdf;
 
-import ru.ticket.journey.*;
-
+import ru.ticket.journey.application.journey.JourneyService;
+import ru.ticket.journey.application.journey.ProposalContent;
 import java.awt.Font;
 import java.awt.GraphicsEnvironment;
 import java.awt.font.FontRenderContext;

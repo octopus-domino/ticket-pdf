@@ -1,7 +1,6 @@
 package ru.ticket.journey.infrastructure.pdf;
 
-import ru.ticket.journey.*;
-
+import ru.ticket.journey.application.journey.JourneyService;
 import java.util.*;
 import ru.ticket.dto.*;
 import ru.ticket.generation.application.port.GenerationCatalog;

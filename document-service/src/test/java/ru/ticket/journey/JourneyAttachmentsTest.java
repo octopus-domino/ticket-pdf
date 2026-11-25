@@ -2,6 +2,9 @@ package ru.ticket.journey;
 
 import static org.assertj.core.api.Assertions.*;
 
+import ru.ticket.journey.application.journey.JourneyAttachments;
+import ru.ticket.journey.application.journey.JourneyContentPolicy;
+import ru.ticket.journey.application.journey.JourneyService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.Map;

@@ -11,8 +11,8 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.*;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import ru.ticket.journey.JourneyMediaService;
-import ru.ticket.journey.JourneyRouteService;
+import ru.ticket.journey.infrastructure.media.JourneyMediaService;
+import ru.ticket.journey.application.journey.RouteSnapshotService;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -32,7 +32,7 @@ import ru.ticket.journey.JourneyRouteService;
 class DocumentFlowTest {
   private static final java.nio.file.Path ARTIFACT_ROOT =
       java.nio.file.Path.of("target", "test-artifacts", "run-" + java.util.UUID.randomUUID());
-  @Autowired JourneyRouteService tripRoutes;
+  @Autowired RouteSnapshotService tripRoutes;
   @Autowired JourneyMediaService tripMedia;
 
   @Test
@@ -52,18 +52,18 @@ class DocumentFlowTest {
     javax.imageio.ImageIO.write(image, "png", png);
     var map = tripMedia.save("data:image/png;base64," + Base64.getEncoder().encodeToString(png.toByteArray()));
     var stops = List.of(
-        new JourneyRouteService.Stop("a", "Museum", 37.62, 55.75, "Europe/Moscow", 0),
-        new JourneyRouteService.Stop("b", "Park", 37.63, 55.76, "Europe/Moscow", 0));
+        new RouteSnapshotService.Stop("a", "Museum", 37.62, 55.75, "Europe/Moscow", 0),
+        new RouteSnapshotService.Stop("b", "Park", 37.63, 55.76, "Europe/Moscow", 0));
     var geometry = List.of(List.of(37.62, 55.75), List.of(37.63, 55.76));
-    var route = new JourneyRouteService.Snapshot(stops,
-        List.of(new JourneyRouteService.Leg("foot", 900, null, null, null, null, geometry, 1500d)),
-        "2027-01-01T10:00", List.of(new JourneyRouteService.Row("foot", "Museum to park",
+    var route = new RouteSnapshotService.Snapshot(stops,
+        List.of(new RouteSnapshotService.Leg("foot", 900, null, null, null, null, geometry, 1500d)),
+        "2027-01-01T10:00", List.of(new RouteSnapshotService.Row("foot", "Museum to park",
             "2027-01-01T07:00:00Z", "2027-01-01T07:15:00Z", "Europe/Moscow")), map.id());
     String routeId = tripRoutes.save(route).id();
-    var input = new ru.ticket.journey.JourneyService.Input(ru.ticket.journey.JourneyService.Kind.TOUR,
+    var input = new ru.ticket.journey.application.journey.JourneyService.Input(ru.ticket.journey.application.journey.JourneyService.Kind.TOUR,
         "Legacy walk", Map.of("route", routeId, "city", "Moscow"), List.of());
     var created = http.postForEntity("/api/journeys", new HttpEntity<>(input, headers),
-        ru.ticket.journey.JourneyService.Created[].class);
+        ru.ticket.journey.application.journey.JourneyService.Created[].class);
     assertEquals(200, created.getStatusCode().value(), created.toString());
     String id = created.getBody()[0].document().id();
     var projected = http.exchange("/api/trips/" + id, HttpMethod.GET, new HttpEntity<>(headers),
@@ -73,7 +73,7 @@ class DocumentFlowTest {
     assertEquals(2, projected.getBody().days().get(0).walkingSections().get(0).geometry().size());
     assertEquals(geometry, tripRoutes.get(routeId).legs().get(0).coordinates());
     var originalJson = http.exchange("/api/trips/" + id + "/json?format=v1-compat", HttpMethod.GET,
-        new HttpEntity<>(headers), JourneyRouteService.Snapshot.class);
+        new HttpEntity<>(headers), RouteSnapshotService.Snapshot.class);
     assertEquals(200, originalJson.getStatusCode().value());
     assertEquals("no-store", originalJson.getHeaders().getCacheControl());
     assertEquals(tripRoutes.get(routeId), originalJson.getBody());
@@ -140,14 +140,14 @@ class DocumentFlowTest {
   @Test
   void newWorkflowsExposeProtectedIssuanceAndPrintableTables() throws Exception {
     var input =
-        new ru.ticket.journey.JourneyService.Input(
-            ru.ticket.journey.JourneyService.Kind.GIFT,
+        new ru.ticket.journey.application.journey.JourneyService.Input(
+            ru.ticket.journey.application.journey.JourneyService.Kind.GIFT,
             "Gift",
             Map.of("amount", "1000", "valid_until", "2100-01-01"),
             List.of("Guest"));
     var issued =
         http.postForEntity(
-            "/api/journeys", input, ru.ticket.journey.JourneyService.Created[].class);
+            "/api/journeys", input, ru.ticket.journey.application.journey.JourneyService.Created[].class);
     assertEquals(200, issued.getStatusCode().value(), issued.toString());
     var created = issued.getBody()[0];
     String root = "/api/journeys/" + created.document().id();
@@ -175,12 +175,12 @@ class DocumentFlowTest {
     var badge =
         http.postForEntity(
                 "/api/journeys",
-                new ru.ticket.journey.JourneyService.Input(
-                    ru.ticket.journey.JourneyService.Kind.BADGE,
+                new ru.ticket.journey.application.journey.JourneyService.Input(
+                    ru.ticket.journey.application.journey.JourneyService.Kind.BADGE,
                     "Conference",
                     Map.of("issuer", "CoDoc"),
                     List.of("A", "B", "C", "D", "E", "F", "G")),
-                ru.ticket.journey.JourneyService.Created[].class)
+                ru.ticket.journey.application.journey.JourneyService.Created[].class)
             .getBody()[0];
     headers.set("X-Management-Key", badge.managementKey());
     var pdf =
@@ -196,8 +196,8 @@ class DocumentFlowTest {
     var proposal =
         http.postForEntity(
                 "/api/journeys",
-                new ru.ticket.journey.JourneyService.Input(
-                    ru.ticket.journey.JourneyService.Kind.PROPOSAL,
+                new ru.ticket.journey.application.journey.JourneyService.Input(
+                    ru.ticket.journey.application.journey.JourneyService.Kind.PROPOSAL,
                     "Proposal",
                     Map.of(
                         "positions",
@@ -213,7 +213,7 @@ class DocumentFlowTest {
                                 .collect(java.util.stream.Collectors.joining(","))
                             + "]"),
                     List.of()),
-                ru.ticket.journey.JourneyService.Created[].class)
+                ru.ticket.journey.application.journey.JourneyService.Created[].class)
             .getBody()[0];
     var proposalPdf =
         http.getForEntity("/api/journeys/" + proposal.document().id() + "/pdf", byte[].class);
@@ -229,12 +229,12 @@ class DocumentFlowTest {
       var proposalArtwork =
           http.postForEntity(
               "/api/journeys/artwork",
-              new ru.ticket.journey.JourneyArtworkController.Input(
+              new ru.ticket.journey.web.journey.JourneyArtworkController.Input(
                   proposal.document().id(),
                   proposal.document().kind(),
                   proposal.document().title(),
                   proposal.document().data()),
-              ru.ticket.journey.JourneyArtworkController.Artwork.class);
+              ru.ticket.journey.web.journey.JourneyArtworkController.Artwork.class);
       assertEquals(200, proposalArtwork.getStatusCode().value());
       assertEquals(parsed.getNumberOfPages(), proposalArtwork.getBody().pages().size());
       Files.write(
@@ -306,22 +306,22 @@ class DocumentFlowTest {
               "contact",
               "Пожалуйста, подтвердите участие до 5 декабря.");
       var input =
-          new ru.ticket.journey.JourneyService.Input(
-              ru.ticket.journey.JourneyService.Kind.INVITATION,
+          new ru.ticket.journey.application.journey.JourneyService.Input(
+              ru.ticket.journey.application.journey.JourneyService.Kind.INVITATION,
               "Вечер в кругу близких",
               data,
               List.of());
       var created =
           http.postForEntity(
-              "/api/journeys", input, ru.ticket.journey.JourneyService.Created[].class);
+              "/api/journeys", input, ru.ticket.journey.application.journey.JourneyService.Created[].class);
       assertEquals(200, created.getStatusCode().value());
       var view = created.getBody()[0].document();
       var artwork =
           http.postForEntity(
               "/api/journeys/artwork",
-              new ru.ticket.journey.JourneyArtworkController.Input(
+              new ru.ticket.journey.web.journey.JourneyArtworkController.Input(
                   view.id(), view.kind(), view.title(), view.data()),
-              ru.ticket.journey.JourneyArtworkController.Artwork.class);
+              ru.ticket.journey.web.journey.JourneyArtworkController.Artwork.class);
       assertEquals(200, artwork.getStatusCode().value());
       assertNotNull(artwork.getBody());
       var slides = journeyDocuments.document(view).slides;
@@ -358,14 +358,14 @@ class DocumentFlowTest {
   @Test
   void publicWorkflowCreatesPrintablePdfProtectsRepliesAndRevokesPublication() {
     var input =
-        new ru.ticket.journey.JourneyService.Input(
-            ru.ticket.journey.JourneyService.Kind.INVITATION,
+        new ru.ticket.journey.application.journey.JourneyService.Input(
+            ru.ticket.journey.application.journey.JourneyService.Kind.INVITATION,
             "Birthday",
             Map.of("description", "Welcome friends", "theme", "rose"),
             List.of());
     var created =
         http.postForEntity(
-            "/api/journeys", input, ru.ticket.journey.JourneyService.Created[].class);
+            "/api/journeys", input, ru.ticket.journey.application.journey.JourneyService.Created[].class);
     assertEquals(200, created.getStatusCode().value(), created.toString());
     var publication = created.getBody()[0];
     String path = "/api/journeys/" + publication.document().id();
@@ -374,7 +374,7 @@ class DocumentFlowTest {
     assertFalse(publicView.getBody().contains(publication.managementKey()));
     assertEquals(403, http.getForEntity(path + "/responses", String.class).getStatusCode().value());
     var reply =
-        new ru.ticket.journey.JourneyService.Reply(
+        new ru.ticket.journey.application.journey.JourneyService.Reply(
             "Guest", true, "response-key-with-at-least-32-characters");
     assertEquals(
         204, http.postForEntity(path + "/responses", reply, String.class).getStatusCode().value());

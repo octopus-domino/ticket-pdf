@@ -1,5 +1,10 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.application.journey.JourneyContentPolicy;
+import ru.ticket.journey.application.journey.JourneyService;
+import ru.ticket.journey.application.journey.JourneySiteService;
+import ru.ticket.journey.application.journey.PublicationAccess;
+import ru.ticket.journey.application.journey.ShortCodeGenerator;
 import ru.ticket.journey.infrastructure.persistence.JourneyRepository;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;

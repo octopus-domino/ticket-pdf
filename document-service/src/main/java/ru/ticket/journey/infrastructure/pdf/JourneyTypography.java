@@ -1,7 +1,5 @@
 package ru.ticket.journey.infrastructure.pdf;
 
-import ru.ticket.journey.*;
-
 import java.awt.Font;
 import java.awt.font.FontRenderContext;
 import java.util.*;
