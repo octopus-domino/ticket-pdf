@@ -1,0 +1,94 @@
+server:
+  port: 8093
+  forward-headers-strategy: framework
+spring:
+  application:
+    name: routing-service
+  datasource:
+    url: ${WALKS_DATABASE_URL:jdbc:h2:file:./data/walks;DB_CLOSE_DELAY=-1}
+    username: ${WALKS_DATABASE_USER:sa}
+    password: ${WALKS_DATABASE_PASSWORD:}
+    hikari:
+      maximum-pool-size: 3
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: ${WALKS_DB_SCHEMA_MODE:update}
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+        default_schema: ${WALKS_DB_SCHEMA:}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+routing:
+  providers:
+    brouter-http:
+      enabled: ${BROUTER_HTTP_ENABLED:true}
+      url: ${BROUTER_HTTP_URL:https://brouter.de}
+    valhalla:
+      enabled: ${VALHALLA_ENABLED:true}
+      url: ${VALHALLA_URL:https://valhalla1.openstreetmap.de}
+    osrm:
+      enabled: ${OSRM_ENABLED:false}
+      url: ${OSRM_URL:https://routing.openstreetmap.de}
+    brouter:
+      enabled: ${BROUTER_ENABLED:true}
+      router-home: ${BROUTER_HOME:/opt/brouter}
+      router-cache: ${BROUTER_CACHE:/app/data/routing}
+walks:
+  print-media-url: ${WALKS_PRINT_MEDIA_URL:http://127.0.0.1:8080}
+app:
+  hoith:
+    gpkg-path: ${HOITH_GPKG_PATH:./data/hoith.gpkg}
+    import-on-startup: ${HOITH_IMPORT_ON_STARTUP:false}
+    cities: ${HOITH_CITIES:}
+    refresh-on-start: ${HOITH_REFRESH_ON_START:false}
+    before-year: ${HOITH_BEFORE_YEAR:1945}
+    background: ${HOITH_BACKGROUND:false}
+    min-free-space-mb: ${HOITH_MIN_FREE_SPACE_MB:0}
+  mystic:
+    csv-path: ${MYSTIC_CSV_PATH:classpath:mystic_places.csv}
+    refresh-on-start: ${MYSTIC_REFRESH_ON_START:false}
+  mcp:
+    osm:
+      url: ${OSM_MCP_URL:http://localhost:8000/mcp}
+      enabled: ${OSM_MCP_ENABLED:true}
+    commons:
+      url: ${COMMONS_MCP_URL:https://gateway.pipeworx.io/commons-wikimedia/mcp}
+      enabled: ${COMMONS_MCP_ENABLED:true}
+  journeys:
+    trip-planner-enabled: ${ENABLE_TRIP_PLANNER:false}
+    yandex-api-key: ${YANDEX_MAPS_API_KEY:}
+    max-wikidata-sitelinks: 5
+    photon-url: ${PHOTON_URL:https://photon.komoot.io/api/}
+    overpass-url: ${OVERPASS_URL:https://overpass-api.de/api/interpreter}
+    wikimapia-key: ${WIKIMAPIA_API_KEY:${WIKIMAPIA_KEY:}}
+    wikimapia:
+      bbox-radius-km: 2.5
+      box-page-size: 100
+      max-details-per-request: 25
+      min-description-length: 20
+      quota:
+        minute-limit: 20
+        daily-limit: 5000
+    walk-themes:
+      bars:
+        tags: ["amenity=bar", "amenity=pub", "amenity=biergarten", "amenity=wine_bar"]
+        wikimapia-categories: ["bar", "pub", "бар", "паб"]
+        require-hours: true
+      mystic:
+        tags: ["historic=ruins", "abandoned:place=*", "man_made=adit", "military=bunker", "historic=aircraft_wreck"]
+        wikimapia-categories: ["abandoned", "ghost", "haunted", "заброш", "призрак", "мистик"]
+        description-keywords: ["призрак", "легенда", "заброшен", "тайна", "мистик", "ghost", "haunted", "legend", "abandoned", "mystic"]
+        require-hours: false
+      religious:
+        tags: ["amenity=place_of_worship", "building=church", "building=cathedral", "building=mosque", "amenity=monastery"]
+        wikimapia-categories: ["church", "monastery", "chapel", "temple", "церковь", "монастыр", "часовн", "храм", "мечеть"]
+        require-hours: true
+      cultural:
+        tags: ["tourism=museum", "tourism=gallery", "amenity=arts_centre", "amenity=theatre", "historic=monument"]
+        wikimapia-categories: ["museum", "theatre", "art", "музей", "театр", "искусств", "памятник"]
+        require-hours: true

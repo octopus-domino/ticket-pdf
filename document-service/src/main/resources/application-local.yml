@@ -1,0 +1,34 @@
+# Профиль для локальной разработки.
+# Активируется через -Dspring.profiles.active=local или SPRING_PROFILES_ACTIVE=local.
+
+app:
+  # OAuth2 redirect идёт на фронт (5173), а не на прод-домен.
+  frontend-url: http://localhost:5173
+  # Cookie без Secure — иначе браузер не передаст её по HTTP.
+  cookie-secure: false
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            # Заглушки — Google-вход работать не будет, но приложение стартует.
+            # Если нужен реальный OAuth2 — подставьте свои client_id/secret.
+            client-id: ${GOOGLE_CLIENT_ID:dummy.apps.googleusercontent.com}
+            client-secret: ${GOOGLE_CLIENT_SECRET:dummy_secret}
+            redirect-uri: "http://localhost:5173/login/oauth2/code/google"
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com
+
+jwt:
+  # 32+ байта — иначе JwtService бросает IllegalStateException.
+  secret: ${JWT_SECRET:local-dev-only-secret-change-me-please-32chars}
+
+logging:
+  level:
+    ru.ticket: DEBUG
+    org.springframework.security: INFO
+    org.apache.pdfbox: WARN
+    org.apache.batik: WARN
