@@ -3,6 +3,7 @@ package ru.ticket.dto;
 import java.util.List;
 
 public class TableElement extends Element {
+    public String repeatPath;
     public int rows = 3;
     public int cols = 3;
     public List<List<String>> data;

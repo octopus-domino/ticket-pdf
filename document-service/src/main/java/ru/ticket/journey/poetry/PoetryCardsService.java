@@ -11,7 +11,11 @@ import ru.ticket.common.ApiException;
 
 @Service
 public class PoetryCardsService {
-  public record Input(Double latitude, Double longitude, String zone, String language, String mood, String audience, String seed, String moodText, String previousId) {
+  public record Input(Double latitude, Double longitude, String zone, String language, String mood, String audience, String seed, String moodText, String previousId,
+                      List<String> recentIds) {
+    public Input(Double latitude, Double longitude, String zone, String language, String mood, String audience, String seed, String moodText, String previousId) {
+      this(latitude, longitude, zone, language, mood, audience, seed, moodText, previousId, null);
+    }
     public Input(Double latitude, Double longitude, String zone, String language, String mood, String audience, String seed, String moodText) {
       this(latitude, longitude, zone, language, mood, audience, seed, moodText, null);
     }
@@ -42,7 +46,7 @@ public class PoetryCardsService {
     long selectionStarted=System.nanoTime();
     var query = new PoetryQuery(input.language(),input.mood(),input.audience(),input.moodText(),input.seed(),forecast.days());
     List<PoetryWork> selected;
-    if(sources!=null)selected=sources.select(query, previousWorks(input));
+    if(sources!=null)selected=sources.select(query, history(input));
     else selected=PoetrySelection.select(poems.poems(input.language(),input.mood(),input.audience()),forecast.days(),input.language(),input.mood(),input.audience(),input.seed()).stream()
         .map(poem->PoetryWork.wiki(poem,input.language(),input.mood())).toList();
     var cards = new ArrayList<Card>();
@@ -82,11 +86,20 @@ public class PoetryCardsService {
     }
   }
 
-  private Set<String> previousWorks(Input input) {
-    if (input.previousId() == null || !input.previousId().matches("[a-f0-9]{64}")) return Set.of();
-    var previous = sets.findById(input.previousId()).map(this::readBundle);
-    return previous.filter(bundle -> input.language().equals(bundle.language())
-            && input.mood().equals(bundle.mood()) && input.audience().equals(bundle.audience()))
+  private PoetrySourceChain.History history(Input input) {
+    var last = works(input.previousId(), input.language());
+    var older = new HashSet<String>();
+    if (input.recentIds() != null) {
+      input.recentIds().stream().limit(3).filter(id -> !Objects.equals(id, input.previousId())).distinct()
+          .forEach(id -> older.addAll(works(id, input.language())));
+    }
+    return new PoetrySourceChain.History(last, Set.copyOf(older));
+  }
+
+  private Set<String> works(String id, String language) {
+    if (id == null || !id.matches("[a-f0-9]{64}")) return Set.of();
+    return sets.findById(id).map(this::readBundle)
+        .filter(bundle -> language.equals(bundle.language()))
         .map(bundle -> bundle.cards().stream().map(card -> PoetryWork.identity(card.author(), card.title()))
             .collect(Collectors.toUnmodifiableSet()))
         .orElseGet(Set::of);

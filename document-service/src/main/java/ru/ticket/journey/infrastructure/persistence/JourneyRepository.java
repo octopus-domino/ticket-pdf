@@ -19,8 +19,8 @@ public interface JourneyRepository extends JpaRepository<JourneyEntity, String>,
   }
 
   @Override
-  default OwnedPage findOwned(String owner, String site, String searchPattern, int page, int size) {
-    var result = findOwned(owner, site, searchPattern,
+  default OwnedPage findOwned(String owner, String site, String searchPattern, String kind, int page, int size) {
+    var result = findOwned(owner, site, searchPattern, kind,
         PageRequest.of(page, size, Sort.by(Sort.Order.desc("updatedAt"), Sort.Order.desc("id"))));
     return new OwnedPage(result.getContent(), result.getTotalPages(), result.getTotalElements());
   }
@@ -31,12 +31,14 @@ public interface JourneyRepository extends JpaRepository<JourneyEntity, String>,
       where (j.ownerId = :owner or exists (
         select s.slug from JourneySite s where s.slug = j.siteSlug and s.ownerId = :owner))
       and (:site = '' or j.siteSlug = :site)
+      and (:kind = '' or j.kind = :kind)
       and lower(j.title) like :search
       """)
   org.springframework.data.domain.Page<JourneyEntity> findOwned(
       @org.springframework.data.repository.query.Param("owner") String owner,
       @org.springframework.data.repository.query.Param("site") String site,
       @org.springframework.data.repository.query.Param("search") String search,
+      @org.springframework.data.repository.query.Param("kind") String kind,
       org.springframework.data.domain.Pageable pageable);
 
   @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)

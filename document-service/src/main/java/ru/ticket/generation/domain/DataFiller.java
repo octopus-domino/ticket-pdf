@@ -2,6 +2,7 @@ package ru.ticket.generation.domain;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import ru.ticket.dto.*;
@@ -36,6 +37,9 @@ public final class DataFiller {
     if (copy.elements == null) return copy;
     for (Element el : copy.elements) {
       Map<String, String> local = new HashMap<>(strValues);
+      String arrayPath = el instanceof TableElement table ? ArrayTableRows.path(table) : null;
+      String resolvedArrayPath = arrayPath;
+      int aliasLength = -1;
       for (var binding : bindings) {
         if (!Objects.equals(binding.elementId, el.id) || "ignored".equals(binding.status)) continue;
         String source =
@@ -43,6 +47,11 @@ public final class DataFiller {
                 ? ""
                 : binding.placeholder.replace("{{", "").replace("}}", "").trim();
         String target = binding.schemaPath;
+        if (arrayPath != null && source.length() >= aliasLength
+            && (arrayPath.equals(source) || isChildPath(arrayPath, source))) {
+          resolvedArrayPath = target + arrayPath.substring(source.length());
+          aliasLength = source.length();
+        }
         Object replacement = ModelValues.get(values, target);
         if (el instanceof TableElement && !source.equals(target)) {
           local.keySet().removeIf(path -> path.equals(source) || isChildPath(path, source));
@@ -54,7 +63,10 @@ public final class DataFiller {
           }
         }
       }
-      applyToElement(el, local);
+      if (!(el instanceof TableElement table && resolvedArrayPath != null
+          && ArrayTableRows.fill(table, arrayPath, ModelValues.get(values, resolvedArrayPath), local))) {
+        applyToElement(el, local);
+      }
       if (el instanceof ChartElement chart && chart.dataPath != null) {
         Object rows = ModelValues.get(values, chart.dataPath);
         if (rows instanceof List<?> list)
@@ -199,12 +211,16 @@ public final class DataFiller {
   }
 
   static String replacePlaceholders(String text, Map<String, String> values) {
+    return replacePlaceholders(text, values::get);
+  }
+
+  static String replacePlaceholders(String text, Function<String, String> lookup) {
     if (text == null || text.isEmpty()) return text;
     Matcher m = PLACEHOLDER.matcher(text);
     StringBuilder sb = new StringBuilder();
     while (m.find()) {
       String path = m.group(1);
-      String replacement = values.get(path);
+      String replacement = lookup.apply(path);
       if (replacement == null) {
         replacement = ""; // маркер, что значения нет
       }

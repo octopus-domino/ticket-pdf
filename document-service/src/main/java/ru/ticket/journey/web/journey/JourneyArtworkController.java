@@ -24,15 +24,20 @@ public class JourneyArtworkController {
       JourneyService.Kind kind,
       String title,
       Map<String, String> data,
-      JourneySiteService.Definition definition) {
+      JourneySiteService.Definition definition,
+      boolean externalBackground) {
     public Input(String id, JourneyService.Kind kind, String title, Map<String, String> data) {
-      this(id, kind, title, data, null);
+      this(id, kind, title, data, null, false);
+    }
+    public Input(String id, JourneyService.Kind kind, String title, Map<String, String> data,
+        JourneySiteService.Definition definition) {
+      this(id, kind, title, data, definition, false);
     }
   }
 
   public record Page(double width, double height, String svg) {}
 
-  public record Artwork(List<Page> pages) {}
+  public record Artwork(List<Page> pages, JourneyDocumentFactory.PreviewBackground background) {}
 
   private final JourneyDocumentFactory documents;
   private final SvgDocumentBuilder svg;
@@ -67,14 +72,15 @@ public class JourneyArtworkController {
       if (!id.equals("preview")) publications.get(id);
       var view =
           new JourneyService.View(id, input.kind(), input.title(), input.data(), Instant.EPOCH);
-      var pages =
-          (input.definition() == null
-                  ? documents.document(view)
-                  : documents.document(view, input.definition()))
-              .slides.stream()
-                  .map(page -> new Page(page.width, page.height, svg.generate(page)))
-                  .toList();
-      return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new Artwork(pages));
+      var preview = input.externalBackground()
+          ? documents.preview(view, input.definition())
+          : new JourneyDocumentFactory.Preview(
+              input.definition() == null ? documents.document(view) : documents.document(view, input.definition()),
+              null);
+      var pages = preview.document().slides.stream()
+          .map(page -> new Page(page.width, page.height, svg.generate(page)))
+          .toList();
+      return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new Artwork(pages, preview.background()));
     } finally {
       capacity.release();
     }

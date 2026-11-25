@@ -8,6 +8,7 @@ public record PoetryQuery(String language,String mood,String audience,String moo
   public String need(){
     if(mood.equals("funny"))return "smile";
     boolean cold=days.stream().anyMatch(day->day.temperature()<5||day.symbol().contains("rain")||day.symbol().contains("snow"));
+    if (audience.equals("teen")) return cold ? "feel_understood" : "perspective";
     return cold?"comfort":"hope";
   }
 }

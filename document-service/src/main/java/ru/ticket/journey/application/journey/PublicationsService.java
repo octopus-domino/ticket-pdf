@@ -58,11 +58,16 @@ public class PublicationsService {
 
   @Transactional(readOnly = true)
   public Results<Document> documents(String owner, int number, String site, String search) {
+    return documents(owner, number, site, search, null);
+  }
+
+  @Transactional(readOnly = true)
+  public Results<Document> documents(String owner, int number, String site, String search, JourneyService.Kind kind) {
     if (site.length() > 48 || search.length() > 80) throw ApiException.badRequest("Invalid search");
     if (number < 0 || number > 100000) throw ApiException.badRequest("Invalid page");
     var result =
         documents.findOwned(
-            owner, site, "%" + search.toLowerCase(Locale.ROOT) + "%", number, 20);
+            owner, site, "%" + search.toLowerCase(Locale.ROOT) + "%", kind == null ? "" : kind.name(), number, 20);
     var items =
         result.items().stream()
             .map(
@@ -96,11 +101,16 @@ public class PublicationsService {
   /** A legacy anonymous resource can be attached only with its existing management key. */
   @Transactional
   public Map<String, Integer> claim(String owner, List<Claim> claims) {
+    return claim(owner, claims, null);
+  }
+
+  @Transactional
+  public Map<String, Integer> claim(String owner, List<Claim> claims, JourneyService.Kind kind) {
     if (claims == null || claims.size() > 100) throw ApiException.badRequest("Too many claims");
     int accepted = 0;
     for (var claim : claims) {
       if (claim == null || claim.id() == null || claim.id().length() > 48) continue;
-      if ("site".equals(claim.type())) {
+      if (kind == null && "site".equals(claim.type())) {
         var entity = sites.findById(claim.id()).orElse(null);
         if (entity != null
             && (entity.ownerId == null || owner.equals(entity.ownerId))
@@ -110,13 +120,16 @@ public class PublicationsService {
           accepted++;
         }
       } else if ("document".equals(claim.type())) {
-        var entity = documents.findById(claim.id()).orElse(null);
+        var entity = documents.lockById(claim.id()).orElse(null);
         if (entity != null
+            && (kind == null || kind.name().equals(entity.kind))
             && (entity.ownerId == null || owner.equals(entity.ownerId))
             && PublicationAccess.keyMatches(entity.managementHash, claim.key())) {
-          entity.ownerId = owner;
-          entity.siteSlug = journeys.describe(entity).document().data().get("site");
-          documents.store(entity);
+          if (entity.ownerId == null) {
+            entity.ownerId = owner;
+            entity.siteSlug = journeys.describe(entity).document().data().get("site");
+            documents.store(entity);
+          }
           accepted++;
         }
       }

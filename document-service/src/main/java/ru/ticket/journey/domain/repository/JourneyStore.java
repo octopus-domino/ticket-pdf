@@ -25,5 +25,5 @@ public interface JourneyStore {
   JourneyEntity storeAndFlush(JourneyEntity publication);
 
   /** Searches visible publications in descending update order with a stable ID tie-break. */
-  OwnedPage findOwned(String owner, String site, String searchPattern, int page, int size);
+  OwnedPage findOwned(String owner, String site, String searchPattern, String kind, int page, int size);
 }

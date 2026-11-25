@@ -25,15 +25,10 @@ public class BackgroundCatalog {
   }
 
   public synchronized String image(String id) {
-    if (id == null || !id.matches("[a-z][a-z0-9-]{0,79}"))
-      throw ApiException.badRequest("journey.media.invalid");
     var existing = cache.get(id);
     if (existing != null) return existing;
-    Path file = root.resolve(id + ".webp").normalize();
+    Path file = sourceFile(id);
     try {
-      if (!file.startsWith(root) || !Files.isRegularFile(file)
-          || !file.toRealPath().startsWith(root.toRealPath()) || Files.size(file) > 8_000_000)
-        throw ApiException.badRequest("journey.media.invalid");
       String image;
       try (var stream = new MemoryCacheImageInputStream(Files.newInputStream(file))) {
         var readers = ImageIO.getImageReaders(stream);
@@ -60,5 +55,22 @@ public class BackgroundCatalog {
     } catch (IOException unavailable) {
       throw ApiException.badRequest("journey.media.invalid");
     }
+  }
+
+  public void requirePreset(String id) {
+    sourceFile(id);
+  }
+
+  private Path sourceFile(String id) {
+    if (id == null || !id.matches("[a-z][a-z0-9-]{0,79}"))
+      throw ApiException.badRequest("journey.media.invalid");
+    Path file = root.resolve(id + ".webp").normalize();
+    try {
+      if (file.startsWith(root) && Files.isRegularFile(file)
+          && file.toRealPath().startsWith(root.toRealPath()) && Files.size(file) <= 8_000_000) return file;
+    } catch (IOException unavailable) {
+      throw ApiException.badRequest("journey.media.invalid");
+    }
+    throw ApiException.badRequest("journey.media.invalid");
   }
 }

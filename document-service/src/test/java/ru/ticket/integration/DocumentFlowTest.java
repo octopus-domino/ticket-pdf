@@ -285,6 +285,52 @@ class DocumentFlowTest {
   @Autowired ru.ticket.svg.SvgDocumentBuilder journeySvg;
 
   @Test
+  void browserPreviewLinksTheBackgroundAndOmitsTheOrnamentWhenBranded() throws Exception {
+    var image = new java.awt.image.BufferedImage(256, 256, java.awt.image.BufferedImage.TYPE_INT_RGB);
+    var random = new java.util.Random(123);
+    for (int y = 0; y < 256; y++) for (int x = 0; x < 256; x++) image.setRGB(x, y, random.nextInt(1 << 24));
+    var bytes = new java.io.ByteArrayOutputStream();
+    javax.imageio.ImageIO.write(image, "png", bytes);
+    String png = "data:image/png;base64," + java.util.Base64.getEncoder().encodeToString(bytes.toByteArray());
+    var upload = http.postForEntity("/api/journeys/media/background", Map.of("image", png), Map.class);
+    assertEquals(200, upload.getStatusCode().value());
+    String id = (String) upload.getBody().get("id");
+    var data = Map.of("description", "An invitation to celebrate", "background_media", id);
+    var kind = ru.ticket.journey.application.journey.JourneyService.Kind.INVITATION;
+    var type = ru.ticket.journey.web.journey.JourneyArtworkController.Artwork.class;
+    var ordinary = http.postForEntity("/api/journeys/artwork",
+        new ru.ticket.journey.web.journey.JourneyArtworkController.Input(null, kind, "Party", data), type);
+    var linked = http.postForEntity("/api/journeys/artwork",
+        new ru.ticket.journey.web.journey.JourneyArtworkController.Input(null, kind, "Party", data, null, true), type);
+    assertEquals(200, ordinary.getStatusCode().value());
+    assertEquals(200, linked.getStatusCode().value());
+    assertEquals(id, linked.getBody().background().media());
+    assertTrue(ordinary.getBody().pages().get(0).svg().contains("data:image/png;base64,"));
+    String foreground = linked.getBody().pages().get(0).svg();
+    assertTrue(foreground.contains("M 584 144"));
+    assertFalse(foreground.contains("data:image/"));
+    assertTrue(foreground.length() * 8 < ordinary.getBody().pages().get(0).svg().length());
+    var asset = http.getForEntity("/api/journeys/media/" + id, byte[].class);
+    assertEquals(200, asset.getStatusCode().value());
+    assertTrue(asset.getHeaders().getCacheControl().contains("immutable"));
+
+    var placement = new ru.ticket.journey.shared.JourneyBranding.Placement(id, 1, 0, .12);
+    var branding = new ru.ticket.journey.shared.JourneyBranding(placement, null);
+    var branded = Map.of("description", data.get("description"), "background_media", id, "branding",
+        new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(branding));
+    var response = http.postForEntity("/api/journeys/artwork",
+        new ru.ticket.journey.web.journey.JourneyArtworkController.Input(null, kind, "Party", branded, null, true), type);
+    assertEquals(200, response.getStatusCode().value());
+    assertFalse(response.getBody().pages().get(0).svg().contains("M 584 144"));
+    assertTrue(response.getBody().pages().get(0).svg().contains("data:image/png;base64,"));
+    var printable = journeyDocuments.document(new ru.ticket.journey.application.journey.JourneyService.View(
+        "preview", kind, "Party", branded, java.time.Instant.EPOCH)).slides.get(0);
+    assertTrue(printable.elements.stream().anyMatch(element -> "company-logo".equals(element.id)));
+    assertTrue(printable.elements.stream().noneMatch(element -> "event-branch".equals(element.id)));
+    assertTrue(printable.backgroundImage.startsWith("data:image/png;base64,"));
+  }
+
+  @Test
   void eventArtworkUsesExactlyThePdfCompositionAndExportsReviewArtifacts() throws Exception {
     var mapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
     var dir = ARTIFACT_ROOT.resolve("events");
@@ -968,7 +1014,8 @@ class DocumentFlowTest {
       // including when the new array is shorter or a column is absent.
       var templateRows = List.of(Map.of("name", "STALE", "price", 999), Map.of("name", "STALE"));
       var rows = label.equals("First")
-          ? List.of(Map.of("name", "Alpha", "price", 125), Map.of("name", "Beta", "price", 250))
+          ? List.of(Map.of("name", "Alpha", "price", 125), Map.of("name", "Beta", "price", 250),
+              Map.of("name", "Delta", "price", 375), Map.of("name", "Epsilon", "price", 500))
           : List.of(Map.of("name", "Gamma"));
       var model = http.postForEntity("/api/data-models", new HttpEntity<>(Map.of(
           "schemaId", schemaId, "name", label, "values", Map.of("items", rows, "sample", templateRows)),
@@ -977,9 +1024,9 @@ class DocumentFlowTest {
       items.add(Map.of("dataModelId", model.getBody().get("id")));
     }
     var table = Map.of("type", "table", "id", "lines", "rows", 2, "cols", 2, "width", 400,
-        "height", 100, "data", List.of(List.of("{{sample[0].name}}", "{{sample[0].price}}"),
-            List.of("{{sample[1].name}}", "{{sample[1].price}}")));
-    var slide = Map.of("id", "page", "width", 500, "height", 150, "elements", List.of(table));
+        "height", 100, "data", List.of(List.of("Item", "Price"),
+            List.of("{{sample[0].name}}", "{{sample[0].price}}")));
+    var slide = Map.of("id", "page", "width", 500, "height", 300, "elements", List.of(table));
     var binding = Map.of("elementId", "lines", "placeholder", "sample", "schemaPath", "items",
         "source", "manual", "expectedType", "array");
     var response = http.postForEntity("/api/generate/sync", new HttpEntity<>(Map.of("schemaId", schemaId,
@@ -991,12 +1038,13 @@ class DocumentFlowTest {
       var stripper = new org.apache.pdfbox.text.PDFTextStripper();
       stripper.setEndPage(1);
       var first = stripper.getText(pdf);
-      org.assertj.core.api.Assertions.assertThat(first).contains("Alpha", "125", "Beta", "250")
+      org.assertj.core.api.Assertions.assertThat(first).contains(
+          "Item", "Price", "Alpha", "125", "Beta", "250", "Delta", "375", "Epsilon", "500")
           .doesNotContain("Gamma", "STALE", "999", "{{");
       stripper.setStartPage(2);
       stripper.setEndPage(2);
       org.assertj.core.api.Assertions.assertThat(stripper.getText(pdf)).contains("Gamma")
-          .doesNotContain("Alpha", "Beta", "125", "250", "STALE", "999", "{{");
+          .doesNotContain("Alpha", "Beta", "Delta", "Epsilon", "125", "250", "375", "500", "STALE", "999", "{{");
     }
   }
 

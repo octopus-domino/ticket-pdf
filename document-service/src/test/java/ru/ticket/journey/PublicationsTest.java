@@ -83,6 +83,25 @@ class PublicationsTest {
   }
 
   @Test
+  void albumListingRecoversOnlyAlbumsProvenByTheirManagementKeys() {
+    var album = new JourneyService.Input(
+        JourneyService.Kind.ALBUM, "Shared photos", Map.of("description", "Photos"), List.of());
+    var legacy = documents.create(album).get(0);
+    var unrelated = documents.create(menu("Anonymous menu", null)).get(0);
+    documents.create(menu("Owned menu", null), "owner");
+    documents.create(album, "other");
+
+    var claims = List.of(
+        new PublicationsService.Claim("document", legacy.document().id(), legacy.managementKey()),
+        new PublicationsService.Claim("document", unrelated.document().id(), unrelated.managementKey()));
+    assertThat(registry.claim("owner", claims, JourneyService.Kind.ALBUM).get("accepted")).isEqualTo(1);
+    assertThat(registry.documents("owner", 0, "", "photos", JourneyService.Kind.ALBUM).items())
+        .extracting(item -> item.document().id()).containsExactly(legacy.document().id());
+    assertThat(registry.documents("owner", 0, "", "").total()).isEqualTo(2);
+    assertThat(registry.claim("other", claims, JourneyService.Kind.ALBUM).get("accepted")).isZero();
+  }
+
+  @Test
   void legacyClaimRequiresTheOriginalSecretAndNeverTransfersAnExistingOwner() {
     var legacy = documents.create(menu("Legacy", null)).get(0);
     var claim =

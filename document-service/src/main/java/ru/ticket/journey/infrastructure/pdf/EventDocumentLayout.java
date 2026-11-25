@@ -24,7 +24,7 @@ final class EventDocumentLayout {
   private record Copy(String value, Font font, int size, double gap) {}
 
   ExportRequest compose(
-      JourneyService.View view, String url, JourneySiteService.Definition definition) {
+      JourneyService.View view, String url, JourneySiteService.Definition definition, boolean showOrnament) {
     var palette =
         switch (view.data()
             .getOrDefault("theme", definition == null ? "rose" : definition.theme())) {
@@ -75,7 +75,7 @@ final class EventDocumentLayout {
       copies.add(new Copy("Действует по " + humanDate(until), SANS, 15, 16));
 
     var pages = new ArrayList<Slide>();
-    Slide page = page(view, palette, url, pages, false);
+    Slide page = page(view, palette, url, pages, showOrnament);
     double y = firstHeading(page, view, palette);
     for (var copy : copies) {
       for (String paragraph : copy.value().strip().split("\\R", -1)) {
@@ -86,7 +86,7 @@ final class EventDocumentLayout {
         for (String line : wrap(paragraph, copy.font(), copy.size(), WIDTH - 12)) {
           double advance = copy.size() * 1.48;
           if (y + advance > BOTTOM) {
-            page = page(view, palette, url, pages, true);
+            page = page(view, palette, url, pages, false);
             y = continuationHeading(page, view, palette);
           }
           page.elements.add(text(line, LEFT, y, WIDTH, copy.font(), copy.size(), palette.ink()));
@@ -139,7 +139,7 @@ final class EventDocumentLayout {
   }
 
   private Slide page(
-      JourneyService.View view, Palette p, String url, List<Slide> pages, boolean continued) {
+      JourneyService.View view, Palette p, String url, List<Slide> pages, boolean showOrnament) {
     if (pages.size() >= 40)
       throw ru.ticket.common.ApiException.badRequest(
           "Текст слишком длинный. Сократите приглашение.");
@@ -156,7 +156,7 @@ final class EventDocumentLayout {
             BOLD,
             12,
             p.muted()));
-    if (!continued) {
+    if (showOrnament) {
       var branch = new PathElement();
       branch.id = "event-branch";
       branch.type = "path";

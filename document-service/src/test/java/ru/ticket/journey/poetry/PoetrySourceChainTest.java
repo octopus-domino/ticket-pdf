@@ -33,6 +33,31 @@ class PoetrySourceChainTest {
     verify(ship, times(1)).findExpanded(query);
     verifyNoInteractions(db,tree,wiki);
   }
+  @Test void prefersUnseenThenOlderPoemsAndExcludesTheLastIssue() throws Exception {
+    var first = works();
+    var last = Set.copyOf(first.stream().map(PoetryWork::identity).toList());
+    var candidates = new ArrayList<>(first);
+    candidates.addAll(first.subList(0, 5).stream().map(poem ->
+        new PoetryWork("Older " + poem.title(), poem.text(), poem.author(), "", "", "", "", "", Map.of())).toList());
+    var older = new PoetryWork("Older", "Text", "Author", "", "", "", "", "", Map.of());
+    var unseen = new PoetryWork("Unseen", "Text", "Author", "", "", "", "", "", Map.of());
+    candidates.add(older);
+    when(ship.find(query)).thenReturn(first);
+    when(ship.findExpanded(query)).thenReturn(List.copyOf(candidates));
+    var chain = new PoetrySourceChain(ship, db, tree, wiki);
+    chain.select(query);
+    var exhausted = assertThrows(ru.ticket.common.ApiException.class,
+        () -> chain.select(query, new PoetrySourceChain.History(last, Set.of())));
+    assertEquals("journey.poetry.not-enough-new", exhausted.getMessage());
+
+    var recent = Set.copyOf(candidates.subList(first.size(), candidates.size()).stream().map(PoetryWork::identity).toList());
+    candidates.add(unseen);
+    when(ship.findExpanded(query)).thenReturn(candidates);
+    var next = new PoetrySourceChain(ship, db, tree, wiki)
+        .select(query, new PoetrySourceChain.History(last, recent));
+    assertEquals(unseen, next.get(0));
+    assertTrue(next.stream().noneMatch(poem -> last.contains(poem.identity())));
+  }
   @Test void primarySuccessSkipsFallbackAndReusesSnapshotCandidates() throws Exception {
     when(ship.find(any())).thenReturn(works());var chain=new PoetrySourceChain(ship,db,tree,wiki);
     assertEquals(7,chain.select(query).size());assertEquals(7,chain.select(query).size());

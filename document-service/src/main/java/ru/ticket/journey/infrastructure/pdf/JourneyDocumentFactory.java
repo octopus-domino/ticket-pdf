@@ -13,6 +13,7 @@ import ru.ticket.dto.ExportRequest;
 import ru.ticket.dto.QrElement;
 import ru.ticket.dto.Slide;
 import ru.ticket.dto.TextElement;
+import ru.ticket.image.BackgroundCatalog;
 import ru.ticket.journey.application.journey.JourneyAlbumService;
 import ru.ticket.journey.application.journey.JourneyContentPolicy;
 import ru.ticket.journey.application.journey.JourneyService;
@@ -38,8 +39,11 @@ public class JourneyDocumentFactory {
   private com.fasterxml.jackson.databind.ObjectMapper sourceMapper;
   private JourneyAlbumService albums;
   private JourneyMediaService media;
+  private BackgroundCatalog backgrounds;
   @org.springframework.beans.factory.annotation.Autowired
   void media(JourneyMediaService media) { this.media = media; }
+  @org.springframework.beans.factory.annotation.Autowired
+  void backgrounds(BackgroundCatalog backgrounds) { this.backgrounds = backgrounds; }
   private ru.ticket.journey.poetry.PoetryCardsService poetry;
   @org.springframework.beans.factory.annotation.Autowired
   void poetry(ru.ticket.journey.poetry.PoetryCardsService poetry) { this.poetry = poetry; }
@@ -93,14 +97,15 @@ public class JourneyDocumentFactory {
   }
 
   public ExportRequest document(JourneyService.View view) {
-    JourneySiteService.Definition definition =
-        view.data().containsKey("site") ? sites.get(view.data().get("site")) : null;
-    return document(view, definition);
+    return document(view, siteDefinition(view));
   }
 
   public JourneyConstructorSource.Packet constructorSource(JourneyService.View view) {
-    var definition = view.data().containsKey("site") ? sites.get(view.data().get("site")) : null;
-    return constructorSource(view, definition);
+    return constructorSource(view, siteDefinition(view));
+  }
+
+  private JourneySiteService.Definition siteDefinition(JourneyService.View view) {
+    return view.data().containsKey("site") ? sites.get(view.data().get("site")) : null;
   }
 
   public ExportRequest document(
@@ -110,24 +115,42 @@ public class JourneyDocumentFactory {
 
   public JourneyConstructorSource.Packet constructorSource(JourneyService.View view, JourneySiteService.Definition definition) {
     var packet = buildConstructorSource(view, definition);
-    String preset = view.data().get("background_preset");
-    boolean hasPreset = preset != null && preset.matches("[a-z][a-z0-9-]{0,79}");
-    String background = view.data().get("background_media");
-    if (!hasPreset && (background == null || background.isBlank() || media == null)) return packet;
-    String image;
-    if (hasPreset) image = null;
-    else {
-      var asset = media.get(background);
-      image = asset.dataUri();
-    }
+    var background = selectedBackground(view);
+    if (background == null) return packet;
+    String image = background.media() == null ? null : media.get(background.media()).dataUri();
     var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
     var pages = packet.template().slides().stream().map(page -> {
       var copy = mapper.convertValue(page, Slide.class); copy.backgroundImage = image;
-      copy.backgroundPreset = hasPreset ? preset : null; return copy;
+      copy.backgroundPreset = background.preset(); return copy;
     }).toList();
     var template = packet.template();
     return new JourneyConstructorSource.Packet(new ru.ticket.generation.application.port.GenerationCatalog.Template(
         pages, template.schemaId(), template.fields(), template.bindings()), packet.model(), packet.options());
+  }
+
+  public record PreviewBackground(String preset, String media) {}
+  public record Preview(ExportRequest document, PreviewBackground background) {}
+
+  public Preview preview(JourneyService.View view, JourneySiteService.Definition definition) {
+    var site = definition == null ? siteDefinition(view) : definition;
+    var background = selectedBackground(view);
+    if (background == null) return new Preview(document(view, site), null);
+    if (background.preset() != null) backgrounds.requirePreset(background.preset());
+    else media.requireAsset(background.media());
+    var document = buildConstructorSource(view, site).materialize();
+    for (var page : document.slides) {
+      page.background = "transparent";
+      page.backgroundImage = null;
+      page.backgroundPreset = null;
+    }
+    return new Preview(document, background);
+  }
+
+  private PreviewBackground selectedBackground(JourneyService.View view) {
+    String preset = view.data().get("background_preset");
+    if (preset != null && preset.matches("[a-z][a-z0-9-]{0,79}")) return new PreviewBackground(preset, null);
+    String asset = view.data().get("background_media");
+    return media == null || asset == null || asset.isBlank() ? null : new PreviewBackground(null, asset);
   }
   private JourneyConstructorSource.Packet buildConstructorSource(JourneyService.View view, JourneySiteService.Definition definition) {
     if (printSources != null) {
@@ -183,15 +206,15 @@ public class JourneyDocumentFactory {
   }
 
   ExportRequest prepare(JourneyService.View view, JourneySiteService.Definition definition) {
-    var result = compose(view, definition);
-    if (view.data().containsKey("route") && !view.data().get("route").isBlank()) {
-      if (routeLayout == null) throw new IllegalStateException("Route layout is not configured");
-      routeLayout.append(result, view);
-    }
     var branding =
         view.data().containsKey("branding")
             ? JourneyBranding.parse(view.data().get("branding"))
             : definition == null ? null : definition.branding();
+    var result = compose(view, definition, branding == null || branding.logo() == null);
+    if (view.data().containsKey("route") && !view.data().get("route").isBlank()) {
+      if (routeLayout == null) throw new IllegalStateException("Route layout is not configured");
+      routeLayout.append(result, view);
+    }
     if (branding != null && (branding.logo() != null || branding.picture() != null)) {
       if (brandingLayout == null) throw new IllegalStateException("Media layout is not configured");
       brandingLayout.apply(result, branding);
@@ -200,13 +223,13 @@ public class JourneyDocumentFactory {
   }
 
   private ExportRequest compose(
-      JourneyService.View view, JourneySiteService.Definition definition) {
+      JourneyService.View view, JourneySiteService.Definition definition, boolean showOrnament) {
     if (JourneyGridLayout.supports(view.kind()))
       return new JourneyGridLayout().single(view, publicUrl(view));
     if (view.kind() == JourneyService.Kind.PROPOSAL)
       return new ProposalDocumentLayout().compose(view);
     if (view.kind() == JourneyService.Kind.INVITATION || view.kind() == JourneyService.Kind.TICKET)
-      return new EventDocumentLayout().compose(view, publicUrl(view), definition);
+      return new EventDocumentLayout().compose(view, publicUrl(view), definition, showOrnament);
     String theme =
         view.data().getOrDefault("theme", definition == null ? "sage" : definition.theme());
     String background =

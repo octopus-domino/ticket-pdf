@@ -28,8 +28,9 @@ public class PublicationsController {
       @AuthenticationPrincipal UserIdPrincipal user,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "") String site,
-      @RequestParam(defaultValue = "") String search) {
-    return registry.documents(user.userId(), page, site, search);
+      @RequestParam(defaultValue = "") String search,
+      @RequestParam(required = false) JourneyService.Kind kind) {
+    return registry.documents(user.userId(), page, site, search, kind);
   }
 
   @GetMapping("/sites")
@@ -51,8 +52,9 @@ public class PublicationsController {
   @PostMapping("/claim")
   public Map<String, Integer> claim(
       @AuthenticationPrincipal UserIdPrincipal user,
+      @RequestParam(required = false) JourneyService.Kind kind,
       @RequestBody List<PublicationsService.Claim> claims) {
-    return registry.claim(user.userId(), claims);
+    return registry.claim(user.userId(), claims, kind);
   }
 
   @PutMapping("/sites/{slug}")

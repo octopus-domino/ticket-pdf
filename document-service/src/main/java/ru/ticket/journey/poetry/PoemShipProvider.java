@@ -40,7 +40,7 @@ public class PoemShipProvider implements PoetryProvider {
   private List<PoetryWork> find(PoetryQuery query, boolean expand) throws IOException {
     String key=query.language()+":"+query.mood()+":"+query.audience()+":"+Objects.toString(query.moodText(),"")+":"+query.need();
     if (expand) key += ":expanded";
-    int target = expand ? 14 : 10;
+    int target = expand ? 21 : 10;
     synchronized(cache){var found=cache.get(key);if(found!=null&&found.until>System.currentTimeMillis())return found.value;}
     if(!permit.tryAcquire())return List.of();
     try {
@@ -54,8 +54,9 @@ public class PoemShipProvider implements PoetryProvider {
       // "anyone" includes nursery poetry; recipient ranking adds adult context without inventing an unsupported age enum.
       if(ageSupported&&!Set.of("child","teen").contains(query.audience()))args.put("recipient","friend");
       args.put("max_lines",query.maxLines());args.put("limit",10);
-      args.put("mood",query.mood().equals("funny")?"joyful":query.need().equals("comfort")?"contemplative":"inspiring");
-      if(Set.of("child","teen").contains(query.audience()))args.put("easy_to_read",true);
+      boolean teen = query.audience().equals("teen");
+      args.put("mood",query.mood().equals("funny")?"joyful":teen || query.need().equals("comfort")?"contemplative":"inspiring");
+      if(query.audience().equals("child"))args.put("easy_to_read",true);
       if(query.moodText()!=null&&!query.moodText().isBlank()){
         String text=query.moodText().strip();
         boolean known=false;for(var mood:guide.path("moods"))if(mood.path("name").asText().equalsIgnoreCase(text)){args.put("mood",text);known=true;break;}
@@ -66,11 +67,15 @@ public class PoemShipProvider implements PoetryProvider {
       }
       var found=client.call("find_poems",args);var result=new ArrayList<PoetryWork>();var seen=new HashSet<String>();
       long deadline=System.nanoTime()+Duration.ofSeconds(55).toNanos();
-      for(int pass=0;pass<2;pass++){
-        if(pass==1){
+      for(int pass=0;pass<(expand || teen && !query.mood().equals("funny") ? 3 : 2);pass++){
+        if(pass>0){
           // Broaden only the default mood; never discard an explicitly requested mood/theme or age.
           if(result.size()>=(expand ? target : 7)||query.moodText()!=null&&!query.moodText().isBlank()||System.nanoTime()>deadline)break;
-          args.remove("mood");
+          if (pass == 1) args.remove("mood");
+          else if (teen && !query.mood().equals("funny")) {
+            args.put("need", "hope");
+            args.put("mood", "inspiring");
+          } else args.put("mood", query.mood().equals("funny") ? "inspiring" : "dreamy");
           try{found=client.call("find_poems",args);}catch(IOException unavailable){break;}
         }
       for(var candidate:found.path("poems")){
@@ -94,7 +99,7 @@ public class PoemShipProvider implements PoetryProvider {
         String prefix=PoetryDbProvider.normalize(opening),body=PoetryDbProvider.normalize(work.text());
         if(!prefix.isBlank()&&!body.startsWith(prefix))continue;
         var metadata=new LinkedHashMap<String,Object>();metadata.put("source",name());metadata.put("mood",args.getOrDefault("mood",query.mood()));
-        metadata.put("tags",args.getOrDefault("tags",List.of()));metadata.put("need",query.need());metadata.put("language",query.language());metadata.put("poemship_id",id);
+        metadata.put("tags",args.getOrDefault("tags",List.of()));metadata.put("need",args.getOrDefault("need",query.need()));metadata.put("language",query.language());metadata.put("poemship_id",id);
         metadata.put("text_source",work.metadata().getOrDefault("source",name()));metadata.put("text_complete",true);
         metadata.put("audience",query.audience());metadata.put("audience_policy",2);
         metadata.put("provider_audience",args.getOrDefault("audience","unsupported"));

@@ -107,7 +107,17 @@ public class JourneyMediaService {
 
   @Transactional(readOnly = true)
   public JourneyMedia get(String id) {
-    if (id == null || !id.matches("[a-f0-9]{64}")) throw ApiException.notFound("Image");
+    validateId(id);
     return repository.findById(id).orElseThrow(() -> ApiException.notFound("Image"));
+  }
+
+  @Transactional(readOnly = true)
+  public void requireAsset(String id) {
+    validateId(id);
+    if (!repository.existsById(id)) throw ApiException.notFound("Image");
+  }
+
+  private static void validateId(String id) {
+    if (id == null || !id.matches("[a-f0-9]{64}")) throw ApiException.notFound("Image");
   }
 }
