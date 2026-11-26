@@ -164,14 +164,34 @@ class DocumentFlowTest {
              {"fromSegmentId":"s2","toSegmentId":"s3","geometry":[{"latitude":52.51,"longitude":13.41},{"latitude":52.51,"longitude":13.42}]}]}],
          "meta":{"mode":"TRIP","source":"PRIVATE_JOURNEY"}}
         """.formatted(asset.id(), asset.id(), missing, missing, asset.id(), asset.id());
+    var saved = mapper.readTree(itinerary);
+    var day = (com.fasterxml.jackson.databind.node.ObjectNode) saved.withArray("days").get(0);
+    for (int number = 4; number <= 9; number++) {
+      String stopId = "s" + number;
+      var stop = day.withArray("segments").addObject().put("id", stopId).put("title", "Walk stop " + number);
+      stop.putArray("photoRefs").add(asset.id());
+      stop.putArray("photoCredits").addObject().put("stopId", stopId).put("imageId", asset.id())
+          .put("author", "Photographer " + number).put("license", "CC BY 4.0")
+          .put("licenseUrl", "https://creativecommons.org/licenses/by/4.0/")
+          .put("sourceUrl", "https://commons.wikimedia.org/wiki/File:Walk_" + number + ".jpg");
+      var section = day.withArray("walkingSections").addObject()
+          .put("fromSegmentId", "s" + (number - 1)).put("toSegmentId", stopId).putArray("geometry");
+      section.addObject().put("latitude", 52.51).put("longitude", 13.42 + (number - 4) * 0.01);
+      section.addObject().put("latitude", 52.51).put("longitude", 13.42 + (number - 3) * 0.01);
+    }
     org.mockito.Mockito.when(routingTrips.read("photo-trip", owner.getFirst(HttpHeaders.AUTHORIZATION)))
-        .thenReturn(mapper.readValue(itinerary, Trip.class));
+        .thenReturn(mapper.treeToValue(saved, Trip.class));
     var response = http.exchange("/api/trips/photo-trip/pdf", HttpMethod.GET, new HttpEntity<>(owner), byte[].class);
     assertEquals(200, response.getStatusCode().value());
     try (var pdf = org.apache.pdfbox.Loader.loadPDF(response.getBody())) {
       var text = new org.apache.pdfbox.text.PDFTextStripper().getText(pdf);
       for (String item : List.of("1. Museum", "2. Tower", "3. Bridge", "Meet at the north entrance", "Fixture Author", "CC BY 4.0"))
         assertTrue(text.contains(item), text);
+      for (int number = 4; number <= 9; number++) {
+        assertTrue(text.contains(number + ". Walk stop " + number), text);
+        assertTrue(text.contains("Photographer " + number), text);
+      }
+      assertTrue(pdf.getNumberOfPages() > 2);
       assertFalse(text.contains("Missing image author"));
       assertFalse(text.contains("Unlicensed author"));
       boolean containsPhoto = false;
