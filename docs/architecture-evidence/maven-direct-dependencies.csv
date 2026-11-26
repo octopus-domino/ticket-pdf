@@ -1,0 +1,54 @@
+module,section,group,artifact,version,scope
+document-service,dependency,com.google.zxing,core,${zxing.version},compile
+document-service,dependency,com.google.zxing,javase,${zxing.version},compile
+document-service,dependency,com.h2database,h2,Spring parent/BOM,runtime
+document-service,dependency,com.tngtech.archunit,archunit,1.5.1,test
+document-service,dependency,com.twelvemonkeys.imageio,imageio-webp,3.15.0,compile
+document-service,dependency,de.rototor.pdfbox,graphics2d,${pdfbox-g2d.version},compile
+document-service,dependency,io.jsonwebtoken,jjwt-api,${jjwt.version},compile
+document-service,dependency,io.jsonwebtoken,jjwt-impl,${jjwt.version},runtime
+document-service,dependency,io.jsonwebtoken,jjwt-jackson,${jjwt.version},runtime
+document-service,dependency,io.modelcontextprotocol.sdk,mcp,2.0.1,compile
+document-service,dependency,io.modelcontextprotocol.sdk,mcp-json-jackson2,2.0.1,compile
+document-service,dependency,org.apache.commons,commons-csv,1.14.1,compile
+document-service,dependency,org.apache.httpcomponents.client5,httpclient5,Spring parent/BOM,compile
+document-service,dependency,org.apache.pdfbox,pdfbox,${pdfbox.version},compile
+document-service,dependency,org.apache.pdfbox,xmpbox,${pdfbox.version},compile
+document-service,dependency,org.apache.xmlgraphics,batik-bridge,${batik.version},compile
+document-service,dependency,org.apache.xmlgraphics,batik-codec,${batik.version},compile
+document-service,dependency,org.apache.xmlgraphics,batik-svggen,${batik.version},compile
+document-service,dependency,org.apache.xmlgraphics,batik-transcoder,${batik.version},compile
+document-service,dependency,org.apache.xmlgraphics,fop,${fop.version},compile
+document-service,dependency,org.jsoup,jsoup,1.23.2,compile
+document-service,dependency,org.junit.platform,junit-platform-launcher,Spring parent/BOM,test
+document-service,dependency,org.mnode.ical4j,ical4j,4.2.2,compile
+document-service,dependency,org.postgresql,postgresql,Spring parent/BOM,runtime
+document-service,dependency,org.springframework.boot,spring-boot-starter-actuator,Spring parent/BOM,compile
+document-service,dependency,org.springframework.boot,spring-boot-starter-data-jpa,Spring parent/BOM,compile
+document-service,dependency,org.springframework.boot,spring-boot-starter-mail,Spring parent/BOM,compile
+document-service,dependency,org.springframework.boot,spring-boot-starter-oauth2-client,Spring parent/BOM,compile
+document-service,dependency,org.springframework.boot,spring-boot-starter-security,Spring parent/BOM,compile
+document-service,dependency,org.springframework.boot,spring-boot-starter-test,Spring parent/BOM,test
+document-service,dependency,org.springframework.boot,spring-boot-starter-validation,Spring parent/BOM,compile
+document-service,dependency,org.springframework.boot,spring-boot-starter-web,Spring parent/BOM,compile
+document-service,dependency,org.wiremock,wiremock-standalone,3.13.1,test
+document-service,managed,org.eclipse.emf,org.eclipse.emf.common,2.15.0,compile
+document-service,managed,org.eclipse.emf,org.eclipse.emf.ecore,2.15.0,compile
+document-service,managed,org.eclipse.emf,org.eclipse.emf.ecore.xmi,2.15.0,compile
+routing-service,dependency,com.h2database,h2,Spring parent/BOM,runtime
+routing-service,dependency,com.tngtech.archunit,archunit,1.5.1,test
+routing-service,dependency,io.modelcontextprotocol.sdk,mcp,2.0.1,compile
+routing-service,dependency,io.modelcontextprotocol.sdk,mcp-json-jackson2,2.0.1,compile
+routing-service,dependency,org.apache.commons,commons-csv,1.14.1,compile
+routing-service,dependency,org.geotools,gt-epsg-hsql,${geotools.version},compile
+routing-service,dependency,org.geotools,gt-geopkg,${geotools.version},compile
+routing-service,dependency,org.hibernate.orm,hibernate-spatial,Spring parent/BOM,compile
+routing-service,dependency,org.jsoup,jsoup,1.23.2,compile
+routing-service,dependency,org.locationtech.jts,jts-core,${jts.version},compile
+routing-service,dependency,org.postgresql,postgresql,Spring parent/BOM,runtime
+routing-service,dependency,org.springframework.boot,spring-boot-starter-actuator,Spring parent/BOM,compile
+routing-service,dependency,org.springframework.boot,spring-boot-starter-data-jpa,Spring parent/BOM,compile
+routing-service,dependency,org.springframework.boot,spring-boot-starter-test,Spring parent/BOM,test
+routing-service,dependency,org.springframework.boot,spring-boot-starter-validation,Spring parent/BOM,compile
+routing-service,dependency,org.springframework.boot,spring-boot-starter-web,Spring parent/BOM,compile
+routing-service,dependency,org.wiremock,wiremock-standalone,3.13.1,test

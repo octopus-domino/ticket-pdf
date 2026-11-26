@@ -1,0 +1,36 @@
+from,kind,shortest-runtime-chain
+src/domain/index.ts,browser,src/domain/index.ts -> src/domain/slide/operations.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/domain/slide/operations.ts,browser,src/domain/slide/operations.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/features/bindings/domain/BindingResolver.ts,browser,src/features/bindings/domain/BindingResolver.ts -> src/shared/i18n/index.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/features/bindings/domain/BindingResolver.ts,framework,src/features/bindings/domain/BindingResolver.ts -> src/shared/i18n/index.ts -> react
+src/features/bindings/domain/BindingValidator.ts,browser,src/features/bindings/domain/BindingValidator.ts -> src/shared/i18n/index.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/features/bindings/domain/BindingValidator.ts,framework,src/features/bindings/domain/BindingValidator.ts -> src/shared/i18n/index.ts -> react
+src/features/data-models/domain/DataModelValidator.ts,browser,src/features/data-models/domain/DataModelValidator.ts -> src/shared/i18n/index.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/features/data-models/domain/DataModelValidator.ts,framework,src/features/data-models/domain/DataModelValidator.ts -> src/shared/i18n/index.ts -> react
+src/features/feedback/domain/Feedback.ts,browser,src/features/feedback/domain/Feedback.ts -> src/shared/i18n/index.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/features/feedback/domain/Feedback.ts,framework,src/features/feedback/domain/Feedback.ts -> src/shared/i18n/index.ts -> react
+src/features/generation/domain/GenerationValidator.ts,browser,src/features/generation/domain/GenerationValidator.ts -> src/shared/i18n/index.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/features/generation/domain/GenerationValidator.ts,framework,src/features/generation/domain/GenerationValidator.ts -> src/shared/i18n/index.ts -> react
+src/features/image-template/domain/recognizedLayout.ts,browser,src/features/image-template/domain/recognizedLayout.ts -> document (src/features/image-template/domain/recognizedLayout.ts:57)
+src/features/image-template/domain/recognizedLayout.ts,framework,src/features/image-template/domain/recognizedLayout.ts -> src/lib/factories.ts -> src/shared/i18n/index.ts -> react
+src/features/journeys/domain/definitions.ts,browser,src/features/journeys/domain/definitions.ts -> src/shared/i18n/index.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/features/journeys/domain/definitions.ts,framework,src/features/journeys/domain/definitions.ts -> src/shared/i18n/index.ts -> react
+src/features/journeys/domain/extraPresets.ts,browser,src/features/journeys/domain/extraPresets.ts -> src/shared/i18n/index.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/features/journeys/domain/extraPresets.ts,framework,src/features/journeys/domain/extraPresets.ts -> src/shared/i18n/index.ts -> react
+src/features/journeys/domain/localizePresetDraft.ts,browser,src/features/journeys/domain/localizePresetDraft.ts -> src/shared/i18n/index.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/features/journeys/domain/localizePresetDraft.ts,framework,src/features/journeys/domain/localizePresetDraft.ts -> src/shared/i18n/index.ts -> react
+src/features/journeys/domain/planner/draftMigration.ts,browser,src/features/journeys/domain/planner/draftMigration.ts -> localStorage (src/features/journeys/domain/planner/draftMigration.ts:68)
+src/features/journeys/domain/proposal.ts,browser,src/features/journeys/domain/proposal.ts -> src/shared/i18n/index.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/features/journeys/domain/proposal.ts,framework,src/features/journeys/domain/proposal.ts -> src/shared/i18n/index.ts -> react
+src/features/journeys/domain/tripDocumentContent.ts,browser,src/features/journeys/domain/tripDocumentContent.ts -> document (src/features/journeys/domain/tripDocumentContent.ts:39)
+src/features/journeys/domain/tripDocumentContent.ts,framework,src/features/journeys/domain/tripDocumentContent.ts -> src/shared/i18n/index.ts -> react
+src/features/journeys/domain/tripTemplateSlides.ts,browser,src/features/journeys/domain/tripTemplateSlides.ts -> src/features/journeys/domain/tripDocumentContent.ts -> document (src/features/journeys/domain/tripDocumentContent.ts:39)
+src/features/journeys/domain/tripTemplateSlides.ts,framework,src/features/journeys/domain/tripTemplateSlides.ts -> src/shared/i18n/index.ts -> react
+src/features/schemas/domain/DataSchema.ts,browser,src/features/schemas/domain/DataSchema.ts -> src/shared/i18n/index.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/features/schemas/domain/DataSchema.ts,framework,src/features/schemas/domain/DataSchema.ts -> src/shared/i18n/index.ts -> react
+src/features/schemas/domain/SchemaInference.ts,browser,src/features/schemas/domain/SchemaInference.ts -> src/shared/i18n/index.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/features/schemas/domain/SchemaInference.ts,framework,src/features/schemas/domain/SchemaInference.ts -> src/shared/i18n/index.ts -> react
+src/features/schemas/domain/schemaSelection.ts,browser,src/features/schemas/domain/schemaSelection.ts -> src/features/schemas/state/SchemaStore.ts -> localStorage (src/features/schemas/state/SchemaStore.ts:130)
+src/features/schemas/domain/schemaSelection.ts,framework,src/features/schemas/domain/schemaSelection.ts -> src/features/schemas/state/SchemaStore.ts -> src/shared/store/store.ts -> react
+src/features/workspace/domain/WorkspaceFlow.ts,browser,src/features/workspace/domain/WorkspaceFlow.ts -> src/shared/i18n/index.ts -> src/shared/i18n/core.ts -> localStorage (src/shared/i18n/core.ts:26)
+src/features/workspace/domain/WorkspaceFlow.ts,framework,src/features/workspace/domain/WorkspaceFlow.ts -> src/shared/i18n/index.ts -> react

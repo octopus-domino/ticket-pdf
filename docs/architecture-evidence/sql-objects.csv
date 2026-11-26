@@ -1,0 +1,37 @@
+repo,operation,table,file,line
+ticket-infra,ALTER TABLE,journey_batches,scripts/journey-batch-owner.sql,2
+ticket-infra,CREATE TABLE,journey_albums,scripts/journey-albums.sql,1
+ticket-infra,CREATE TABLE,journey_print_sources,scripts/journey-print-sources.sql,2
+ticket-infra,CREATE TABLE,poetry_sets,scripts/poetry-sets.sql,2
+ticket-infra,CREATE TABLE,workflow_visits,scripts/workflow-visits.sql,2
+ticket-pdf,ALTER TABLE,building_history,routing-service/src/main/resources/db/upgrade-building-history.sql,9
+ticket-pdf,ALTER TABLE,building_history,routing-service/src/main/resources/db/upgrade-building-history.sql,10
+ticket-pdf,ALTER TABLE,journey_batches,document-service/src/main/resources/db/upgrade-journeys.sql,22
+ticket-pdf,ALTER TABLE,journey_sites,document-service/src/main/resources/db/upgrade-journeys.sql,25
+ticket-pdf,ALTER TABLE,public.,routing-service/src/main/resources/db/upgrade-routing-schema.sql,12
+ticket-pdf,ALTER TABLE,public_journeys,document-service/src/main/resources/db/upgrade-journeys.sql,16
+ticket-pdf,ALTER TABLE,public_journeys,document-service/src/main/resources/db/upgrade-journeys.sql,23
+ticket-pdf,ALTER TABLE,public_journeys,document-service/src/main/resources/db/upgrade-journeys.sql,24
+ticket-pdf,ALTER TABLE,routing.journey_trip_drafts,routing-service/src/main/resources/db/upgrade-trip-drafts.sql,9
+ticket-pdf,ALTER TABLE,templates,document-service/src/main/resources/db/upgrade-template-folders.sql,1
+ticket-pdf,CREATE TABLE,api_client_keys,document-service/src/main/resources/db/upgrade-client-api.sql,1
+ticket-pdf,CREATE TABLE,asset_libraries,document-service/src/main/resources/db/upgrade-libraries.sql,1
+ticket-pdf,CREATE TABLE,building_history,routing-service/src/main/resources/db/upgrade-building-history.sql,2
+ticket-pdf,CREATE TABLE,client_profiles,document-service/src/main/resources/db/upgrade-profile.sql,1
+ticket-pdf,CREATE TABLE,email_deliveries,document-service/src/main/resources/db/upgrade-email-ledger.sql,2
+ticket-pdf,CREATE TABLE,journey_batches,document-service/src/main/resources/db/upgrade-journeys.sql,17
+ticket-pdf,CREATE TABLE,journey_media,document-service/src/main/resources/db/upgrade-journeys.sql,29
+ticket-pdf,CREATE TABLE,journey_responses,document-service/src/main/resources/db/upgrade-journeys.sql,6
+ticket-pdf,CREATE TABLE,journey_reviews,document-service/src/main/resources/db/upgrade-journeys.sql,33
+ticket-pdf,CREATE TABLE,journey_routes,document-service/src/main/resources/db/upgrade-journeys.sql,39
+ticket-pdf,CREATE TABLE,journey_sites,document-service/src/main/resources/db/upgrade-journeys.sql,12
+ticket-pdf,CREATE TABLE,mystic_places,routing-service/src/main/resources/db/upgrade-mystic-places.sql,2
+ticket-pdf,CREATE TABLE,public_journeys,document-service/src/main/resources/db/upgrade-journeys.sql,1
+ticket-pdf,CREATE TABLE,resource_revisions,document-service/src/main/resources/db/upgrade-history.sql,1
+ticket-pdf,CREATE TABLE,routing.journey_trip_drafts,routing-service/src/main/resources/db/upgrade-trip-drafts.sql,1
+ticket-pdf,CREATE TABLE,site_addresses,document-service/src/main/resources/db/upgrade-workflows.sql,14
+ticket-pdf,CREATE TABLE,source_connections,document-service/src/main/resources/db/upgrade-connectors.sql,1
+ticket-pdf,CREATE TABLE,workflows,document-service/src/main/resources/db/upgrade-workflows.sql,1
+ticket-pdf,INSERT INTO,site_addresses,document-service/src/main/resources/db/upgrade-workflows.sql,19
+ticket-pdf,INSERT INTO,site_addresses,document-service/src/main/resources/db/upgrade-workflows.sql,21
+ticket-pdf,UPDATE,routing.journey_trip_drafts,routing-service/src/main/resources/db/upgrade-trip-drafts.sql,15

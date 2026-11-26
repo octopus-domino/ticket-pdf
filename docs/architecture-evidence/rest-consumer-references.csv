@@ -1,0 +1,349 @@
+repo,file,line,path-fragment,route-candidates
+private_jorney,android/app/src/main/java/codoc/site/privateWalks/PublicSourceBrowserChannel.java,49,/api/0.6/map,
+private_jorney,android/app/src/main/java/codoc/site/privateWalks/PublicSourceBrowserChannel.java,54,/api/interpreter,
+private_jorney,android/app/src/main/java/codoc/site/privateWalks/PublicSourceBrowserChannel.java,57,/api/v2/points,
+private_jorney,src/application/use-cases/buildWalkingRoute.ts,16,/api/routing/v1/road,routing-service POST /api/routing/v1/road
+private_jorney,src/application/use-cases/historicalHouseToPoi.ts,6,/api/walks/v1/buildings/nearby,routing-service GET /api/walks/v1/buildings/nearby
+private_jorney,src/infrastructure/api/httpHistoricalHouseRepository.ts,86,/api/walks/v1/buildings/nearby,routing-service GET /api/walks/v1/buildings/nearby
+private_jorney,src/infrastructure/api/httpHistoricalHouseRepository.ts,105,/api/walks/v1/buildings,routing-service GET /api/walks/v1/buildings
+private_jorney,src/infrastructure/api/httpPlaceRecommendationsRepository.ts,86,/api/walks/v1/places/themed,routing-service GET /api/walks/v1/places/themed
+private_jorney,src/infrastructure/api/httpPlaceRecommendationsRepository.ts,107,/api/walks/v1/places,routing-service GET /api/walks/v1/places
+private_jorney,src/infrastructure/api/httpPlaceRecommendationsRepository.ts,151,/api/walks/v1/places/themes,routing-service GET /api/walks/v1/places/themes
+private_jorney,src/infrastructure/api/httpRoutePlanner.ts,25,/api/routing/v1/road,routing-service POST /api/routing/v1/road
+private_jorney,src/infrastructure/api/moscowHistoryRepository.ts,75,/api/v2/points,
+private_jorney,src/infrastructure/config.ts,22,/api/walks/v1/places/themed,routing-service GET /api/walks/v1/places/themed
+private_jorney,src/infrastructure/index.ts,2,/api/httpPlaceRecommendationsRepository,
+private_jorney,src/infrastructure/index.ts,3,/api/httpHistoricalHouseRepository,
+private_jorney,src/infrastructure/index.ts,4,/api/httpRoutePlanner,
+private_jorney,src/infrastructure/index.ts,5,/api/httpPlaceInfoRepository,
+private_jorney,src/infrastructure/index.ts,6,/api/photonGeocoder,
+private_jorney,src/infrastructure/index.ts,8,/api/indexedCitywallsHistoryRepository,
+private_jorney,src/infrastructure/index.ts,9,/api/citywallsLocalIndex,
+private_jorney,src/infrastructure/index.ts,10,/api/gorodBuildingProfileRepository,
+private_jorney,src/infrastructure/index.ts,11,/api/cianApartmentListingsRepository,
+private_jorney,src/infrastructure/index.ts,12,/api/avitoApartmentListingsRepository,
+private_jorney,src/infrastructure/index.ts,15,/api/cityHistoryRepository,
+private_jorney,src/infrastructure/index.ts,16,/api/moscowHistoryRepository,
+private_jorney,src/infrastructure/index.ts,17,/api/codocAreaPoiRepository,
+private_jorney,src/infrastructure/index.ts,18,/api/moscowDataClient,
+private_jorney,src/infrastructure/index.ts,19,/api/moscowBuildingProfileRepository,
+private_jorney,src/infrastructure/index.ts,20,/api/cityBuildingProfileRepository,
+private_jorney,src/infrastructure/recording/trackCorridorRepository.ts,6,/api/readExternalPage,
+ticket-editor,src/auth/LoginPage.tsx,92,/oauth2/authorization/google,
+ticket-editor,src/auth/api.ts,14,/api/auth/register,document-service POST /api/auth/register
+ticket-editor,src/auth/api.ts,24,/api/auth/login,document-service POST /api/auth/login
+ticket-editor,src/auth/api.ts,34,/api/auth/refresh,document-service POST /api/auth/refresh
+ticket-editor,src/auth/api.ts,45,/api/auth/logout,document-service POST /api/auth/logout
+ticket-editor,src/auth/api.ts,56,/api/auth/me,document-service GET /api/auth/me
+ticket-editor,src/features/asset-libraries/AssetLibrariesPage.tsx,35,/api/libraries,document-service GET /api/libraries; document-service POST /api/libraries
+ticket-editor,src/features/asset-libraries/AssetLibrariesPage.tsx,39,/api/templates,document-service GET /api/templates; document-service POST /api/templates
+ticket-editor,src/features/asset-libraries/AssetLibrariesPage.tsx,72,/api/libraries,document-service GET /api/libraries; document-service POST /api/libraries
+ticket-editor,src/features/asset-libraries/AssetLibrariesPage.tsx,80,/api/libraries/{arg},document-service GET /api/libraries/{id}; document-service PUT /api/libraries/{id}
+ticket-editor,src/features/asset-libraries/AssetLibrariesPage.tsx,86,/api/libraries/{arg},document-service GET /api/libraries/{id}; document-service PUT /api/libraries/{id}
+ticket-editor,src/features/asset-libraries/AssetLibrariesPage.tsx,152,/api/templates/{arg},document-service DELETE /api/templates/{id}; document-service GET /api/templates/{id}; document-service PUT /api/templates/{id}
+ticket-editor,src/features/asset-libraries/AssetLibrariesPage.tsx,175,/api/templates,document-service GET /api/templates; document-service POST /api/templates
+ticket-editor,src/features/asset-libraries/AssetLibrariesPage.tsx,190,/api/libraries/{arg},document-service GET /api/libraries/{id}; document-service PUT /api/libraries/{id}
+ticket-editor,src/features/asset-libraries/AssetLibrariesPage.tsx,209,/api/libraries/{arg}/members,document-service POST /api/libraries/{id}/members
+ticket-editor,src/features/asset-libraries/AssetLibrariesPage.tsx,213,/api/libraries/{arg},document-service GET /api/libraries/{id}; document-service PUT /api/libraries/{id}
+ticket-editor,src/features/asset-libraries/AssetLibrariesPage.tsx,239,/api/libraries/{arg},document-service GET /api/libraries/{id}; document-service PUT /api/libraries/{id}
+ticket-editor,src/features/client-api/ApiAccessPage.tsx,30,/api/client-keys,document-service GET /api/client-keys; document-service POST /api/client-keys
+ticket-editor,src/features/client-api/ApiAccessPage.tsx,43,/api/client-keys,document-service GET /api/client-keys; document-service POST /api/client-keys
+ticket-editor,src/features/client-api/ApiAccessPage.tsx,63,/api/client-keys/{arg},document-service DELETE /api/client-keys/{id}
+ticket-editor,src/features/connectors/ConnectorPage.tsx,94,/api/connectors,document-service GET /api/connectors; document-service POST /api/connectors
+ticket-editor,src/features/connectors/ConnectorPage.tsx,96,/api/connectors,document-service GET /api/connectors; document-service POST /api/connectors
+ticket-editor,src/features/connectors/ConnectorPage.tsx,121,/api/connectors,document-service GET /api/connectors; document-service POST /api/connectors
+ticket-editor,src/features/connectors/ConnectorPage.tsx,142,/api/connectors/{arg}/preview,document-service POST /api/connectors/{id}/preview
+ticket-editor,src/features/connectors/ConnectorPage.tsx,158,/api/connectors/{arg}/import,document-service POST /api/connectors/{id}/import
+ticket-editor,src/features/connectors/ConnectorPage.tsx,297,/api/connectors/{arg},document-service DELETE /api/connectors/{id}
+ticket-editor,src/features/data-models/api/HttpDataModelRepository.ts,22,/api/data-models/import,document-service DELETE /api/data-models/{id}; document-service GET /api/data-models/{id}; document-service POST /api/data-models/import; document-service PUT /api/data-models/{id}
+ticket-editor,src/features/data-models/api/HttpDataModelRepository.ts,31,/api/data-models{arg},
+ticket-editor,src/features/data-models/api/HttpDataModelRepository.ts,34,/api/data-models/{arg},document-service DELETE /api/data-models/{id}; document-service GET /api/data-models/{id}; document-service PUT /api/data-models/{id}
+ticket-editor,src/features/data-models/api/HttpDataModelRepository.ts,44,/api/data-models,document-service GET /api/data-models; document-service POST /api/data-models
+ticket-editor,src/features/data-models/api/HttpDataModelRepository.ts,56,/api/data-models/{arg},document-service DELETE /api/data-models/{id}; document-service GET /api/data-models/{id}; document-service PUT /api/data-models/{id}
+ticket-editor,src/features/data-models/api/HttpDataModelRepository.ts,64,/api/data-models/{arg},document-service DELETE /api/data-models/{id}; document-service GET /api/data-models/{id}; document-service PUT /api/data-models/{id}
+ticket-editor,src/features/data-models/state/ModelStore.ts,3,/api/DataModelRepository,
+ticket-editor,src/features/data-models/state/ModelStore.ts,4,/api/HttpDataModelRepository,
+ticket-editor,src/features/data-models/ui/DataModelImporter.tsx,3,/api/ModelIO,
+ticket-editor,src/features/data-models/ui/ExcelActions.tsx,12,/api/ExcelModelIO,
+ticket-editor,src/features/data-models/ui/JsonImporterPanel.tsx,3,/api/ModelIO,
+ticket-editor,src/features/data-models/ui/JsonImporterPanel.tsx,46,/api/ExcelModelIO,
+ticket-editor,src/features/data-models/ui/ModelsPage.tsx,7,/api/ModelIO,
+ticket-editor,src/features/email/api/EmailClient.ts,39,/api/email/preview,document-service POST /api/email/preview
+ticket-editor,src/features/email/api/EmailClient.ts,49,/api/email/build,document-service POST /api/email/build
+ticket-editor,src/features/email/api/EmailClient.ts,69,/api/email/send,document-service POST /api/email/send
+ticket-editor,src/features/email/index.ts,9,/api/EmailClient,
+ticket-editor,src/features/email/index.ts,10,/api/EmailClient,
+ticket-editor,src/features/email/state/EmailStore.ts,10,/api/EmailClient,
+ticket-editor,src/features/feedback/ui/FeedbackWidget.tsx,6,/api/MetrikaFeedbackClient,
+ticket-editor,src/features/generation/api/HttpGenerationClient.ts,12,/api/generate/sync,document-service DELETE /api/generate/{jobId}; document-service GET /api/generate/{jobId}; document-service POST /api/generate/sync
+ticket-editor,src/features/generation/api/HttpGenerationClient.ts,35,/api/generate,document-service GET /api/generate; document-service POST /api/generate
+ticket-editor,src/features/generation/api/HttpGenerationClient.ts,55,/api/generate/{arg},document-service DELETE /api/generate/{jobId}; document-service GET /api/generate/{jobId}
+ticket-editor,src/features/generation/api/HttpGenerationClient.ts,61,/api/generate/{arg}/result,document-service GET /api/generate/{jobId}/result
+ticket-editor,src/features/generation/api/HttpGenerationClient.ts,67,/api/generate/{arg},document-service DELETE /api/generate/{jobId}; document-service GET /api/generate/{jobId}
+ticket-editor,src/features/generation/state/GenerationCoordinator.ts,8,/api/GenerationClient,
+ticket-editor,src/features/generation/state/GenerationCoordinator.ts,9,/api/HttpGenerationClient,
+ticket-editor,src/features/generation/ui/GenerationPage.tsx,13,/api/GenerationClient,
+ticket-editor,src/features/generation/ui/GenerationPreview.tsx,3,/api/GenerationClient,
+ticket-editor,src/features/generation/ui/GenerationPreview.tsx,18,/api/generate/preview,document-service DELETE /api/generate/{jobId}; document-service GET /api/generate/{jobId}; document-service POST /api/generate/preview
+ticket-editor,src/features/history/GenerationHistoryPage.tsx,27,/api/generate,document-service GET /api/generate; document-service POST /api/generate
+ticket-editor,src/features/history/GenerationHistoryPage.tsx,47,/api/generate/{arg}/retry,document-service POST /api/generate/{jobId}/retry
+ticket-editor,src/features/history/ResourceHistoryPanel.tsx,22,/api/history/{arg}/{arg},document-service GET /api/history/{kind}/{resource}
+ticket-editor,src/features/history/ResourceHistoryPanel.tsx,36,/api/history/{arg}/{arg}/{arg}/copy,document-service POST /api/history/{kind}/{resource}/{revision}/copy
+ticket-editor,src/features/image-template/api/recognitionClient.ts,40,/api/recognition,document-service POST /api/recognition
+ticket-editor,src/features/image-template/api/recognitionClient.ts,94,/api/recognition/pdf-page,document-service POST /api/recognition/pdf-page
+ticket-editor,src/features/image-template/ui/ImageTemplateImport.tsx,6,/api/recognitionClient,
+ticket-editor,src/features/image-template/ui/ImageTemplateImport.tsx,89,/api/recognition/capabilities,document-service GET /api/recognition/capabilities
+ticket-editor,src/features/journeys/JourneyApp.tsx,6,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/api/journeys.ts,17,/api/routing,
+ticket-editor,src/features/journeys/api/journeys.ts,17,/api/walks,
+ticket-editor,src/features/journeys/api/journeys.ts,18,/api/publications,document-service GET /api/publications
+ticket-editor,src/features/journeys/api/journeys.ts,39,/api/{arg}/batches/{arg}/zip,
+ticket-editor,src/features/journeys/api/journeys.ts,48,/api/{arg}/batches/{arg},
+ticket-editor,src/features/journeys/api/journeys.ts,51,/api/journeys/{arg}/status,document-service GET /api/journeys/{id}/status; document-service POST /api/journeys/{id}/status
+ticket-editor,src/features/journeys/api/journeys.ts,53,/api/{arg}/{arg}/status,
+ticket-editor,src/features/journeys/api/journeys.ts,58,/api/{arg}/{arg}/consume,
+ticket-editor,src/features/journeys/api/journeys.ts,66,/api/{arg}/batches/{arg}/pdf,
+ticket-editor,src/features/journeys/api/journeys.ts,84,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/api/journeys.ts,94,/api/journeys/{arg},document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service PUT /api/journeys/{id}
+ticket-editor,src/features/journeys/api/journeys.ts,98,/api/journeys/{arg}/manage,document-service GET /api/journeys/{id}/manage
+ticket-editor,src/features/journeys/api/journeys.ts,99,/api/publications/{arg},document-service DELETE /api/publications/{id}; document-service GET /api/publications/{id}; document-service PUT /api/publications/{id}
+ticket-editor,src/features/journeys/api/journeys.ts,106,/api/{arg}/{arg},
+ticket-editor,src/features/journeys/api/journeys.ts,118,/api/{arg}/{arg},
+ticket-editor,src/features/journeys/api/journeys.ts,124,/api/{arg}/{arg}/responses,
+ticket-editor,src/features/journeys/api/journeys.ts,130,/api/journeys/{arg}/responses,document-service GET /api/journeys/{id}/responses; document-service POST /api/journeys/{id}/responses
+ticket-editor,src/features/journeys/api/journeys.ts,135,/api/journey-sites/{arg},document-service GET /api/journey-sites/{slug}; document-service PUT /api/journey-sites/{slug}
+ticket-editor,src/features/journeys/api/journeys.ts,137,/api/journey-sites,document-service POST /api/journey-sites
+ticket-editor,src/features/journeys/api/journeys.ts,144,/api/journey-sites/{arg},document-service GET /api/journey-sites/{slug}; document-service PUT /api/journey-sites/{slug}
+ticket-editor,src/features/journeys/api/journeys.ts,145,/api/publications/sites/{arg},document-service PUT /api/publications/sites/{slug}
+ticket-editor,src/features/journeys/api/journeys.ts,155,/api/journeys/{arg}/pdf{arg},
+ticket-editor,src/features/journeys/api/media.ts,5,/api/journeys/media/{arg},document-service GET /api/journeys/media/{id}
+ticket-editor,src/features/journeys/api/media.ts,10,/api/journeys/media,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/media; document-service PUT /api/journeys/{id}
+ticket-editor,src/features/journeys/api/placePhotos.ts,65,/api/journeys/media,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/media; document-service PUT /api/journeys/{id}
+ticket-editor,src/features/journeys/api/publications.ts,39,/api/publications/claim,document-service DELETE /api/publications/{id}; document-service GET /api/publications/{id}; document-service POST /api/publications/claim; document-service PUT /api/publications/{id}
+ticket-editor,src/features/journeys/api/publications.ts,48,/api/publications,document-service GET /api/publications
+ticket-editor,src/features/journeys/api/publications.ts,52,/api/publications/sites,document-service DELETE /api/publications/{id}; document-service GET /api/publications/sites; document-service GET /api/publications/{id}; document-service PUT /api/publications/{id}
+ticket-editor,src/features/journeys/api/publications.ts,54,/api/publications/batches,document-service DELETE /api/publications/{id}; document-service GET /api/publications/batches; document-service GET /api/publications/{id}; document-service PUT /api/publications/{id}
+ticket-editor,src/features/journeys/api/routePlanner.ts,11,/api/routing/v1/road,routing-service POST /api/routing/v1/road
+ticket-editor,src/features/journeys/api/tripDraft.ts,189,/api/routing/v1/trips,routing-service GET /api/routing/v1/trips; routing-service POST /api/routing/v1/trips
+ticket-editor,src/features/journeys/api/tripDraft.ts,242,/api/trips/{arg}/{arg},
+ticket-editor,src/features/journeys/api/tripRail.ts,8,/api/journeys/routes/places/trains/places,document-service GET /api/journeys/routes/places/trains/places
+ticket-editor,src/features/journeys/api/tripRail.ts,12,/api/journeys/routes/places/trains,document-service POST /api/journeys/routes/places/trains
+ticket-editor,src/features/journeys/domain/planner/draftMigration.ts,1,/api/tripDraft,
+ticket-editor,src/features/journeys/domain/planner/plannerReducer.ts,1,/api/tripDraft,
+ticket-editor,src/features/journeys/domain/tripDocumentContent.ts,3,/api/tripDraft,
+ticket-editor,src/features/journeys/domain/tripTemplateSlides.ts,3,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/AccountTripPage.tsx,5,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/AlbumPanel.tsx,5,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/AlbumPanel.tsx,6,/api/media,
+ticket-editor,src/features/journeys/ui/AlbumPanel.tsx,20,/api/journeys/{arg}/album,document-service GET /api/journeys/{id}/album
+ticket-editor,src/features/journeys/ui/AlbumPanel.tsx,57,/api/journeys/fonts/handwriting,document-service GET /api/journeys/fonts/{face}
+ticket-editor,src/features/journeys/ui/AlbumPanel.tsx,57,/api/journeys/fonts/handwriting-zh,document-service GET /api/journeys/fonts/{face}
+ticket-editor,src/features/journeys/ui/AlbumWizard.tsx,7,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/BatchRecipientsEditor.tsx,3,/api/readProposalWorkbook,
+ticket-editor,src/features/journeys/ui/ConstructorPublicationActions.tsx,4,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/ConstructorPublicationActions.tsx,19,/api/publications/batches/{arg}/constructor,document-service PUT /api/publications/batches/{id}/constructor
+ticket-editor,src/features/journeys/ui/ConstructorPublicationActions.tsx,20,/api/publications/sites/{arg}/constructor,document-service PUT /api/publications/sites/{slug}/constructor
+ticket-editor,src/features/journeys/ui/ConstructorPublicationActions.tsx,21,/api/publications/{arg}/constructor{arg},
+ticket-editor,src/features/journeys/ui/DayPlanningPanel.tsx,3,/api/planner/dayRoadMatrix,
+ticket-editor,src/features/journeys/ui/JourneyArtwork.tsx,9,/api/media,
+ticket-editor,src/features/journeys/ui/JourneyArtwork.tsx,29,/api/journeys/fonts/{arg},document-service GET /api/journeys/fonts/{face}
+ticket-editor,src/features/journeys/ui/JourneyArtwork.tsx,78,/api/journeys/artwork,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/artwork; document-service PUT /api/journeys/{id}
+ticket-editor,src/features/journeys/ui/JourneyBackgroundPicker.tsx,3,/api/media,
+ticket-editor,src/features/journeys/ui/JourneyBatch.tsx,4,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/JourneyBrandingEditor.tsx,4,/api/media,
+ticket-editor,src/features/journeys/ui/JourneyConstructorButton.tsx,8,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/JourneyConstructorButton.tsx,20,/api/publications/{arg}/constructor,document-service POST /api/publications/{id}/constructor; document-service PUT /api/publications/{id}/constructor
+ticket-editor,src/features/journeys/ui/JourneyPublic.tsx,5,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/JourneyPublic.tsx,177,/api/journeys/{arg}/contact,document-service GET /api/journeys/{id}/contact
+ticket-editor,src/features/journeys/ui/JourneyPublic.tsx,185,/api/journeys/{arg}/calendar,document-service GET /api/journeys/{id}/calendar
+ticket-editor,src/features/journeys/ui/JourneyPublic.tsx,212,/api/qr,document-service GET /api/qr
+ticket-editor,src/features/journeys/ui/JourneyPublic.tsx,220,/api/qr,document-service GET /api/qr
+ticket-editor,src/features/journeys/ui/JourneyReviews.tsx,3,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/JourneyReviews.tsx,52,/api/journeys/{arg}/reviews,document-service GET /api/journeys/{id}/reviews; document-service POST /api/journeys/{id}/reviews
+ticket-editor,src/features/journeys/ui/JourneyReviews.tsx,59,/api/journeys/{arg}/reviews,document-service GET /api/journeys/{id}/reviews; document-service POST /api/journeys/{id}/reviews
+ticket-editor,src/features/journeys/ui/JourneyReviews.tsx,76,/api/journeys/{arg}/reviews,document-service GET /api/journeys/{id}/reviews; document-service POST /api/journeys/{id}/reviews
+ticket-editor,src/features/journeys/ui/JourneySiteBuilder.tsx,7,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/JourneyStatusActions.tsx,3,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/JourneyWizard.tsx,7,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/PoetryWizard.tsx,5,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/PoetryWizard.tsx,67,/api/journeys/poetry,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/poetry; document-service PUT /api/journeys/{id}
+ticket-editor,src/features/journeys/ui/ProposalEditor.tsx,5,/api/readProposalWorkbook,
+ticket-editor,src/features/journeys/ui/PublicationsPage.tsx,12,/api/publications,document-service GET /api/publications
+ticket-editor,src/features/journeys/ui/PublicationsPage.tsx,13,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/RouteAddressInput.tsx,3,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/RouteAddressInput.tsx,56,/api/walks/v1/addresses,routing-service GET /api/walks/v1/addresses
+ticket-editor,src/features/journeys/ui/RouteEditor.tsx,4,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/RouteEditor.tsx,5,/api/errorMessage,
+ticket-editor,src/features/journeys/ui/RouteEditor.tsx,12,/api/routePlanner,
+ticket-editor,src/features/journeys/ui/RouteEditor.tsx,70,/api/journeys/routes/{arg},document-service GET /api/journeys/routes/{id}
+ticket-editor,src/features/journeys/ui/RouteEditor.tsx,158,/api/journeys/media,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/media; document-service PUT /api/journeys/{id}
+ticket-editor,src/features/journeys/ui/RouteEditor.tsx,159,/api/journeys/routes,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/routes; document-service PUT /api/journeys/{id}
+ticket-editor,src/features/journeys/ui/RouteHotels.tsx,3,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/RouteHotels.tsx,25,/api/walks/v1/places,routing-service GET /api/walks/v1/places
+ticket-editor,src/features/journeys/ui/RouteWalk.tsx,8,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/RouteWalk.tsx,24,/api/journeys/routes/{arg},document-service GET /api/journeys/routes/{id}
+ticket-editor,src/features/journeys/ui/RouteWalk.tsx,44,/api/journeys/media,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/media; document-service PUT /api/journeys/{id}
+ticket-editor,src/features/journeys/ui/RouteWalk.tsx,46,/api/journeys/routes,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/routes; document-service PUT /api/journeys/{id}
+ticket-editor,src/features/journeys/ui/RouteWalk.tsx,57,/api/journeys/media/{arg},document-service GET /api/journeys/media/{id}
+ticket-editor,src/features/journeys/ui/RouteWalk.tsx,71,/api/journeys/media/{arg},document-service GET /api/journeys/media/{id}
+ticket-editor,src/features/journeys/ui/TripCityMap.tsx,3,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/TripDetailsEditor.tsx,3,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/TripDetailsEditor.tsx,4,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/TripDetailsEditor.tsx,39,/api/journeys/routes/places/rates,document-service GET /api/journeys/routes/places/rates
+ticket-editor,src/features/journeys/ui/TripDistanceTool.tsx,3,/api/routePlanner,
+ticket-editor,src/features/journeys/ui/TripDistanceTool.tsx,4,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/TripHotelSearch.tsx,3,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/TripHotelSearch.tsx,4,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/TripHotelSearch.tsx,79,/api/journeys/routes/places/hotels,document-service POST /api/journeys/routes/places/hotels
+ticket-editor,src/features/journeys/ui/TripListPage.tsx,6,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/TripLodgingEditor.tsx,4,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/TripPlannerDraft.tsx,4,/api/routePlanner,
+ticket-editor,src/features/journeys/ui/TripPlannerDraft.tsx,14,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/TripSummaryBar.tsx,3,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/TripTemplateAction.tsx,7,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/TripTrainSearch.tsx,3,/api/tripRail,
+ticket-editor,src/features/journeys/ui/TripTrainSearch.tsx,4,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/TripTransferEditor.tsx,4,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/TripTransferEditor.tsx,5,/api/routePlanner,
+ticket-editor,src/features/journeys/ui/TripWalkImport.tsx,2,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/drawMapCollage.ts,15,/api/journeys/media/{arg},document-service GET /api/journeys/media/{id}
+ticket-editor,src/features/journeys/ui/useAddressAvailability.ts,22,/api/journey-sites/availability,document-service GET /api/journey-sites/availability; document-service GET /api/journey-sites/{slug}; document-service PUT /api/journey-sites/{slug}
+ticket-editor,src/features/journeys/ui/useAddressAvailability.ts,23,/api/workflows/availability,document-service GET /api/workflows/availability
+ticket-editor,src/features/journeys/ui/useMapCityPicker.ts,3,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/ui/useMapCityPicker.ts,4,/api/tripDraft,
+ticket-editor,src/features/journeys/ui/useMapCityPicker.ts,38,/api/walks/v1/addresses/city,routing-service GET /api/walks/v1/addresses/city
+ticket-editor,src/features/journeys/ui/useTripConnections.ts,3,/api/tripRail,
+ticket-editor,src/features/journeys/ui/useTripConnections.ts,4,/api/routePlanner,
+ticket-editor,src/features/journeys/ui/useTripConnections.ts,5,/api/tripDraft,
+ticket-editor,src/features/journeys/yandex/YandexPlaceMap.tsx,3,/api/journeys,document-service POST /api/journeys
+ticket-editor,src/features/journeys/yandex/YandexPlaceMap.tsx,26,/api/walks/v1/maps/providers,routing-service GET /api/walks/v1/maps/providers
+ticket-editor,src/features/profile/profileApi.ts,20,/api/profile,document-service GET /api/profile; document-service PUT /api/profile
+ticket-editor,src/features/profile/profileApi.ts,24,/api/profile,document-service GET /api/profile; document-service PUT /api/profile
+ticket-editor,src/features/schemas/api/HttpSchemaRepository.ts,16,/api/schemas,document-service GET /api/schemas; document-service POST /api/schemas
+ticket-editor,src/features/schemas/api/HttpSchemaRepository.ts,19,/api/schemas/{arg},document-service DELETE /api/schemas/{id}; document-service GET /api/schemas/{id}; document-service PUT /api/schemas/{id}
+ticket-editor,src/features/schemas/api/HttpSchemaRepository.ts,22,/api/schemas,document-service GET /api/schemas; document-service POST /api/schemas
+ticket-editor,src/features/schemas/api/HttpSchemaRepository.ts,28,/api/schemas/{arg},document-service DELETE /api/schemas/{id}; document-service GET /api/schemas/{id}; document-service PUT /api/schemas/{id}
+ticket-editor,src/features/schemas/api/HttpSchemaRepository.ts,34,/api/schemas/{arg},document-service DELETE /api/schemas/{id}; document-service GET /api/schemas/{id}; document-service PUT /api/schemas/{id}
+ticket-editor,src/features/schemas/state/SchemaStore.ts,3,/api/HttpSchemaRepository,
+ticket-editor,src/features/templates/api/HttpTemplateRepository.ts,21,/api/templates{arg},
+ticket-editor,src/features/templates/api/HttpTemplateRepository.ts,25,/api/templates/{arg},document-service DELETE /api/templates/{id}; document-service GET /api/templates/{id}; document-service PUT /api/templates/{id}
+ticket-editor,src/features/templates/api/HttpTemplateRepository.ts,31,/api/templates,document-service GET /api/templates; document-service POST /api/templates
+ticket-editor,src/features/templates/api/HttpTemplateRepository.ts,39,/api/templates/{arg},document-service DELETE /api/templates/{id}; document-service GET /api/templates/{id}; document-service PUT /api/templates/{id}
+ticket-editor,src/features/templates/api/HttpTemplateRepository.ts,47,/api/templates/{arg}/name,document-service PUT /api/templates/{id}/name
+ticket-editor,src/features/templates/api/HttpTemplateRepository.ts,55,/api/templates/{arg},document-service DELETE /api/templates/{id}; document-service GET /api/templates/{id}; document-service PUT /api/templates/{id}
+ticket-editor,src/features/templates/index.ts,7,/api/TemplateRepository,
+ticket-editor,src/features/templates/index.ts,11,/api/HttpTemplateRepository,
+ticket-editor,src/features/templates/state/TemplateStore.ts,2,/api/TemplateRepository,
+ticket-editor,src/features/templates/state/TemplateStore.ts,3,/api/HttpTemplateRepository,
+ticket-editor,src/features/templates/ui/TemplateEditorPage.tsx,5,/api/HttpTemplateRepository,
+ticket-editor,src/features/workflows/VisitCheckPage.tsx,23,/api/public/workflows/visits/{arg},document-service GET /api/public/workflows/visits/{id}
+ticket-editor,src/features/workflows/VisitCheckPage.tsx,34,/api/workflows/visits/{arg}/check,document-service POST /api/workflows/visits/{id}/check
+ticket-editor,src/features/workflows/api.ts,46,/api/public/workflows,document-service GET /api/public/workflows
+ticket-editor,src/features/workflows/api.ts,48,/api/workflows/template-fields,document-service GET /api/workflows/template-fields
+ticket-editor,src/features/workflows/api.ts,51,/api/workflows,document-service GET /api/workflows; document-service POST /api/workflows
+ticket-editor,src/features/workflows/api.ts,53,/api/workflows,document-service GET /api/workflows; document-service POST /api/workflows
+ticket-editor,src/features/workflows/api.ts,59,/api/workflows/{arg}/publish,document-service POST /api/workflows/{slug}/publish
+ticket-editor,src/features/workflows/api.ts,65,/api/workflows/{arg}/publication,document-service DELETE /api/workflows/{slug}/publication
+ticket-editor,src/features/workflows/api.ts,69,/api/public/workflows/{arg},document-service GET /api/public/workflows/{slug}
+ticket-editor,src/features/workflows/api.ts,74,/api/public/workflows/{arg}/pdf,document-service POST /api/public/workflows/{slug}/pdf
+ticket-editor,src/lib/qr.ts,28,/api/qr,document-service GET /api/qr
+ticket-editor,src/presentation/components/elements/QrEl.tsx,14,/api/qr,document-service GET /api/qr
+ticket-editor,src/shared/api/client.ts,32,/api/export,
+ticket-editor,src/shared/api/client.ts,32,/api/generate/preview,document-service DELETE /api/generate/{jobId}; document-service GET /api/generate/{jobId}; document-service POST /api/generate/preview
+ticket-editor,src/shared/api/client.ts,32,/api/generate/sync,document-service DELETE /api/generate/{jobId}; document-service GET /api/generate/{jobId}; document-service POST /api/generate/sync
+ticket-editor,src/shared/api/client.ts,32,/api/recognition,document-service POST /api/recognition
+ticket-editor,src/shared/api/client.ts,33,/api/generate,document-service GET /api/generate; document-service POST /api/generate
+ticket-editor,src/shared/api/client.ts,34,/api/guest,
+ticket-editor,src/shared/api/guestApi.ts,45,/api/templates,document-service GET /api/templates; document-service POST /api/templates
+ticket-editor,src/shared/api/guestApi.ts,46,/api/schemas,document-service GET /api/schemas; document-service POST /api/schemas
+ticket-editor,src/shared/api/guestApi.ts,47,/api/data-models,document-service GET /api/data-models; document-service POST /api/data-models
+ticket-editor,src/shared/api/guestApi.ts,48,/api/workspace/documents,document-service POST /api/workspace/documents
+ticket-editor,src/shared/api/guestApi.ts,49,/api/workspace/folders,document-service POST /api/workspace/folders
+ticket-editor,src/shared/api/guestApi.ts,51,/api/workspace/tree,document-service GET /api/workspace/tree
+ticket-editor,src/shared/api/guestApi.ts,54,/api/history,
+ticket-editor,src/shared/config.ts,5,/api/export,
+ticket-editor,src/workspace/api.ts,14,/api/workspace/tree,document-service GET /api/workspace/tree
+ticket-editor,src/workspace/api.ts,18,/api/workspace/folders,document-service POST /api/workspace/folders
+ticket-editor,src/workspace/api.ts,26,/api/workspace/folders/{arg}/name,document-service PUT /api/workspace/folders/{id}/name
+ticket-editor,src/workspace/api.ts,34,/api/workspace/folders/{arg}/parent,document-service PUT /api/workspace/folders/{id}/parent
+ticket-editor,src/workspace/api.ts,42,/api/workspace/folders/{arg},document-service DELETE /api/workspace/folders/{id}
+ticket-editor,src/workspace/api.ts,46,/api/workspace/documents,document-service POST /api/workspace/documents
+ticket-editor,src/workspace/api.ts,54,/api/workspace/documents/{arg},document-service DELETE /api/workspace/documents/{id}; document-service GET /api/workspace/documents/{id}
+ticket-editor,src/workspace/api.ts,58,/api/workspace/documents/{arg}/content,document-service PUT /api/workspace/documents/{id}/content
+ticket-editor,src/workspace/api.ts,66,/api/workspace/documents/{arg}/name,document-service PUT /api/workspace/documents/{id}/name
+ticket-editor,src/workspace/api.ts,74,/api/workspace/documents/{arg}/parent,document-service PUT /api/workspace/documents/{id}/parent
+ticket-editor,src/workspace/api.ts,82,/api/workspace/documents/{arg},document-service DELETE /api/workspace/documents/{id}; document-service GET /api/workspace/documents/{id}
+ticket-infra,scripts/audit-live-album.mjs,14,/api/journeys/media/background,document-service GET /api/journeys/media/{id}; document-service POST /api/journeys/media/background
+ticket-infra,scripts/audit-live-album.mjs,18,/api/journeys,document-service POST /api/journeys
+ticket-infra,scripts/audit-live-walks.py,32,/api/walks/v1/places/themes,routing-service GET /api/walks/v1/places/themes
+ticket-infra,scripts/audit-live-walks.py,38,/api/walks/v1/places/themed,routing-service GET /api/walks/v1/places/themed
+ticket-infra,scripts/audit-live-walks.py,44,/api/routing/v1/road,routing-service POST /api/routing/v1/road
+ticket-infra,scripts/audit-live-walks.py,52,/api/walks/v1/places/themed/enrich,routing-service POST /api/walks/v1/places/themed/enrich
+ticket-infra,scripts/audit-live-walks.py,61,/api/journeys/media,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/media; document-service PUT /api/journeys/{id}
+ticket-infra,scripts/audit-live-walks.py,65,/api/journeys/artwork,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/artwork; document-service PUT /api/journeys/{id}
+ticket-infra,scripts/audit-live-walks.py,71,/api/journeys/iKc4EQOxruWK/pdf,document-service GET /api/journeys/{id}/pdf
+ticket-infra,scripts/audit-poetry-release.py,21,/api/journeys/poetry,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/poetry; document-service PUT /api/journeys/{id}
+ticket-infra,scripts/audit-poetry-release.py,26,/api/journeys/poetry,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/poetry; document-service PUT /api/journeys/{id}
+ticket-infra,scripts/audit-poetry-release.py,39,/api/journeys,document-service POST /api/journeys
+ticket-infra,scripts/audit-poetry-release.py,41,/api/journeys,document-service POST /api/journeys
+ticket-infra,scripts/audit-poetry-release.py,46,/api/journeys,document-service POST /api/journeys
+ticket-infra,scripts/audit-public-providers.py,26,/api/walks/v1/places,routing-service GET /api/walks/v1/places
+ticket-infra,scripts/audit-public-providers.py,29,/api/routing/v1/road,routing-service POST /api/routing/v1/road
+ticket-infra,scripts/audit-public-providers.py,32,/api/journeys/poetry,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/poetry; document-service PUT /api/journeys/{id}
+ticket-infra,scripts/check_recognition_api.py,22,/api/guest/recognition,document-service POST /api/guest/recognition
+ticket-infra,scripts/check_recognition_api.py,22,/api/guest/recognition/pdf-page,document-service POST /api/guest/recognition/pdf-page
+ticket-infra,scripts/check_runtime_api.py,32,/api/walks/v1/places/themed,routing-service GET /api/walks/v1/places/themed
+ticket-infra,scripts/check_runtime_api.py,50,/api/journeys/routes/places,document-service GET /api/journeys/routes/{id}
+ticket-infra,scripts/check_runtime_api.py,57,/api/trips/acceptance-missing,
+ticket-infra,scripts/check_runtime_api.py,88,/api/walks/v1/places/themes,routing-service GET /api/walks/v1/places/themes
+ticket-infra,scripts/check_runtime_api.py,91,/api/routing/v1/road,routing-service POST /api/routing/v1/road
+ticket-infra,scripts/check_runtime_api.py,106,/api/walks/v1/places/themed,routing-service GET /api/walks/v1/places/themed
+ticket-infra,scripts/runtime_publish.py,83,/api/guest/recognition/capabilities,document-service GET /api/guest/recognition/capabilities
+ticket-infra,scripts/tests/test_runtime_publish.py,79,/api/guest/recognition/capabilities,document-service GET /api/guest/recognition/capabilities
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/OAuth2SuccessHandler.java,79,/api/auth,
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,51,/api/auth/register,document-service POST /api/auth/register
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,52,/api/auth/login,document-service POST /api/auth/login
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,53,/api/auth/refresh,document-service POST /api/auth/refresh
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,54,/api/auth/logout,document-service POST /api/auth/logout
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,55,/api/qr,document-service GET /api/qr
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,56,/api/journeys,document-service POST /api/journeys
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,57,/api/journey-sites,document-service POST /api/journey-sites
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,58,/api/public/workflows,document-service GET /api/public/workflows
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,59,/api/links,
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,60,/api/guest/export/svg,document-service POST /api/guest/export/svg
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,61,/api/guest/export/pdf,document-service POST /api/guest/export/pdf
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,62,/api/guest/recognition,document-service POST /api/guest/recognition
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,63,/api/guest/recognition/capabilities,document-service GET /api/guest/recognition/capabilities
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,64,/api/guest/recognition/pdf-page,document-service POST /api/guest/recognition/pdf-page
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,65,/api/guest/generate/sync,document-service POST /api/guest/generate/sync
+ticket-pdf,document-service/src/main/java/ru/ticket/auth/security/SecurityConfig.java,66,/api/guest/generate/preview,document-service POST /api/guest/generate/preview
+ticket-pdf,document-service/src/main/java/ru/ticket/clientapi/ClientApiKeyService.java,85,/api/generate,document-service GET /api/generate; document-service POST /api/generate
+ticket-pdf,document-service/src/main/java/ru/ticket/clientapi/ClientApiKeyService.java,89,/api/recognition/capabilities,document-service GET /api/recognition/capabilities
+ticket-pdf,document-service/src/main/java/ru/ticket/clientapi/ClientApiKeyService.java,90,/api/recognition,document-service POST /api/recognition
+ticket-pdf,document-service/src/main/java/ru/ticket/clientapi/ClientApiKeyService.java,91,/api/generate,document-service GET /api/generate; document-service POST /api/generate
+ticket-pdf,document-service/src/main/java/ru/ticket/clientapi/ClientApiKeyService.java,91,/api/generate/preview,document-service DELETE /api/generate/{jobId}; document-service GET /api/generate/{jobId}; document-service POST /api/generate/preview
+ticket-pdf,document-service/src/main/java/ru/ticket/clientapi/ClientApiKeyService.java,91,/api/generate/sync,document-service DELETE /api/generate/{jobId}; document-service GET /api/generate/{jobId}; document-service POST /api/generate/sync
+ticket-pdf,document-service/src/main/java/ru/ticket/config/JsonBodyLimitFilter.java,23,/api/journeys/media,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/media; document-service PUT /api/journeys/{id}
+ticket-pdf,document-service/src/main/java/ru/ticket/config/JsonBodyLimitFilter.java,25,/api/journeys/routes,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/routes; document-service PUT /api/journeys/{id}
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,27,/api/export,
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,27,/api/generate,document-service GET /api/generate; document-service POST /api/generate
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,90,/api/journeys,document-service POST /api/journeys
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,90,/api/journeys/buildings,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service PUT /api/journeys/{id}
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,90,/api/journeys/routes/places/themed,
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,114,/api/journeys/routes/places,document-service GET /api/journeys/routes/{id}
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,115,/api/journeys/artwork,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/artwork; document-service PUT /api/journeys/{id}
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,116,/api/journey-sites,document-service POST /api/journey-sites
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,116,/api/journeys,document-service POST /api/journeys
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,117,/api/connectors,document-service GET /api/connectors; document-service POST /api/connectors
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,118,/api/guest/recognition,document-service POST /api/guest/recognition
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,118,/api/recognition,document-service POST /api/recognition
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,119,/api/guest/export,
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,120,/api/guest/generate,
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,121,/api/export,
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,122,/api/generate,document-service GET /api/generate; document-service POST /api/generate
+ticket-pdf,document-service/src/main/java/ru/ticket/config/RateLimitFilter.java,123,/api/email,
+ticket-pdf,document-service/src/main/java/ru/ticket/journey/infrastructure/RoutingTripClient.java,33,/api/routing/v1/trips/{id},routing-service GET /api/routing/v1/trips/{id}; routing-service PUT /api/routing/v1/trips/{id}
+ticket-pdf,document-service/src/main/java/ru/ticket/recognition/LocalVisionRecognizer.java,84,/api/chat,
+ticket-pdf,routing-service/src/main/java/ru/ticket/routing/trip/web/DocumentTripGateway.java,35,/api/auth/me,document-service GET /api/auth/me
+ticket-pdf,routing-service/src/main/java/ru/ticket/routing/trip/web/DocumentTripGateway.java,51,/api/trips/legacy/{id},document-service GET /api/trips/legacy/{id}
+ticket-pdf,routing-service/src/main/java/ru/ticket/walks/infrastructure/media/HttpPrintMedia.java,31,/api/journeys/media,document-service DELETE /api/journeys/{id}; document-service GET /api/journeys/{id}; document-service POST /api/journeys/media; document-service PUT /api/journeys/{id}

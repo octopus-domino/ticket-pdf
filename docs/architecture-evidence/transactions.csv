@@ -1,0 +1,105 @@
+service,package,file,line,member,annotation-attributes
+document-service,ru.ticket.auth.service,document-service/src/main/java/ru/ticket/auth/service/AuthServiceImpl.java,32,register,default
+document-service,ru.ticket.clientapi,document-service/src/main/java/ru/ticket/clientapi/ClientApiKeyService.java,56,authenticate,default
+document-service,ru.ticket.connectors,document-service/src/main/java/ru/ticket/connectors/SourceImportService.java,166,apply,default
+document-service,ru.ticket.connectors,document-service/src/main/java/ru/ticket/connectors/SourceImportService.java,296,sync,default
+document-service,ru.ticket.datamodel.service,document-service/src/main/java/ru/ticket/datamodel/service/DataModelServiceImpl.java,40,create,default
+document-service,ru.ticket.datamodel.service,document-service/src/main/java/ru/ticket/datamodel/service/DataModelServiceImpl.java,53,update,default
+document-service,ru.ticket.datamodel.service,document-service/src/main/java/ru/ticket/datamodel/service/DataModelServiceImpl.java,62,delete,default
+document-service,ru.ticket.datamodel.service,document-service/src/main/java/ru/ticket/datamodel/service/DataModelServiceImpl.java,68,importBulk,default
+document-service,ru.ticket.email,document-service/src/main/java/ru/ticket/email/DeliveryLedger.java,15,reserve,propagation = Propagation.REQUIRES_NEW
+document-service,ru.ticket.email,document-service/src/main/java/ru/ticket/email/DeliveryLedger.java,23,finish,propagation = Propagation.REQUIRES_NEW
+document-service,ru.ticket.history,document-service/src/main/java/ru/ticket/history/ResourceHistory.java,22,capture,default
+document-service,ru.ticket.history,document-service/src/main/java/ru/ticket/history/ResourceHistory.java,77,cleanup,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyAlbumService.java,34,get,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyAlbumService.java,40,invitation,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyAlbumService.java,49,add,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyAlbumService.java,61,edit,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyAlbumService.java,74,reorder,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyAlbumService.java,83,photo,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyAlbumService.java,88,model,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyAlbumService.java,97,copyModel,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyConstructorCopyService.java,27,copy,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyPrintSourceService.java,38,publication,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyPrintSourceService.java,43,site,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyPrintSourceService.java,48,batch,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyPrintSourceService.java,72,createPublication,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyReviewService.java,39,submit,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyReviewService.java,77,list,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,119,get,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,124,manage,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,129,manageOwned,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,137,update,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,142,updateOwned,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,163,revoke,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,168,revokeOwned,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,180,respond,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,208,guests,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,214,guestsOwned,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,238,batch,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,245,batchOwned,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,272,changeStatus,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,290,status,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,296,consume,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneyService.java,303,consumeOwned,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneySiteService.java,67,availability,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneySiteService.java,88,get,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneySiteService.java,99,create,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneySiteService.java,104,create,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneySiteService.java,123,update,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/JourneySiteService.java,134,updateOwned,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/PublicationsService.java,34,batches,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/PublicationsService.java,59,documents,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/PublicationsService.java,64,documents,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/PublicationsService.java,82,sites,readOnly = true
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/PublicationsService.java,102,claim,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/PublicationsService.java,107,claim,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/RouteSnapshotService.java,76,save,default
+document-service,ru.ticket.journey.application.journey,document-service/src/main/java/ru/ticket/journey/application/journey/RouteSnapshotService.java,104,get,readOnly = true
+document-service,ru.ticket.journey.infrastructure.media,document-service/src/main/java/ru/ticket/journey/infrastructure/media/JourneyMediaService.java,30,save,default
+document-service,ru.ticket.journey.infrastructure.media,document-service/src/main/java/ru/ticket/journey/infrastructure/media/JourneyMediaService.java,34,saveBackground,default
+document-service,ru.ticket.journey.infrastructure.media,document-service/src/main/java/ru/ticket/journey/infrastructure/media/JourneyMediaService.java,108,get,readOnly = true
+document-service,ru.ticket.journey.infrastructure.media,document-service/src/main/java/ru/ticket/journey/infrastructure/media/JourneyMediaService.java,114,requireAsset,readOnly = true
+document-service,ru.ticket.library,document-service/src/main/java/ru/ticket/library/AssetLibraryService.java,51,create,default
+document-service,ru.ticket.library,document-service/src/main/java/ru/ticket/library/AssetLibraryService.java,65,save,default
+document-service,ru.ticket.library,document-service/src/main/java/ru/ticket/library/AssetLibraryService.java,86,member,default
+document-service,ru.ticket.profile,document-service/src/main/java/ru/ticket/profile/ClientProfileController.java,53,save,default
+document-service,ru.ticket.schema.service,document-service/src/main/java/ru/ticket/schema/service/SchemaServiceImpl.java,40,create,default
+document-service,ru.ticket.schema.service,document-service/src/main/java/ru/ticket/schema/service/SchemaServiceImpl.java,46,update,default
+document-service,ru.ticket.schema.service,document-service/src/main/java/ru/ticket/schema/service/SchemaServiceImpl.java,55,delete,default
+document-service,ru.ticket.template.service,document-service/src/main/java/ru/ticket/template/service/TemplateServiceImpl.java,53,create,default
+document-service,ru.ticket.template.service,document-service/src/main/java/ru/ticket/template/service/TemplateServiceImpl.java,69,update,default
+document-service,ru.ticket.template.service,document-service/src/main/java/ru/ticket/template/service/TemplateServiceImpl.java,84,rename,default
+document-service,ru.ticket.template.service,document-service/src/main/java/ru/ticket/template/service/TemplateServiceImpl.java,92,delete,default
+document-service,ru.ticket.template.service,document-service/src/main/java/ru/ticket/template/service/TemplateServiceImpl.java,99,move,default
+document-service,ru.ticket.workflow,document-service/src/main/java/ru/ticket/workflow/SiteAddressService.java,18,availability,readOnly = true
+document-service,ru.ticket.workflow,document-service/src/main/java/ru/ticket/workflow/SiteAddressService.java,30,reserve,default
+document-service,ru.ticket.workflow,document-service/src/main/java/ru/ticket/workflow/WorkflowService.java,52,availability,readOnly = true
+document-service,ru.ticket.workflow,document-service/src/main/java/ru/ticket/workflow/WorkflowService.java,57,list,readOnly = true
+document-service,ru.ticket.workflow,document-service/src/main/java/ru/ticket/workflow/WorkflowService.java,88,catalog,readOnly = true
+document-service,ru.ticket.workflow,document-service/src/main/java/ru/ticket/workflow/WorkflowService.java,98,save,default
+document-service,ru.ticket.workflow,document-service/src/main/java/ru/ticket/workflow/WorkflowService.java,126,publish,default
+document-service,ru.ticket.workflow,document-service/src/main/java/ru/ticket/workflow/WorkflowService.java,158,unpublish,default
+document-service,ru.ticket.workflow,document-service/src/main/java/ru/ticket/workflow/WorkflowService.java,167,publicView,readOnly = true
+document-service,ru.ticket.workflow,document-service/src/main/java/ru/ticket/workflow/WorkflowVisitService.java,26,issued,default
+document-service,ru.ticket.workflow,document-service/src/main/java/ru/ticket/workflow/WorkflowVisitService.java,32,status,readOnly = true
+document-service,ru.ticket.workflow,document-service/src/main/java/ru/ticket/workflow/WorkflowVisitService.java,34,check,default
+document-service,ru.ticket.workspace.service,document-service/src/main/java/ru/ticket/workspace/service/DocumentServiceImpl.java,30,create,default
+document-service,ru.ticket.workspace.service,document-service/src/main/java/ru/ticket/workspace/service/DocumentServiceImpl.java,47,save,default
+document-service,ru.ticket.workspace.service,document-service/src/main/java/ru/ticket/workspace/service/DocumentServiceImpl.java,57,rename,default
+document-service,ru.ticket.workspace.service,document-service/src/main/java/ru/ticket/workspace/service/DocumentServiceImpl.java,66,move,default
+document-service,ru.ticket.workspace.service,document-service/src/main/java/ru/ticket/workspace/service/DocumentServiceImpl.java,80,delete,default
+document-service,ru.ticket.workspace.service,document-service/src/main/java/ru/ticket/workspace/service/FolderServiceImpl.java,56,create,default
+document-service,ru.ticket.workspace.service,document-service/src/main/java/ru/ticket/workspace/service/FolderServiceImpl.java,69,rename,default
+document-service,ru.ticket.workspace.service,document-service/src/main/java/ru/ticket/workspace/service/FolderServiceImpl.java,80,move,default
+document-service,ru.ticket.workspace.service,document-service/src/main/java/ru/ticket/workspace/service/FolderServiceImpl.java,107,delete,default
+routing-service,ru.ticket.routing.trip,routing-service/src/main/java/ru/ticket/routing/trip/TripDrafts.java,32,list,readOnly = true
+routing-service,ru.ticket.routing.trip,routing-service/src/main/java/ru/ticket/routing/trip/TripDrafts.java,39,find,readOnly = true
+routing-service,ru.ticket.routing.trip,routing-service/src/main/java/ru/ticket/routing/trip/TripDrafts.java,50,save,default
+routing-service,ru.ticket.walks.infrastructure.history,routing-service/src/main/java/ru/ticket/walks/infrastructure/history/BuildingHistoryService.java,30,findByPoint,readOnly=true
+routing-service,ru.ticket.walks.infrastructure.history,routing-service/src/main/java/ru/ticket/walks/infrastructure/history/BuildingHistoryService.java,42,nearby,readOnly=true
+routing-service,ru.ticket.walks.infrastructure.history,routing-service/src/main/java/ru/ticket/walks/infrastructure/history/BuildingHistoryService.java,73,enrich,readOnly=true
+routing-service,ru.ticket.walks.infrastructure.history,routing-service/src/main/java/ru/ticket/walks/infrastructure/history/BuildingHistoryService.java,89,upsertHoith,propagation=Propagation.REQUIRES_NEW
+routing-service,ru.ticket.walks.infrastructure.poi,routing-service/src/main/java/ru/ticket/walks/infrastructure/poi/MysticPlaceImporter.java,21,importFromCsv,rollbackFor=IOException.class
+routing-service,ru.ticket.walks.infrastructure.poi,routing-service/src/main/java/ru/ticket/walks/infrastructure/poi/MysticThemeSource.java,17,findCandidates,readOnly=true
+routing-service,ru.ticket.walks.infrastructure.poi,routing-service/src/main/java/ru/ticket/walks/infrastructure/poi/MysticThemeSource.java,47,findAllCandidates,readOnly=true
