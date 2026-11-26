@@ -1,5 +1,9 @@
 # API и границы совместимости
 
+## Внутренние эксплуатационные endpoints · Phase 1.2
+
+Readiness и liveness читаются из loopback Actuator на 9080 для Document и 9093 для Routing. Readiness публикует HTTP 200/503 со статусом без деталей компонентов. Liveness не зависит от состояния БД. Внешние маршруты приложений и проверки владельца данных сохраняют прежний контракт. [Production Safety](PRODUCTION-SAFETY.md).
+
 ## Journey → CoDoc · ARC-022
 
 `ShareModal` передаёт снимок `private-walk:complete` в текущий iframe-хост CoDoc. `TripWalkImport` хранит прогулку в выбранном визите Account Trip через `/api/routing/v1/trips`. `RoutePlacePanel` сохраняет дочерний снимок через `/api/journeys/routes` и присоединяет его к выбранной остановке существующей публикации. Фото проходят проверку лицензии в браузере и поступают в `/api/journeys/media` как байты. `GET /api/trips/{id}/pdf` читает сохранённую поездку и формирует карту, остановки и разрешённые фото. Старый `/api/trips/import-walk` сохраняет свой прежний синхронный формат проекции геометрии. Правила версий, обновления и прав описаны в [ADR 0004](decisions/0004-private-journey-handoff.md).

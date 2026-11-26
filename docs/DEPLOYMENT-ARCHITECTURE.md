@@ -38,8 +38,8 @@ flowchart LR
 | App | 1408 MiB | 1.5 | `compose.api.yml:45,60–64`. Java heap 832 MiB, direct 128 MiB. |
 | Routing | 640 MiB | 1.0 | `compose.routing.yml:10–12,43–46`. Java heap 192 MiB и один active processor в Dockerfile. |
 | PostGIS | 512 MiB | 0.75 | `compose.postgres.yml:12–14,48–51`. |
-| Inline Tyk / Redis | 160 / 128 MiB | Проверять профиль | `compose.api.yml:86–113`. Tyk получает `GOMEMLIMIT=300MiB`. |
-| Отдельный Tyk / Redis | 384 / 160 MiB | Проверять профиль | `compose.gateway.yml:4–28`. Тот же Go soft limit помещается в configured cap, нужен запас для остальной памяти. |
+| Inline Tyk / Redis | 160 / 128 MiB | Проверять профиль | Compose inline использует `GOMEMLIMIT=120MiB`. [Измерения](RESOURCE-MEASUREMENTS.md). |
+| Отдельный Tyk / Redis | 384 / 160 MiB | Проверять профиль | `compose.gateway.yml:4–28`. Standalone Tyk использует `GOMEMLIMIT=300MiB`. |
 | Ostrovok / OSM MCP | 64 / 256 MiB | 0.15 / 0.5 | `compose.api.yml:73–80`, `compose.walks.yml:3–13`. |
 | Мигратор | 768 MiB | 1.0 | `compose.postgres.yml:79–99`. Профиль `tools`, планировать как отдельную процедуру. |
 

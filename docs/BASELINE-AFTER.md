@@ -95,3 +95,45 @@ Compose config проверяет интерполяцию и структуру
 Первый полный Infra-прогон достиг дедлайнов в двух сценариях. Во втором прогоне наблюдались SIGPIPE тестового двойника и сбой очистки дерева процессов. Отдельный повтор на исходном двойнике воспроизвёл код 141 в миграции вместо заданного кода 37 на фазе импорта. После чтения stdin двойником и регистрации Windows launcher в Job Object оба исходных случая прошли в итоговом suite. `handoff-infra.log`, `handoff-infra-gate.log`, `handoff-infra-two.log`, `handoff-infra-fixture-gate.log`, `handoff-infra-closure.log`.
 
 Интеграция Phase 1.1 выполнена в отдельных ветках `codex/quality-handoff-*`. Исходные SHA остаются предками интеграционных веток. Доработки Journey и Editor не пересекаются с исходными незакоммиченными файлами. В Backend работа касается ранее подготовленных архитектурных документов, которые перенесены в worktree без перезаписи оригиналов.
+
+## Phase 1.2 — исходные ревизии и приёмка
+
+Все четыре worktree исходно были чистыми. SHA совпали с интеграционными ветками предыдущего этапа.
+
+| Репозиторий | SHA до изменений |
+| --- | --- |
+| ticket-editor | `8910164e9411c173931914f5efab39961a04590e` |
+| ticket-pdf | `c98e7484fffd85da02cd96624b143aaadefebb70` |
+| ticket-infra | `e652074c296be61e90c425afa0a6dcb278c07fbd` |
+| private_jorney | `39c3825957b9e38df93acc05c87cac7a4c3ccd9a` |
+
+Windows runner использует Node 24.22.0, npm 11.19.1, Maven 3.9.9, JDK 21.0.4 с target Java 17, Python 3.15 и Git 2.33. Он имеет 4 логических CPU и около 40 ГиБ RAM. Локальный Docker daemon недоступен, зарегистрированные WSL2-дистрибутивы Docker Desktop остановлены. Для эксплуатационных проверок использован `codoc.site` с Linux, 2 CPU, 3915 МиБ RAM и Docker 29.9.3. Node/npm и Maven на сервере не установлены. JVM, Python и необходимые готовые Docker-образы доступны.
+
+Исходный Maven verify повторён на указанном SHA. Linux baseline Infra дал 16/16 и 18/18, четыре Windows-only теста пропущены. Первый POSIX-запуск выявил отсутствие алиаса `python` для `python3`. После временного алиаса исходная ревизия прошла. На интеграционной версии fixture запускает текущий интерпретатор напрямую.
+
+| Проверка | Результат Phase 1.2 |
+| --- | --- |
+| Linux Infra | `scripts/tests` 17/17, основной suite 18/18 и 4 исходных Windows-only skip. `server-final-infra.log`. |
+| Windows Infra | 17/17 и 22/22. `windows-infra-scripts.log`, `windows-infra-tests.log`. |
+| Compose static | Восемь конфигураций валидны на сервере. Неравенство 300/160 МиБ отвергнуто отдельным отрицательным тестом. `server-final-infra.log`. |
+| Live PostGIS SQL | `PostgisPlacesTest` выполнен на сервере с реальной выделенной БД PostgreSQL 17/PostGIS 3.5. `server-native-postgis.log`. |
+| Tyk | Проверены обе конфигурации и отказ Redis. [Измерения](RESOURCE-MEASUREMENTS.md). |
+| Maven verify и ArchUnit | 362 / 0 / 6, включая два теста readiness. Readiness Document проверен на H2 с отсутствующей таблицей и её возвратом, Routing проверен с составным ключом. `final-maven.log`. |
+| Editor unit и coverage | 422 / 0 / 0. Lines 89,54%, branches 74,16%. `baseline-editor-coverage.log`. |
+| Editor static и сборка | Product и test TypeScript, строгий lint с нулём предупреждений, архитектурная проверка и сборка 27 страниц прошли. `editor-final-check.log`, `editor-final-lint.log`, `editor-build.log`. |
+| Editor default | 142 / 0 / 15. Первичный повтор на baseline дал 131 / 1 / 15, на мобильном SEO тест превысил 30 с при 11 переходах. Проверки разделены по страницам с сохранением assertions. Отдельно весь файл дал 13 / 0 / 0. `editor-default.log`, `editor-seo-split.log`, `editor-default-final.log`. |
+| Editor Travel v1/v2 | 14 / 0 / 0. `travel.log`. |
+| Editor email-enabled | 3 / 0 / 0 с SMTP fixture. `editor-email.log`. |
+| Editor live-provider | 1 / 0 / 0, публичные метаданные Commons и Wikidata. `editor-live.log`. |
+| Editor built handoff | Desktop и mobile, по 1 / 0 / 0 в двух отдельных прогонах. `handoff-desktop.log`, `handoff-mobile.log`. |
+| Journey unit, сборки и Android JVM | Web unit 110 / 0 / 0 и Android JVM 14 / 0 / 0. Обычная и embedded сборки прошли. `baseline-journey-unit.log`, `journey-build.log`, `baseline-journey-embedded.log`, `android.log`. |
+| Journey E2E | Полный повтор 124 / 0 / 0 на четырёх viewport. Первый прогон 123 / 1 / 0 из-за холодного старта desktop GPS, изолированный повтор дал 2 / 0 / 0 без правок. `journey-e2e.log`, `journey-gps-repeat.log`, `journey-e2e-repeat.log`. |
+| Серверный H2 smoke | Завершён с выключенным Travel. Document и Routing запускаются раздельно. Отдельный результат по прямому disabled API отражён в ARC-024. `server-h2-integrated.log`. |
+| Локальный H2 с включённым Travel | Обе JVM запускаются отдельно. PDF поездки и защищённый список поездок вернули 503 при отказе соответствующей зависимости. После возврата Document защищённый список снова доступен. `native-h2-travel.log`. |
+| Серверный PostgreSQL/PostGIS smoke и restore | Завершены с включённым Travel. Раздельный старт, fail closed проверки владельца, отказ PostgreSQL и восстановление readiness подтверждены. Восстановлены обе схемы, документ и его история, публикация, фото и поездка. Синтетический RTO 138,806 с. `server-restore-template0.log`. |
+| Windows Infra после отрицательных restore-тестов | `scripts/tests` 19 / 0 / 0. `windows-infra-final-guards.log`. |
+| Дополнительные отказы на собранных JAR | Отказ SMTP и повтор, зависание BRouter, прерывание генерации и деградация OCR проверены на локальных JVM/H2. OCR зарегистрирован как ARC-025. `native-faults-http.log`, [подробности](FAILURE-MODE-ANALYSIS.md). |
+
+Отчёты по [готовности](PRODUCTION-SAFETY.md), [отказам](FAILURE-MODE-ANALYSIS.md) и [восстановлению](BACKUP-RESTORE-DRILL.md). Логи в `C:/sandpr/.cache/production-safety-20261126/logs`. Основные синтетические эксплуатационные сценарии выполнены на сервере. Проверки, требующие Windows Chrome, Android SDK и локального Maven, выполнены отдельно. JDBC-проверка PostGIS выполнялась непосредственно с выделенной базой. Профиль Testcontainers и физические устройства в этой фазе не запускались.
+
+Опорные ревизии результатов: Editor `58f576f5637be100ee2762ec76110d6a9200d70d`, Backend JAR `58b597b599f543125d5a796d8d5928c814eb4201`, Journey `39c3825957b9e38df93acc05c87cac7a4c3ccd9a`. Успешный серверный restore выполнен на Infra `dbee8d593ae1eae85d98fc7dd449832d002922cc`. Дополнительный preflight из `c7bb201` прошёл Windows unittest. Дополнительные сценарии отказа подготовлены в Infra `4d2b627327bd2741530d20e67a013a8e66f09e7e` и проверены локально на тех же JAR. Серверный повтор preflight и дополнительных сценариев заблокирован таймаутом SSH при обмене баннерами.
