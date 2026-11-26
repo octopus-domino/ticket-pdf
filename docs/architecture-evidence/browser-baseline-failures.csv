@@ -1,0 +1,38 @@
+repository,project,source,test
+ticket-editor,Chrome,tests/e2e/album-create.spec.ts:3:1,phone creates an album and immediately adds a caption and photograph
+ticket-editor,Chrome,tests/e2e/background-library.spec.ts:67:1,selected lossless artwork survives the native document export at the original resolution
+ticket-editor,Chrome,tests/e2e/document-switching.spec.ts:16:1,switching and creating documents never copies the previous canvas into another document
+ticket-editor,Chrome,tests/e2e/editor-fixes.spec.ts:99:1,selected data set opens its values and a schema field can be dragged onto the canvas
+ticket-editor,Chrome,tests/e2e/editor-image-import.spec.ts:39:3,imports image into an existing document without losing pages and supports undo
+ticket-editor,Chrome,tests/e2e/editor-image-import.spec.ts:39:3,imports pdf into an existing document without losing pages and supports undo
+ticket-editor,Chrome,tests/e2e/editor-image-import.spec.ts:39:3,imports image into an existing template without losing pages and supports undo
+ticket-editor,Chrome,tests/e2e/editor-image-import.spec.ts:39:3,imports pdf into an existing template without losing pages and supports undo
+ticket-editor,Chrome,tests/e2e/email.spec.ts:3:1,"email shows partial failures, safely retries and confirms SMTP acceptance"
+ticket-editor,Chrome,tests/e2e/guest-editor.spec.ts:128:1,mobile editor keeps slides horizontal and opens shapes from Tools
+ticket-editor,Chrome,tests/e2e/guest-editor.spec.ts:265:1,text formatting toolbar stays outside the edited text
+ticket-editor,Chrome,tests/e2e/interaction-regressions.spec.ts:34:1,site section headings fit inside their white panels
+ticket-editor,Chrome,tests/e2e/journey-tools.spec.ts:103:1,a separate walking map keeps numbered photos and the city plan out of the main route
+ticket-editor,Chrome,tests/e2e/journey-tools.spec.ts:237:1,route edits keep notes with their point and require selecting an edited address
+ticket-editor,Chrome,tests/e2e/journey-tools.spec.ts:282:1,nearby visits create a daytime plan and enter the route only when requested
+ticket-editor,Chrome,tests/e2e/journey-tools.spec.ts:309:31,a ready Petersburg walk preserves its order and the main trip at 390px
+ticket-editor,Chrome,tests/e2e/journey-tools.spec.ts:309:31,a ready Petersburg walk preserves its order and the main trip at 1440px
+ticket-editor,Chrome,tests/e2e/journey-tools.spec.ts:338:1,historic buildings can be searched and saved as a separate walk on a phone
+ticket-editor,Chrome,tests/e2e/journey-tools.spec.ts:365:1,themed walks preserve the trip and print seven numbered photographs on a phone
+ticket-editor,Chrome,tests/e2e/marketing-journey.spec.ts:29:1,creates an actual reusable template directly and opens its editor
+ticket-editor,Chrome,tests/e2e/shared-album.spec.ts:3:1,two phones contribute to one album; organiser reorders while contributors edit only their own captions
+private_jorney,desktop,tests/recording.ui.ts:48:1,"record start-stop persists full GPS, factual report and preview across an offline reload"
+private_jorney,desktop,tests/recording.ui.ts:238:1,changing a filter removes the old discovery and a stalled source cannot keep searching forever
+private_jorney,desktop,tests/recording.ui.ts:257:1,Moscow house card shows official technical data and restores it without another API request
+private_jorney,desktop,tests/ui.spec.ts:140:1,"ordinary map tap opens the same house profile, Citywalls paragraphs and photo"
+private_jorney,desktop,tests/ui.spec.ts:367:1,Moscow repairs appear in the shared house card and remain available after restart without source requests
+private_jorney,android,tests/recording.ui.ts:257:1,Moscow house card shows official technical data and restores it without another API request
+private_jorney,android,tests/ui.spec.ts:76:1,route survives reload and hides all unrelated markers until explicitly shown
+private_jorney,android,tests/ui.spec.ts:140:1,"ordinary map tap opens the same house profile, Citywalls paragraphs and photo"
+private_jorney,android,tests/ui.spec.ts:367:1,Moscow repairs appear in the shared house card and remain available after restart without source requests
+private_jorney,small-android,tests/recording.ui.ts:257:1,Moscow house card shows official technical data and restores it without another API request
+private_jorney,small-android,tests/ui.spec.ts:76:1,route survives reload and hides all unrelated markers until explicitly shown
+private_jorney,small-android,tests/ui.spec.ts:140:1,"ordinary map tap opens the same house profile, Citywalls paragraphs and photo"
+private_jorney,small-android,tests/ui.spec.ts:367:1,Moscow repairs appear in the shared house card and remain available after restart without source requests
+private_jorney,android-landscape,tests/recording.ui.ts:257:1,Moscow house card shows official technical data and restores it without another API request
+private_jorney,android-landscape,tests/ui.spec.ts:140:1,"ordinary map tap opens the same house profile, Citywalls paragraphs and photo"
+private_jorney,android-landscape,tests/ui.spec.ts:367:1,Moscow repairs appear in the shared house card and remain available after restart without source requests
