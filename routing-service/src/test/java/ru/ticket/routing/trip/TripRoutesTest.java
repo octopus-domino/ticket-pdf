@@ -47,6 +47,13 @@ class TripRoutesTest {
   }
 
   @Test
+  void readinessAcceptsTheCompositeTripKeySchema() {
+    var readiness = http.getForEntity("/actuator/health/readiness", JsonNode.class);
+    assertThat(readiness.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(readiness.getBody().path("status").asText()).isEqualTo("UP");
+  }
+
+  @Test
   void listsCreatesAndOpensTripsOnlyForTheirAccount() {
     assertThat(http.getForEntity(PATH, JsonNode.class).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     assertThat(request(PATH, HttpMethod.GET, "missing", null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);

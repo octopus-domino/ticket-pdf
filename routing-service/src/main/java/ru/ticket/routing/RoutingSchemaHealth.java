@@ -26,9 +26,9 @@ final class RoutingSchemaHealth implements HealthIndicator {
   @Override
   public Health health() {
     try {
-      for (String table : new String[]{"journey_trip_drafts", "mystic_places", "building_history"}) {
-        jdbc.queryForList("SELECT id FROM " + schemaPrefix + table + " WHERE 1 = 0");
-      }
+      jdbc.queryForList("SELECT owner_id, trip_id, payload FROM " + schemaPrefix + "journey_trip_drafts WHERE 1 = 0");
+      jdbc.queryForList("SELECT id FROM " + schemaPrefix + "mystic_places WHERE 1 = 0");
+      jdbc.queryForList("SELECT id FROM " + schemaPrefix + "building_history WHERE 1 = 0");
       return Health.up().build();
     } catch (DataAccessException failure) {
       return Health.down().build();
