@@ -11,6 +11,10 @@ spring:
       ddl-auto: validate
 jwt:
   secret: ${JWT_SECRET}
+management:
+  server:
+    port: ${CODOC_MANAGEMENT_PORT:9080}
+    address: 127.0.0.1
 app:
   workflow:
     admin-user-ids: ${WORKFLOW_ADMIN_USER_IDS:}

@@ -121,4 +121,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db,documentSchema

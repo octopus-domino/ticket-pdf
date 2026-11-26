@@ -52,6 +52,8 @@ public class SecurityConfig {
                         "/api/auth/login",
                         "/api/auth/refresh",
                         "/api/auth/logout",
+                        "/actuator/health/readiness",
+                        "/actuator/health/liveness",
                         "/api/qr",
                         "/api/journeys/**",
                         "/api/journey-sites/**",

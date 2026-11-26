@@ -41,6 +41,22 @@ class DocumentFlowTest {
   @MockBean RoutingTripClient routingTrips;
 
   @Test
+  void readinessRejectsMissingSchemaAndRecoversWithoutChangingLiveness() {
+    String readiness = "/actuator/health/readiness";
+    assertEquals("{\"status\":\"UP\"}", http.getForObject(readiness, String.class));
+    jdbc.execute("ALTER TABLE documents RENAME TO held_documents");
+    try {
+      var result = http.getForEntity(readiness, String.class);
+      assertEquals(HttpStatus.SERVICE_UNAVAILABLE, result.getStatusCode());
+      assertEquals("{\"status\":\"DOWN\"}", result.getBody());
+      assertEquals("{\"status\":\"UP\"}", http.getForObject("/actuator/health/liveness", String.class));
+    } finally {
+      jdbc.execute("ALTER TABLE held_documents RENAME TO documents");
+    }
+    assertEquals("{\"status\":\"UP\"}", http.getForObject(readiness, String.class));
+  }
+
+  @Test
   void documentServiceRejectsTheRemovedRoadCalculationMethod() {
     var response = http.postForEntity("/api/journeys/routes/road", Map.of(), String.class);
 
