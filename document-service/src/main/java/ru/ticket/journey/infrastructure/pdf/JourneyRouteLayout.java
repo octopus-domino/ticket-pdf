@@ -4,6 +4,7 @@ import ru.ticket.journey.application.journey.JourneyService;
 import ru.ticket.journey.application.journey.RouteSnapshotService;
 import ru.ticket.journey.infrastructure.media.JourneyMediaService;
 import ru.ticket.journey.shared.JourneyFieldLabels;
+import ru.ticket.journey.domain.model.Trip;
 import java.time.*;
 import java.time.format.*;
 import java.util.*;
@@ -35,6 +36,132 @@ public class JourneyRouteLayout {
       appendSnapshot(pages, view, walk, walkTitle==null?labels.getOrDefault("walk", fallback) + " · " + stop.label():walkTitle);
     }
     document.slides = pages;
+  }
+
+  /** Account walks already have saved geometry. Render their maps without retrieving external tiles. */
+  public void appendTrip(ExportRequest document, Trip trip) {
+    var pages = new ArrayList<>(document.slides);
+    int photosRemaining = 24;
+    for (var day : trip.days()) {
+      var stops = new LinkedHashMap<String, Trip.Segment>();
+      day.segments().forEach(stop -> stops.putIfAbsent(stop.id(), stop));
+      var groups = new ArrayList<List<Trip.WalkingSection>>();
+      for (var section : day.walkingSections()) {
+        if (!stops.containsKey(section.fromSegmentId()) || !stops.containsKey(section.toSegmentId())) continue;
+        var previous = groups.isEmpty() ? null : groups.get(groups.size() - 1);
+        if (previous == null || !Objects.equals(previous.get(previous.size() - 1).toSegmentId(), section.fromSegmentId())) {
+          previous = new ArrayList<>();
+          groups.add(previous);
+        }
+        if (previous.size() < 199) previous.add(section);
+      }
+      for (var group : groups) {
+        String title = Objects.toString(day.note(), "City walk");
+        var page = tripPage(pages, title, Objects.toString(day.date(), ""));
+        drawTripMap(page, group);
+        double y = 348;
+        var ids = new ArrayList<String>();
+        ids.add(group.get(0).fromSegmentId());
+        group.forEach(section -> ids.add(section.toSegmentId()));
+        for (int index = 0; index < ids.size(); index++) {
+          var stop = stops.get(ids.get(index));
+          String notes = java.util.stream.Stream.of(stop.note(), stop.walkNote())
+              .filter(note -> note != null && !note.isBlank()).collect(java.util.stream.Collectors.joining("\n"));
+          boolean hasNote = !notes.isBlank();
+          var photo = photosRemaining > 0 ? stop.photoCredits().stream()
+              .filter(item -> item != null && Objects.equals(item.stopId(), stop.id())
+                  && item.printable() && stop.photoRefs().contains(item.imageId())).findFirst().orElse(null) : null;
+          var asset = photo == null ? null : optionalImage(photo.imageId());
+          double row = 46 + (hasNote ? 112 : 0) + (asset != null ? 174 : 0);
+          if (y + row > 1050) {
+            page = tripPage(pages, title, Objects.toString(day.date(), ""));
+            y = 104;
+          }
+          page.elements.add(JourneyTypography.fit((index + 1) + ". " + stop.title(), 50, y, 694, 42, 16, true, "#244e42"));
+          y += 46;
+          if (hasNote) {
+            page.elements.add(JourneyTypography.fit(notes, 50, y, 694, 108, 12, false, "#53665b"));
+            y += 112;
+          }
+          if (asset != null) {
+            var image = new ImageElement();
+            image.type = "image"; image.id = "photo-" + index;
+            image.x = 50; image.y = y;
+            double scale = Math.min(280.0 / asset.width(), 120.0 / asset.height());
+            image.width = asset.width() * scale; image.height = asset.height() * scale;
+            image.src = asset.dataUri();
+            page.elements.add(image);
+            page.elements.add(JourneyTypography.fit(photo.author() + " · " + photo.license() + "\n"
+                + photo.sourceUrl() + "\n" + photo.licenseUrl(), 50, y + 122, 694, 50, 9, false, "#53665b"));
+            y += 174;
+            photosRemaining--;
+          }
+        }
+      }
+    }
+    document.slides = pages;
+  }
+
+  private ru.ticket.journey.infrastructure.media.JourneyMedia optionalImage(String id) {
+    try {
+      return media.get(id);
+    } catch (ru.ticket.common.ApiException unavailable) {
+      return null;
+    }
+  }
+
+  private static Slide tripPage(List<Slide> pages, String title, String date) {
+    var page = new Slide();
+    page.id = "trip-walk-" + pages.size();
+    page.name = title;
+    page.elements.add(JourneyTypography.fit(title, 50, 38, 694, 38, 25, true, "#244e42"));
+    page.elements.add(JourneyTypography.fit(date, 50, 76, 694, 24, 12, false, "#53665b"));
+    pages.add(page);
+    return page;
+  }
+
+  private static void drawTripMap(Slide page, List<Trip.WalkingSection> sections) {
+    var tracks = new ArrayList<List<Trip.Coordinate>>();
+    for (var section : sections) {
+      var track = new ArrayList<Trip.Coordinate>();
+      int size = section.geometry().size();
+      int step = Math.max(1, (size + 99) / 100);
+      for (int index = 0; index < size; index += step) track.add(section.geometry().get(index));
+      if (size > 1 && (size - 1) % step != 0) track.add(section.geometry().get(size - 1));
+      track.removeIf(point -> point == null || !Double.isFinite(point.longitude()) || !Double.isFinite(point.latitude())
+          || Math.abs(point.longitude()) > 180 || Math.abs(point.latitude()) > 90);
+      if (track.size() > 1) tracks.add(track);
+    }
+    if (tracks.isEmpty()) return;
+    var points = tracks.stream().flatMap(List::stream).toList();
+    double west = points.stream().mapToDouble(Trip.Coordinate::longitude).min().orElseThrow();
+    double north = points.stream().mapToDouble(Trip.Coordinate::latitude).max().orElseThrow();
+    double east = points.stream().mapToDouble(Trip.Coordinate::longitude).max().orElseThrow();
+    double south = points.stream().mapToDouble(Trip.Coordinate::latitude).min().orElseThrow();
+    double longitudeScale = Math.max(0.08, Math.cos(Math.toRadians(north)));
+    double scale = Math.min(650 / Math.max((east - west) * longitudeScale, 1e-6), 185 / Math.max(north - south, 1e-6));
+    var path = new PathElement();
+    path.id = "walking-geometry"; path.type = "path"; path.x = 60; path.y = 124;
+    path.width = 670; path.height = 202; path.fill = "none"; path.stroke = "#317559"; path.strokeWidth = 4;
+    var data = new StringBuilder();
+    var markers = new ArrayList<Trip.Coordinate>();
+    markers.add(tracks.get(0).get(0));
+    for (var track : tracks) {
+      for (int index = 0; index < track.size(); index++) {
+        var point = track.get(index);
+        data.append(index == 0 ? "M " : "L ").append(Math.round((point.longitude() - west) * longitudeScale * scale))
+            .append(' ').append(Math.round((north - point.latitude()) * scale)).append(' ');
+      }
+      markers.add(track.get(track.size() - 1));
+    }
+    path.d = data.toString();
+    page.elements.add(path);
+    for (int index = 0; index < markers.size(); index++) {
+      var marker = markers.get(index);
+      page.elements.add(JourneyTypography.fit(Integer.toString(index + 1),
+          61 + (marker.longitude() - west) * longitudeScale * scale,
+          115 + (north - marker.latitude()) * scale, 28, 20, 11, true, "#244e42"));
+    }
   }
 
   private void appendSnapshot(List<Slide> pages, JourneyService.View view, RouteSnapshotService.Snapshot snapshot, String title) {
@@ -87,7 +214,10 @@ public class JourneyRouteLayout {
         if("UNKNOWN".equals(meta.get("visit_status")))badges.add(RoutePrintLabels.badge(locale.getLanguage(),2));
       }
       double badgeHeight=badges.isEmpty()?0:28;
-      boolean hasNotes = row.description() != null && !row.description().isBlank();
+      String description = Objects.toString(row.description(), "");
+      String note = stop == null || stop.meta() == null ? null : stop.meta().get("user_note");
+      if (note != null && !note.isBlank()) description = description.isBlank() ? note : description + "\n" + note;
+      boolean hasNotes = !description.isBlank();
       double rowHeight = (hasNotes ? 200 : 88)+badgeHeight;
       if (y + rowHeight > 1050) {
         page = page(view, pages.size());
@@ -131,7 +261,7 @@ public class JourneyRouteLayout {
           var lens=new ShapeElement();lens.id="camera-lens-"+stop.id();lens.type="shape";lens.shape="ellipse";lens.x=729;lens.y=y+7;lens.width=6;lens.height=6;lens.fill="#ffffff";page.elements.add(lens);
         }
       }
-      if (hasNotes) page.elements.add(JourneyTypography.fit(row.description(), 50, y + 78+badgeHeight, 694, 108, 13, false, "#53665b"));
+      if (hasNotes) page.elements.add(JourneyTypography.fit(description, 50, y + 78+badgeHeight, 694, 108, 13, false, "#53665b"));
       y += rowHeight;
     }
   }

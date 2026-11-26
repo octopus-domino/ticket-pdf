@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import ru.ticket.journey.application.journey.RouteSnapshotService.Snapshot;
 import ru.ticket.journey.application.journey.RouteSnapshotService.Stop;
 import ru.ticket.journey.application.journey.RouteSnapshotService.Leg;
-import ru.ticket.journey.application.journey.RouteSnapshotService.Photo;
+import ru.ticket.journey.domain.model.RoutePhoto;
 import ru.ticket.journey.application.journey.JourneyService.Kind;
 import ru.ticket.journey.application.journey.JourneyService.View;
 import ru.ticket.journey.domain.model.Trip;
@@ -70,7 +70,7 @@ class TripV1MigrationTest {
         List.of(List.of(49.2, 55.9), List.of(37.6, 55.7)), 719_000d);
     var snapshot = new Snapshot(List.of(stop("a", "Kazan"), stop("b", "Kazan"), stop("c", "Moscow")),
         List.of(first, second), "2026-11-21T08:00", List.of(), null,
-        List.of(new Photo("a", "photo-a", "https://example.invalid", "Author", "CC BY", "https://creativecommons.org")));
+        List.of(new RoutePhoto("a", "photo-a", "https://example.invalid", "Author", "CC BY", "https://creativecommons.org")));
     var trip = TripV1Migration.convert(publication(Map.of()), snapshot);
     assertThat(trip.days().get(0).segments().get(0).photoRefs()).containsExactly("photo-a");
     assertThat(trip.days().get(0).walkingSections()).singleElement().satisfies(section -> {

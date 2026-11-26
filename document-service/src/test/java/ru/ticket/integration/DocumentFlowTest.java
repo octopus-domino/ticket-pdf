@@ -141,6 +141,47 @@ class DocumentFlowTest {
   }
 
   @Test
+  void printsTheSavedWalkWithNumberedStopsAndOnlyAvailableLicensedPhotos() throws Exception {
+    var owner = registeredHeaders("walk-photo-export");
+    var png = new java.io.ByteArrayOutputStream();
+    javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(48, 32, java.awt.image.BufferedImage.TYPE_INT_RGB), "png", png);
+    var asset = tripMedia.save("data:image/png;base64," + Base64.getEncoder().encodeToString(png.toByteArray()));
+    String missing = "a".repeat(64);
+    String itinerary = """
+        {"version":2,"id":"photo-trip","title":"Photo itinerary","startDate":"2027-01-01","endDate":"2027-01-02",
+         "travelers":[],"cities":[{"id":"city","name":"Berlin"}],"accommodations":[],"documents":[],"legs":[],
+         "days":[{"date":"2027-01-02","cityId":"city","note":"Museum walk","segments":[
+           {"id":"s1","title":"Museum","note":"Meet at the north entrance","photoRefs":["%s"],"photoCredits":[
+             {"stopId":"s1","imageId":"%s","author":"Fixture Author","license":"CC BY 4.0",
+              "licenseUrl":"https://creativecommons.org/licenses/by/4.0/","sourceUrl":"https://commons.wikimedia.org/wiki/File:Museum.jpg"}]},
+           {"id":"s2","title":"Tower","photoRefs":["%s"],"photoCredits":[
+             {"stopId":"s2","imageId":"%s","author":"Missing image author","license":"CC BY 4.0",
+              "licenseUrl":"https://creativecommons.org/licenses/by/4.0/","sourceUrl":"https://commons.wikimedia.org/wiki/File:Missing.jpg"}]},
+           {"id":"s3","title":"Bridge","photoRefs":["%s"],"photoCredits":[
+             {"stopId":"s3","imageId":"%s","author":"Unlicensed author","sourceUrl":"https://commons.wikimedia.org/wiki/File:Bridge.jpg"}]}],
+           "walkingSections":[
+             {"fromSegmentId":"s1","toSegmentId":"s2","geometry":[{"latitude":52.50,"longitude":13.40},{"latitude":52.51,"longitude":13.41}]},
+             {"fromSegmentId":"s2","toSegmentId":"s3","geometry":[{"latitude":52.51,"longitude":13.41},{"latitude":52.51,"longitude":13.42}]}]}],
+         "meta":{"mode":"TRIP","source":"PRIVATE_JOURNEY"}}
+        """.formatted(asset.id(), asset.id(), missing, missing, asset.id(), asset.id());
+    org.mockito.Mockito.when(routingTrips.read("photo-trip", owner.getFirst(HttpHeaders.AUTHORIZATION)))
+        .thenReturn(mapper.readValue(itinerary, Trip.class));
+    var response = http.exchange("/api/trips/photo-trip/pdf", HttpMethod.GET, new HttpEntity<>(owner), byte[].class);
+    assertEquals(200, response.getStatusCode().value());
+    try (var pdf = org.apache.pdfbox.Loader.loadPDF(response.getBody())) {
+      var text = new org.apache.pdfbox.text.PDFTextStripper().getText(pdf);
+      for (String item : List.of("1. Museum", "2. Tower", "3. Bridge", "Meet at the north entrance", "Fixture Author", "CC BY 4.0"))
+        assertTrue(text.contains(item), text);
+      assertFalse(text.contains("Missing image author"));
+      assertFalse(text.contains("Unlicensed author"));
+      boolean containsPhoto = false;
+      for (var page : pdf.getPages()) for (var name : page.getResources().getXObjectNames())
+        if (page.getResources().isImageXObject(name)) containsPhoto = true;
+      assertTrue(containsPhoto);
+    }
+  }
+
+  @Test
   void newWorkflowsExposeProtectedIssuanceAndPrintableTables() throws Exception {
     var input =
         new ru.ticket.journey.application.journey.JourneyService.Input(

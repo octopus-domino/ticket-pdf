@@ -4,6 +4,7 @@ import ru.ticket.journey.infrastructure.media.JourneyMediaService;
 import ru.ticket.journey.shared.RouteCoordinates;
 import ru.ticket.journey.domain.repository.RouteSnapshotStore;
 import ru.ticket.journey.domain.model.JourneyRoute;
+import ru.ticket.journey.domain.model.RoutePhoto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -49,10 +50,9 @@ public class RouteSnapshotService {
     }
   }
 
-  public record Photo(String stopId, String imageId, String sourceUrl, String author, String license, String licenseUrl) {}
   public record Snapshot(
-      List<Stop> stops, List<Leg> legs, String startLocal, List<Row> timeline, String mapId, List<Photo> photos, String pointNumbering) {
-    public Snapshot(List<Stop> stops,List<Leg> legs,String startLocal,List<Row> timeline,String mapId,List<Photo> photos) {
+      List<Stop> stops, List<Leg> legs, String startLocal, List<Row> timeline, String mapId, List<RoutePhoto> photos, String pointNumbering) {
+    public Snapshot(List<Stop> stops,List<Leg> legs,String startLocal,List<Row> timeline,String mapId,List<RoutePhoto> photos) {
       this(stops,legs,startLocal,timeline,mapId,photos,null);
     }
     public Snapshot(List<Stop> stops, List<Leg> legs, String startLocal, List<Row> timeline, String mapId) {
@@ -151,7 +151,7 @@ public class RouteSnapshotService {
       int count = 0;
       if (value.photos() != null) {
         boolean themed=value.stops().stream().anyMatch(stop->stop.meta()!=null&&stop.meta().containsKey("theme"));
-        if (value.photos().size() > (themed?12:4)) invalid();
+        if (value.photos().size() > (themed ? 12 : "interior".equals(value.pointNumbering()) ? 7 : 4)) invalid();
         Set<String> photographed = new HashSet<>();
         for (var photo : value.photos()) {
           if (photo == null || !ids.contains(photo.stopId()) || !photographed.add(photo.stopId())

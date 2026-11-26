@@ -458,6 +458,7 @@ public class JourneyDocumentFactory {
       pages.add(page);
     }
     request.slides = pages;
+    if (routeLayout != null) routeLayout.appendTrip(request, trip);
     return request;
   }
 

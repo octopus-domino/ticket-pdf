@@ -35,6 +35,8 @@ class TripRoutesTest {
         .willReturn(okJson("{\"id\":\"owner\"}")));
     documents.stubFor(get("/api/auth/me").withHeader("Authorization", equalTo("Bearer other"))
         .willReturn(okJson("{\"id\":\"other\"}")));
+    documents.stubFor(get("/api/auth/me").withHeader("Authorization", equalTo("Bearer walk-owner"))
+        .willReturn(okJson("{\"id\":\"walk-owner\"}")));
     documents.stubFor(get("/api/trips/legacy/historical").withHeader("Authorization", equalTo("Bearer owner"))
         .willReturn(okJson("{\"id\":\"historical\",\"meta\":{\"mode\":\"WALK\"}}")));
   }
@@ -73,6 +75,33 @@ class TripRoutesTest {
         .isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(request(PATH, HttpMethod.POST, "owner", trip.replace("\"cities\":[]", "\"cities\":[null]")).getStatusCode())
         .isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
+  void roundTripsTheSelectedWalkAndItsAttributionThroughAccountStorage() {
+    String image = "a".repeat(64);
+    var payload = """
+        {"version":2,"id":"walk-trip","title":"Walking itinerary","startDate":"2027-01-01","endDate":"2027-01-02",
+         "travelers":[],"cities":[{"id":"city","name":"Berlin"}],"accommodations":[],"documents":[],
+         "legs":[{"id":"main-train","transport":"TRAIN","note":"Keep this transfer"}],
+         "days":[{"date":"2027-01-02","cityId":"city","segments":[
+           {"id":"first","title":"Start","walkId":"walk-1","note":"First note","photoRefs":["%s"],"photoCredits":[
+             {"stopId":"first","imageId":"%s","author":"Fixture Author","license":"CC BY 4.0",
+              "licenseUrl":"https://creativecommons.org/licenses/by/4.0/","sourceUrl":"https://commons.wikimedia.org/wiki/File:Start.jpg"}]},
+           {"id":"second","title":"Finish","walkId":"walk-1"}],
+           "walkingSections":[{"fromSegmentId":"first","toSegmentId":"second","geometry":[
+             {"longitude":13.40,"latitude":52.50},{"longitude":13.41,"latitude":52.51}]}]}],
+         "meta":{"mode":"TRIP","source":"PRIVATE_JOURNEY"}}
+        """.formatted(image, image);
+    var created = request(PATH, HttpMethod.POST, "walk-owner", payload);
+    assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    var reopened = request(PATH + "/walk-trip", HttpMethod.GET, "walk-owner", null).getBody();
+    assertThat(reopened).isEqualTo(created.getBody());
+    assertThat(reopened.at("/days/0/segments/0/photoCredits/0/author").asText()).isEqualTo("Fixture Author");
+    var edited = request(PATH + "/walk-trip", HttpMethod.PUT, "walk-owner", payload.replace("First note", "Edited note"));
+    assertThat(edited.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(request(PATH + "/walk-trip", HttpMethod.GET, "walk-owner", null).getBody()).isEqualTo(edited.getBody());
+    assertThat(edited.getBody().path("legs")).isEqualTo(reopened.path("legs"));
   }
 
   @Test

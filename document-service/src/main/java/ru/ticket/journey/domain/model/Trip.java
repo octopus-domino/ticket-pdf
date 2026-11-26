@@ -1,6 +1,7 @@
 package ru.ticket.journey.domain.model;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -68,10 +69,19 @@ public record Trip(int version, String id, String title, String description,
   /** Activity or idea at a location, with local times and optional cost. */
   public record Segment(String id, String title, Double latitude, Double longitude, String address,
       LocalTime startTime, LocalTime endTime, Category category, Money cost, String note,
-      List<String> photoRefs, boolean idea) {
+      List<String> photoRefs, boolean idea, @JsonInclude(JsonInclude.Include.NON_NULL) String walkId,
+      @JsonInclude(JsonInclude.Include.NON_NULL) String sourceUrl,
+      @JsonInclude(JsonInclude.Include.NON_NULL) String walkNote,
+      @JsonInclude(JsonInclude.Include.NON_EMPTY) List<RoutePhoto> photoCredits) {
     /** Copies the accompanying photo references. */
     public Segment {
-      photoRefs = List.copyOf(photoRefs);
+      photoRefs = photoRefs == null ? List.of() : List.copyOf(photoRefs);
+      photoCredits = photoCredits == null ? List.of() : List.copyOf(photoCredits);
+    }
+
+    public Segment(String id, String title, Double latitude, Double longitude, String address, LocalTime startTime,
+        LocalTime endTime, Category category, Money cost, String note, List<String> photoRefs, boolean idea) {
+      this(id, title, latitude, longitude, address, startTime, endTime, category, cost, note, photoRefs, idea, null, null, null, List.of());
     }
   }
   /** Travel between two destinations with times in their own zones. */

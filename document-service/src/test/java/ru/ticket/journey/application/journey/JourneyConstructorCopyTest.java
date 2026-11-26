@@ -1,5 +1,7 @@
 package ru.ticket.journey.application.journey;
 
+import ru.ticket.journey.domain.model.RoutePhoto;
+
 import ru.ticket.journey.infrastructure.media.JourneyMediaService;
 import ru.ticket.journey.infrastructure.persistence.JourneyPrintSource;
 import ru.ticket.journey.infrastructure.persistence.JourneyPrintSourceRepository;
@@ -83,7 +85,7 @@ class JourneyConstructorCopyTest {
     var legs = List.of(new RouteSnapshotService.Leg("foot", 600, null, null, null, null,
         List.of(List.of(13.388, 52.517), List.of(13.389, 52.518)), 150.0));
     var timeline = List.of(new RouteSnapshotService.Row("stop", "Museum", "2026-11-12T09:00:00Z", "2026-11-12T09:30:00Z", "Europe/Berlin"));
-    var photos = List.of(new RouteSnapshotService.Photo("museum", image.id(), "https://commons.wikimedia.org/wiki/File:Fixture.jpg",
+    var photos = List.of(new RoutePhoto("museum", image.id(), "https://commons.wikimedia.org/wiki/File:Fixture.jpg",
         "Fixture photographer", "CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/"));
     String walk = routes.save(new RouteSnapshotService.Snapshot(stops, legs, "2026-11-12T09:00", timeline, image.id(), photos)).id();
     var mainStops = List.of(new RouteSnapshotService.Stop("home", "Hotel", 13.388, 52.517, "Europe/Berlin", 0, null, walk), stops.get(1));

@@ -1,5 +1,7 @@
 package ru.ticket.journey;
 
+import ru.ticket.journey.domain.model.RoutePhoto;
+
 import ru.ticket.journey.application.journey.JourneyService;
 import ru.ticket.journey.application.journey.RouteSnapshotService;
 import ru.ticket.journey.infrastructure.media.JourneyMedia;
@@ -22,10 +24,10 @@ class JourneyRouteCreditsTest {
     when(asset.dataUri()).thenReturn("data:image/jpeg;base64,AQ==");
     when(media.get("map")).thenReturn(asset);
     var stops=new ArrayList<RouteSnapshotService.Stop>();
-    var photos=new ArrayList<RouteSnapshotService.Photo>();
+    var photos=new ArrayList<RoutePhoto>();
     for(int i=0;i<7;i++){
       stops.add(new RouteSnapshotService.Stop("s"+i,"Place "+i,30,60,"Europe/Moscow",20));
-      photos.add(new RouteSnapshotService.Photo("s"+i,"image","https://commons.wikimedia.org/wiki/File:Place_"+i+".jpg","Photographer "+i,"CC BY-SA 4.0","https://creativecommons.org/licenses/by-sa/4.0/"));
+      photos.add(new RoutePhoto("s"+i,"image","https://commons.wikimedia.org/wiki/File:Place_"+i+".jpg","Photographer "+i,"CC BY-SA 4.0","https://creativecommons.org/licenses/by-sa/4.0/"));
     }
     when(routes.get("route")).thenReturn(new RouteSnapshotService.Snapshot(stops,List.of(),"2026-11-14T09:00",List.of(),"map",photos));
     var document=new ExportRequest();document.slides=new ArrayList<>();
